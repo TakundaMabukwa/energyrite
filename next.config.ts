@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
+  // Add redirects for Vercel deployment
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/auth/login',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
