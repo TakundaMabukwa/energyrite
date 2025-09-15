@@ -1,0 +1,33 @@
+# Ignore development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignore test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__/
+tests/
+
+# Ignore documentation
+README.md
+docs/
+*.md
+
+# Ignore development tools
+.vscode/
+.idea/
+*.log
+.DS_Store
+
+# Ignore build artifacts
+.next/
+out/
+dist/
+build/
+
+# Ignore node modules (should be installed fresh)
+node_modules/

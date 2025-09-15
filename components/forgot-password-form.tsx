@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 
 export function ForgotPasswordForm({
   className,
@@ -46,6 +47,17 @@ export function ForgotPasswordForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      {/* Logo above the form */}
+      <div className="flex justify-center mb-6">
+        <Image
+          src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg"
+          alt="Energyrite Logo"
+          width={200}
+          height={50}
+          className="w-auto h-12"
+        />
+      </div>
+      
       {success ? (
         <Card>
           <CardHeader>
@@ -53,7 +65,7 @@ export function ForgotPasswordForm({
             <CardDescription>Password reset instructions sent</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               If you registered using your email and password, you will receive
               a password reset email.
             </p>
@@ -71,7 +83,7 @@ export function ForgotPasswordForm({
           <CardContent>
             <form onSubmit={handleForgotPassword}>
               <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
+                <div className="gap-2 grid">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
@@ -82,12 +94,12 @@ export function ForgotPasswordForm({
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-red-500 text-sm">{error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Sending..." : "Send reset email"}
                 </Button>
               </div>
-              <div className="mt-4 text-center text-sm">
+              <div className="mt-4 text-sm text-center">
                 Already have an account?{" "}
                 <Link
                   href="/auth/login"
