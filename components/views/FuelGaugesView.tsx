@@ -115,7 +115,91 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
     } catch (err) {
       console.error('❌ Error fetching vehicle data:', err);
       setError('Failed to load vehicle data. Please try again.');
-      setFuelConsumptionData([]);
+      
+      // Set dummy fuel consumption data when API fails
+      const dummyFuelData: FuelConsumptionData[] = [
+        {
+          plate: 'SPUR THUVL',
+          branch: 'Johannesburg',
+          company: 'SPUR Corporation',
+          fuel_probe_1_level_percentage: 78,
+          fuel_probe_1_volume_in_tank: 125.5,
+          fuel_probe_2_level_percentage: 76,
+          fuel_probe_2_volume_in_tank: 120.2,
+          current_status: 'Active',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: false,
+          fuel_anomaly_note: ''
+        },
+        {
+          plate: 'KFC WEST',
+          branch: 'Cape Town',
+          company: 'YUM Equity',
+          fuel_probe_1_level_percentage: 65,
+          fuel_probe_1_volume_in_tank: 98.2,
+          fuel_probe_2_level_percentage: 63,
+          fuel_probe_2_volume_in_tank: 95.1,
+          current_status: 'Active',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: false,
+          fuel_anomaly_note: ''
+        },
+        {
+          plate: 'MUSHROOM',
+          branch: 'Durban',
+          company: 'Mushroom Group',
+          fuel_probe_1_level_percentage: 82,
+          fuel_probe_1_volume_in_tank: 145.8,
+          fuel_probe_2_level_percentage: 80,
+          fuel_probe_2_volume_in_tank: 142.3,
+          current_status: 'Active',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: false,
+          fuel_anomaly_note: ''
+        },
+        {
+          plate: 'SPUR CENTRAL',
+          branch: 'Pretoria',
+          company: 'SPUR Corporation',
+          fuel_probe_1_level_percentage: 45,
+          fuel_probe_1_volume_in_tank: 67.3,
+          fuel_probe_2_level_percentage: 43,
+          fuel_probe_2_volume_in_tank: 64.8,
+          current_status: 'Low Fuel',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: false,
+          fuel_anomaly_note: ''
+        },
+        {
+          plate: 'KFC EAST',
+          branch: 'Port Elizabeth',
+          company: 'YUM Equity',
+          fuel_probe_1_level_percentage: 91,
+          fuel_probe_1_volume_in_tank: 156.7,
+          fuel_probe_2_level_percentage: 89,
+          fuel_probe_2_volume_in_tank: 153.2,
+          current_status: 'Active',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: false,
+          fuel_anomaly_note: ''
+        },
+        {
+          plate: 'SPUR NORTH',
+          branch: 'Bloemfontein',
+          company: 'SPUR Corporation',
+          fuel_probe_1_level_percentage: 72,
+          fuel_probe_1_volume_in_tank: 112.4,
+          fuel_probe_2_level_percentage: 70,
+          fuel_probe_2_volume_in_tank: 109.8,
+          current_status: 'Active',
+          last_message_date: new Date().toISOString(),
+          fuel_anomaly: true,
+          fuel_anomaly_note: 'Possible fuel theft: 15.2L in 12 minutes'
+        }
+      ];
+      
+      setFuelConsumptionData(dummyFuelData);
+      console.log('🔄 Using dummy fuel consumption data due to API error');
     } finally {
       setLoading(false);
     }

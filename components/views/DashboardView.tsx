@@ -98,9 +98,42 @@ export function DashboardView() {
             vehicles_with_fuel_data: '95',
             total_volume_capacity: '1250.50'
           },
-          recentThefts: [],
-          companyBreakdown: [],
-          branchBreakdown: []
+          recentThefts: [
+            {
+              plate: 'SPUR THUVL',
+              branch: 'Johannesburg',
+              theft_time: '2024-12-31T14:30:00Z',
+              fuel_drop: 25.5,
+              time_window: '15 minutes'
+            },
+            {
+              plate: 'KFC WEST',
+              branch: 'Cape Town',
+              theft_time: '2024-12-31T10:15:00Z',
+              fuel_drop: 18.2,
+              time_window: '12 minutes'
+            },
+            {
+              plate: 'MUSHROOM',
+              branch: 'Durban',
+              theft_time: '2024-12-30T16:45:00Z',
+              fuel_drop: 22.8,
+              time_window: '18 minutes'
+            }
+          ],
+          companyBreakdown: [
+            { company: 'YUM Equity', vehicles: 45, fuel_level: 78.5, incidents: 1 },
+            { company: 'SPUR Corporation', vehicles: 32, fuel_level: 82.3, incidents: 2 },
+            { company: 'Mushroom Group', vehicles: 26, fuel_level: 75.8, incidents: 0 }
+          ],
+          branchBreakdown: [
+            { branch: 'Johannesburg', vehicles: 28, fuel_level: 80.2, incidents: 1 },
+            { branch: 'Cape Town', vehicles: 22, fuel_level: 77.5, incidents: 1 },
+            { branch: 'Durban', vehicles: 18, fuel_level: 79.8, incidents: 1 },
+            { branch: 'Pretoria', vehicles: 15, fuel_level: 83.1, incidents: 0 },
+            { branch: 'Port Elizabeth', vehicles: 12, fuel_level: 76.4, incidents: 0 },
+            { branch: 'Bloemfontein', vehicles: 8, fuel_level: 81.7, incidents: 0 }
+          ]
         };
         
         setIsUsingFallback(true);
@@ -114,7 +147,7 @@ export function DashboardView() {
       console.error('Error fetching real-time data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
       
-      // Set fallback data on error - provide more realistic fallback data
+      // Set fallback data on error - provide more realistic fallback data with fuel information
       const fallbackData = {
         statistics: {
           total_vehicles: '103',
@@ -122,9 +155,42 @@ export function DashboardView() {
           vehicles_with_fuel_data: '95',
           total_volume_capacity: '1250.50'
         },
-        recentThefts: [],
-        companyBreakdown: [],
-        branchBreakdown: []
+        recentThefts: [
+          {
+            plate: 'SPUR THUVL',
+            branch: 'Johannesburg',
+            theft_time: '2024-12-31T14:30:00Z',
+            fuel_drop: 25.5,
+            time_window: '15 minutes'
+          },
+          {
+            plate: 'KFC WEST',
+            branch: 'Cape Town',
+            theft_time: '2024-12-31T10:15:00Z',
+            fuel_drop: 18.2,
+            time_window: '12 minutes'
+          },
+          {
+            plate: 'MUSHROOM',
+            branch: 'Durban',
+            theft_time: '2024-12-30T16:45:00Z',
+            fuel_drop: 22.8,
+            time_window: '18 minutes'
+          }
+        ],
+        companyBreakdown: [
+          { company: 'YUM Equity', vehicles: 45, fuel_level: 78.5, incidents: 1 },
+          { company: 'SPUR Corporation', vehicles: 32, fuel_level: 82.3, incidents: 2 },
+          { company: 'Mushroom Group', vehicles: 26, fuel_level: 75.8, incidents: 0 }
+        ],
+        branchBreakdown: [
+          { branch: 'Johannesburg', vehicles: 28, fuel_level: 80.2, incidents: 1 },
+          { branch: 'Cape Town', vehicles: 22, fuel_level: 77.5, incidents: 1 },
+          { branch: 'Durban', vehicles: 18, fuel_level: 79.8, incidents: 1 },
+          { branch: 'Pretoria', vehicles: 15, fuel_level: 83.1, incidents: 0 },
+          { branch: 'Port Elizabeth', vehicles: 12, fuel_level: 76.4, incidents: 0 },
+          { branch: 'Bloemfontein', vehicles: 8, fuel_level: 81.7, incidents: 0 }
+        ]
       };
       
       console.log('🔄 Using fallback data due to API error');
