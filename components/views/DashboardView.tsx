@@ -280,11 +280,6 @@ export function DashboardView() {
                     'Real-time Dashboard Overview'
                   }
                 </h2>
-                {isUsingFallback && (
-                  <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-600">
-                    Demo Data
-                  </Badge>
-                )}
                 {error && (
                   <Badge variant="outline" className="bg-red-50 border-red-300 text-red-600">
                     API Error

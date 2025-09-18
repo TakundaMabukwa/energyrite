@@ -87,8 +87,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       console.log('📊 Fetching executive dashboard data from multiple endpoints...');
       
-      // Build query parameters for cost center filtering
+      // Build query parameters for month/year and cost center filtering (new API guide)
       const queryParams = new URLSearchParams();
+      const now = new Date();
+      queryParams.append('month', String(now.getMonth() + 1));
+      queryParams.append('year', String(now.getFullYear()));
       if (selectedRoute && ('costCode' in selectedRoute)) {
         if (selectedRoute.costCode) {
           queryParams.append('cost_code', selectedRoute.costCode);
@@ -162,31 +165,26 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       console.log('📊 All data processed successfully');
       
-      // Update score cards with combined data
+      // Update score cards with executive score_card data
       setScoreCardData([
         {
-          value: Number(vehiclesStats?.total_vehicles || 0),
-          label: 'Total Vehicles',
-          barColor: 'bg-blue-500'
-        },
-        {
-          value: Number(vehiclesStats?.active_vehicles || 0),
-          label: 'Currently Active',
+          value: Number(executiveData?.score_card?.sites_running_over_day ?? 0),
+          label: 'Sites Running Today',
           barColor: 'bg-green-500'
         },
         {
-          value: Number((executiveData?.sites_running_over_24h || []).length || 0),
-          label: 'Over 24 Hours',
-          barColor: 'bg-amber-400'
+          value: Number(parseFloat(executiveData?.score_card?.total_hours_running ?? '0') || 0),
+          label: 'Hours Running',
+          barColor: 'bg-blue-500'
         },
         {
-          value: Number(parseFloat(executiveData?.score_card?.total_hours_running || '0') || 0),
-          label: 'Total Activity Hours',
+          value: Number(parseFloat(executiveData?.score_card?.total_litres_filled ?? '0') || 0),
+          label: 'Litres Filled',
           barColor: 'bg-purple-500'
         },
         {
-          value: Number(anomaliesCount || 0),
-          label: 'Theft Incidents',
+          value: Number(parseFloat(executiveData?.score_card?.total_litres_used ?? '0') || 0),
+          label: 'Litres Used',
           barColor: 'bg-red-500'
         }
       ]);
@@ -223,21 +221,17 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         }]);
       }
 
-      // Update activity data from vehicles stats when available
-      if (vehiclesStats) {
-        setActivityData([
-          { label: 'Active Vehicles', value: Math.round(vehiclesStats.active_vehicles || 0), color: '#10B981' },
-          { label: 'Over 24h', value: Math.round(vehiclesStats.vehicles_over_24h || 0), color: '#D97706' },
-          { label: 'Total', value: Math.round(vehiclesStats.total_vehicles || 0), color: '#3B82F6' }
-        ]);
-      } else {
-        // No data → show three realistic placeholder bars
-        setActivityData([
-          { label: 'Active Vehicles', value: 2200, color: '#8B4513' },
-          { label: 'Over 24h', value: 600, color: '#A0522D' },
-          { label: 'Total', value: 5200, color: '#CD853F' }
-        ]);
-      }
+      // Update activity running time (minutes) using executive score_card values
+      const hoursRunning = Number(parseFloat(executiveData?.score_card?.total_hours_running ?? '0') || 0);
+      const hoursNotRunning = Number(parseFloat(executiveData?.score_card?.total_hours_not_running ?? '0') || 0);
+      const runningMinutes = Math.round(hoursRunning * 60);
+      const notRunningMinutes = Math.round(hoursNotRunning * 60);
+      const totalMinutes = runningMinutes + notRunningMinutes;
+      setActivityData([
+        { label: 'Running', value: runningMinutes, color: '#10B981' },
+        { label: 'Not Running', value: notRunningMinutes, color: '#D97706' },
+        { label: 'Total', value: totalMinutes, color: '#3B82F6' }
+      ]);
 
       // Update long running data based on executive sites_running_over_24h
       if (executiveData?.sites_running_over_24h?.length) {
@@ -271,11 +265,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Default chart data with explicit no-data states
       setScoreCardData([
-        { value: 0, label: 'Total Vehicles', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Currently Active', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Over 24 Hours', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Total Activity Hours', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Theft Incidents', barColor: 'bg-gray-400' }
+        { value: 0, label: 'Sites Running Today', barColor: 'bg-gray-400' },
+        { value: 0, label: 'Hours Running', barColor: 'bg-gray-400' },
+        { value: 0, label: 'Litres Filled', barColor: 'bg-gray-400' },
+        { value: 0, label: 'Litres Used', barColor: 'bg-gray-400' }
       ]);
       
       setTopSitesData([{ label: 'No Data Available', value: 0, color: '#8B4513' }]);

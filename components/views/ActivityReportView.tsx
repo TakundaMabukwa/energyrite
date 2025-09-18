@@ -13,34 +13,32 @@ interface ActivityReportViewProps {
 }
 
 interface ActivityStatistics {
-  // Summary fields from /reports/activity-report
+  // Summary fields from /reports/activity-report (new schema)
   total_sites?: number;
-  engine_on_events?: number;
-  engine_off_events?: number;
-  total_fuel_used?: number;
-  total_fuel_filled?: number;
+  morning_snapshots?: number;
+  midday_snapshots?: number;
+  evening_snapshots?: number;
+  avg_morning_fuel?: number;
+  avg_evening_fuel?: number;
   irregularities_count?: number;
-  // Legacy/extra fields (kept optional to avoid breakage)
-  total_vehicles?: number;
-  currently_active?: number;
-  active_vehicles?: number;
-  vehicles_with_engine_data?: number;
-  vehicles_over_24h?: number;
-  avg_activity_duration?: number;
-  max_activity_duration?: number;
-  total_activity_hours?: number;
 }
 
-interface ActiveVehicle {
+interface SiteDayRow {
   id: number;
   branch: string;
   company: string;
-  plate: string;
-  current_status: string;
-  engine_on_time: string;
-  hours_running: number;
-  activity_start_time: string;
-  activity_duration_hours: number;
+  cost_code: string;
+  fuel_level_morning: number | null;
+  fuel_level_midday: number | null;
+  fuel_level_evening: number | null;
+  engine_status_morning: string | null;
+  engine_status_midday: string | null;
+  engine_status_evening: string | null;
+  total_fuel_used: number;
+  total_fuel_filled: number;
+  irregularities_count: number;
+  first_snapshot: string | null;
+  last_snapshot: string | null;
 }
 
 export function ActivityReportView({ onBack }: ActivityReportViewProps) {
@@ -54,8 +52,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityStatistics | null>(null);
-  const [activeVehicles, setActiveVehicles] = useState<ActiveVehicle[]>([]);
-  const [vehiclesOver24h, setVehiclesOver24h] = useState<ActiveVehicle[]>([]);
+  const [siteRows, setSiteRows] = useState<SiteDayRow[]>([]);
+  const [vehiclesOver24h, setVehiclesOver24h] = useState<never[]>([]);
 
   const getCostCenterName = () => {
     if (selectedRoute && 'name' in selectedRoute) {
@@ -102,35 +100,21 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     }, 0);
   };
 
-  // Fetch activity data from Energy Rite server
+  // Fetch activity data from Energy Rite server (new schema)
   const fetchActivityData = async (forDate?: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      // Build query parameters based on selected cost center
-      const buildUrl = (endpoint: string) => {
-        let url = `/api/energy-rite-proxy?endpoint=${endpoint}`;
-        
-        if (selectedRoute && ('costCode' in selectedRoute || 'branch' in selectedRoute)) {
-          // Use query parameters for filtering (most reliable approach)
-          const params = new URLSearchParams();
-          if (selectedRoute.costCode) {
-            params.append('cost_code', selectedRoute.costCode);
-          }
-          
-          if (params.toString()) {
-            url += `&${params.toString()}`;
-          }
-          console.log('🔍 Using query parameters for activity:', url);
-        }
-        
-        return url;
-      };
-      
-      // Fetch activity report (summary for selected date)
+      // Build proxy URL: keep query params separate from endpoint to avoid double '?'
       const targetDate = (forDate || selectedDate || '').toString();
-      const statsResponse = await fetch(buildUrl(`/api/energy-rite/reports/activity-report?date=${targetDate}`));
+      const params = new URLSearchParams();
+      if (targetDate) params.append('date', targetDate);
+      if (selectedRoute && 'costCode' in selectedRoute && selectedRoute.costCode) {
+        params.append('cost_code', selectedRoute.costCode);
+      }
+      const statsUrl = `/api/energy-rite-proxy?endpoint=/api/energy-rite/reports/activity-report${params.toString() ? `&${params.toString()}` : ''}`;
+      const statsResponse = await fetch(statsUrl);
       if (statsResponse.ok) {
         const statsResult = await statsResponse.json();
         if (statsResult.success) {
@@ -138,49 +122,37 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           const summary = data.summary || {};
           setActivityStats({
             total_sites: Number(summary.total_sites || 0),
-            engine_on_events: Number(summary.engine_on_events || 0),
-            engine_off_events: Number(summary.engine_off_events || 0),
-            total_fuel_used: Number(parseFloat(summary.total_fuel_used || '0') || 0),
-            total_fuel_filled: Number(parseFloat(summary.total_fuel_filled || '0') || 0),
+            morning_snapshots: Number(summary.morning_snapshots || 0),
+            midday_snapshots: Number(summary.midday_snapshots || 0),
+            evening_snapshots: Number(summary.evening_snapshots || 0),
+            avg_morning_fuel: Number(parseFloat(summary.avg_morning_fuel || '0') || 0),
+            avg_evening_fuel: Number(parseFloat(summary.avg_evening_fuel || '0') || 0),
             irregularities_count: Number(summary.irregularities_count || 0),
           });
 
-          // Derive per-site activity for the selected date to populate the table
+          // Map sites to rows for table display
           const sites: any[] = Array.isArray(data.sites) ? data.sites : [];
-          const derivedActiveVehicles = sites.map((s: any, idx: number) => {
-            const activities: any[] = Array.isArray(s.activities) ? s.activities : [];
-            const lastActivity = activities.length ? activities[activities.length - 1] : null;
-            const status = lastActivity?.type === 'ENGINE_ON' ? 'ON' : 'OFF';
-            return {
-              id: idx + 1,
-              branch: s.branch,
-              company: s.company,
-              plate: s.cost_code || String(idx + 1),
-              current_status: status,
-              engine_on_time: s.first_activity || targetDate,
-              hours_running: Number(s.running_duration || 0),
-              activity_start_time: s.first_activity || targetDate,
-              activity_duration_hours: Number(s.running_duration || 0),
-            } as ActiveVehicle;
-          });
-          setActiveVehicles(derivedActiveVehicles);
-
-          // Vehicles/sites running over 24h for the selected date
-          const over24 = sites.filter((s: any) => Number(s.running_duration || 0) >= 24).map((s: any, idx: number) => ({
+          const rows: SiteDayRow[] = sites.map((s: any, idx: number) => ({
             id: idx + 1,
             branch: s.branch,
             company: s.company,
-            plate: s.cost_code || String(idx + 1),
-            current_status: 'ON',
-            engine_on_time: s.first_activity || targetDate,
-            hours_running: Number(s.running_duration || 0),
-            activity_start_time: s.first_activity || targetDate,
-            activity_duration_hours: Number(s.running_duration || 0),
-          } as ActiveVehicle));
-          setVehiclesOver24h(over24);
+            cost_code: s.cost_code || '',
+            fuel_level_morning: typeof s.fuel_level_morning === 'number' ? s.fuel_level_morning : null,
+            fuel_level_midday: typeof s.fuel_level_midday === 'number' ? s.fuel_level_midday : null,
+            fuel_level_evening: typeof s.fuel_level_evening === 'number' ? s.fuel_level_evening : null,
+            engine_status_morning: s.engine_status_morning || null,
+            engine_status_midday: s.engine_status_midday || null,
+            engine_status_evening: s.engine_status_evening || null,
+            total_fuel_used: Number(s.total_fuel_used || 0),
+            total_fuel_filled: Number(s.total_fuel_filled || 0),
+            irregularities_count: Number(s.irregularities_count || 0),
+            first_snapshot: s.first_snapshot || null,
+            last_snapshot: s.last_snapshot || null,
+          }));
+          setSiteRows(rows);
         }
       }
-      // Removed fetching of current active endpoints to ensure data reflects the selected date only
+      // No additional endpoints; the report returns pre-generated daily data
     } catch (err) {
       console.error('Error fetching activity data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch activity data');
@@ -203,8 +175,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   useEffect(() => {
     // Do not auto-fetch on mount or route change. Wait for user to select date & month.
     setActivityStats(null);
-    setActiveVehicles([]);
-    setVehiclesOver24h([]);
+    setSiteRows([]);
+    setVehiclesOver24h([] as never[]);
     setLoading(false);
   }, [selectedRoute]);
 
@@ -233,7 +205,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
       {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Activity Statistics Cards */}
+        {/* Activity Statistics Cards (new schema) */}
         {activityStats && (
           <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border border-gray-200">
@@ -247,31 +219,31 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="shadow-sm border border-gray-200">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.engine_on_events ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Engine ON</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.avg_morning_fuel?.toFixed(2) ?? '0.00'}</p>
+                    <p className="text-gray-600 text-sm">Avg Morning Fuel</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="shadow-sm border border-gray-200">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-purple-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.engine_off_events ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Engine OFF</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.avg_evening_fuel?.toFixed(2) ?? '0.00'}</p>
+                    <p className="text-gray-600 text-sm">Avg Evening Fuel</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="shadow-sm border border-gray-200">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -286,11 +258,11 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </div>
         )}
 
-        {/* Active Vehicles Table */}
+        {/* Daily Snapshots Table */}
         <Card className="shadow-sm border border-gray-200">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Activity</CardTitle>
+              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Daily Snapshots</CardTitle>
               <div className="flex items-center gap-2">
                 <Input
                   type="date"
@@ -336,37 +308,37 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <table className="w-full">
                   <thead className="bg-[#1e3a5f] text-white">
                     <tr>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Plate</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Cost Code</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Branch</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Company</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Status</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Hours Running</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Started</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Morning</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Midday</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Evening</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Engine Morning</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Start Time</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">End Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {activeVehicles.length > 0 ? (
-                      activeVehicles.map((vehicle) => (
-                        <tr key={vehicle.id}>
-                          <td className="px-6 py-4 font-medium text-gray-900 text-sm">{vehicle.plate}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{vehicle.branch}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{vehicle.company}</td>
-                          <td className="px-6 py-4 text-sm">
-                            <span className="bg-green-100 px-2 py-1 rounded-full text-green-800 text-xs">
-                              {vehicle.current_status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{vehicle.hours_running.toFixed(1)}h</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">
-                            {new Date(vehicle.activity_start_time).toLocaleString()}
-                          </td>
+                    {siteRows.length > 0 ? (
+                      siteRows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.cost_code}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.branch}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.company}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_morning ?? '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_midday ?? '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_evening ?? '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.engine_status_morning ?? '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.first_snapshot ? new Date(row.first_snapshot).toLocaleString() : '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.last_snapshot ? new Date(row.last_snapshot).toLocaleString() : '-'}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center">
+                        <td colSpan={9} className="px-6 py-12 text-center">
                           <div className="text-gray-500">
-                            <p className="text-lg">No active vehicles</p>
+                            <p className="text-lg">No snapshot data</p>
                           </div>
                         </td>
                       </tr>
@@ -378,7 +350,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </CardContent>
         </Card>
 
-        {/* Vehicles Over 24 Hours */}
+        {/* Vehicles Over 24 Hours (not provided by new activity report; keep hidden unless populated elsewhere) */}
         {vehiclesOver24h.length > 0 && (
           <Card className="shadow-sm border border-gray-200">
             <CardHeader>
@@ -399,17 +371,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {vehiclesOver24h.map((vehicle) => (
-                      <tr key={vehicle.id}>
-                        <td className="px-6 py-4 font-medium text-gray-900 text-sm">{vehicle.plate}</td>
-                        <td className="px-6 py-4 text-gray-900 text-sm">{vehicle.branch}</td>
-                        <td className="px-6 py-4 font-medium text-orange-600 text-sm">
-                          {vehicle.activity_duration_hours.toFixed(1)}h
-                        </td>
-                        <td className="px-6 py-4 text-gray-900 text-sm">
-                          {new Date(vehicle.activity_start_time).toLocaleString()}
-                        </td>
-                      </tr>
+                    {vehiclesOver24h.map(() => (
+                      <tr key={0}></tr>
                     ))}
                   </tbody>
                 </table>

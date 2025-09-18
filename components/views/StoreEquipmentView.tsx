@@ -23,13 +23,51 @@ interface RealtimeDashboardData {
 }
 
 interface VehicleEquipment {
-  id: string;
-  vehicle_id: string;
-  cost_code: string;
-  ip_address: string;
+  id: number;
   branch: string;
   company: string;
-  fuel_probe_1_volume_in_tank?: number;
+  plate: string | null;
+  ip_address: string;
+  cost_code: string;
+  speed: string;
+  latitude: string;
+  longitude: string;
+  loctime: string;
+  quality: string;
+  mileage: string;
+  pocsagstr: string | null;
+  head: string | null;
+  geozone: string;
+  drivername: string | null;
+  nameevent: string | null;
+  temperature: string;
+  address: string;
+  fuel_probe_1_level: string;
+  fuel_probe_1_volume_in_tank: string;
+  fuel_probe_1_temperature: string;
+  fuel_probe_1_level_percentage: string;
+  fuel_probe_2_level: string | null;
+  fuel_probe_2_volume_in_tank: string | null;
+  fuel_probe_2_temperature: string | null;
+  fuel_probe_2_level_percentage: string | null;
+  status: string | null;
+  last_message_date: string;
+  updated_at: string;
+  volume: string;
+  theft: boolean;
+  theft_time: string | null;
+  previous_fuel_level: string | null;
+  previous_fuel_time: string | null;
+  activity_start_time: string | null;
+  activity_duration_hours: string | null;
+  total_usage_hours: string;
+  daily_usage_hours: string;
+  is_active: boolean;
+  last_activity_time: string | null;
+  fuel_anomaly: string | null;
+  fuel_anomaly_note: string | null;
+  last_anomaly_time: string | null;
+  created_at: string;
 }
 
 export function StoreEquipmentView() {
@@ -159,28 +197,15 @@ export function StoreEquipmentView() {
     }
   };
 
-  // Load equipment data directly from Energy Rite realtime endpoint
-  const fetchEquipmentData = async (costCode: string) => {
+  // Load equipment data once from internal energyrite_vehicles endpoint (no filtering)
+  const fetchEquipmentData = async () => {
     try {
       setEquipmentLoading(true);
-      const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/realtime');
+      const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles?limit=500`);
       const json = await resp.json();
-      const raw = Array.isArray(json) ? json : (Array.isArray(json?.data?.vehicles) ? json.data.vehicles : (Array.isArray(json?.data) ? json.data : (Array.isArray(json?.rows) ? json.rows : [])));
-      const matching = Array.isArray(raw) ? raw : [];
+      const rows = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
 
-      const equipment: VehicleEquipment[] = matching.map((vehicle: any, idx: number) => ({
-        id: vehicle.id || vehicle.vehicle_id || `vehicle-${idx + 1}`,
-        vehicle_id: vehicle.vehicle_id || vehicle.id || 'N/A',
-        cost_code: vehicle.cost_code || costCode || vehicle.costCode || 'N/A',
-        ip_address: vehicle.ip_address || vehicle.unitIpAddress || vehicle.ip || 'N/A',
-        branch: vehicle.branch || vehicle.branch_name || 'N/A',
-        company: vehicle.company || vehicle.company_name || 'N/A',
-        fuel_probe_1_volume_in_tank: Number(
-          vehicle.fuel_probe_1_volume_in_tank ??
-          vehicle.fuel_probe_1_volume ??
-          vehicle.volume ?? 0
-        )
-      }));
+      const equipment: VehicleEquipment[] = rows.map((row: any) => row as VehicleEquipment);
       setEquipmentData(equipment);
     } catch (error) {
       console.error('❌ Error building equipment data from context:', error);
@@ -206,13 +231,7 @@ export function StoreEquipmentView() {
     // Fetch real-time data for this cost center
     await fetchRealtimeData(costCenter);
     
-    // Fetch equipment data
-    if (costCenter.costCode) {
-      console.log('🔧 About to fetch equipment data for cost code:', costCenter.costCode);
-      await fetchEquipmentData(costCenter.costCode);
-    } else {
-      console.log('⚠️ No cost code available for this cost center');
-    }
+    // Equipment data is loaded once globally; do not filter per cost center
     
     // Show vehicles view
     setShowVehicles(true);
@@ -236,7 +255,7 @@ export function StoreEquipmentView() {
       try {
         setLoading(true);
         await fetchRealtimeData();
-        await fetchEquipmentData('');
+        await fetchEquipmentData();
       } catch (error) {
         console.error('Error initializing data:', error);
         setError('Failed to initialize data');
@@ -264,9 +283,6 @@ export function StoreEquipmentView() {
         });
         setShowVehicles(true);
         fetchRealtimeData(foundCostCenter);
-        if (foundCostCenter.costCode) {
-          fetchEquipmentData(foundCostCenter.costCode);
-        }
       }
     }
   }, [searchParams, costCenters]);
@@ -288,7 +304,7 @@ export function StoreEquipmentView() {
                 <button
                   onClick={() => {
                     fetchRealtimeData();
-                    fetchEquipmentData('');
+                    fetchEquipmentData();
                   }}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-white text-sm"
                   disabled={loading}
@@ -377,7 +393,7 @@ export function StoreEquipmentView() {
                   Equipment Details
                 </CardTitle>
                 <Badge variant="outline" className="text-gray-600">
-                  All Vehicles
+                  All Generators
                 </Badge>
               </div>
             </CardHeader>
@@ -397,77 +413,89 @@ export function StoreEquipmentView() {
               ) : (
                 <div className="space-y-4">
                   {/* Summary Cards */}
-                  <div className="gap-4 grid grid-cols-1 md:grid-cols-3 mb-6">
-                    <Card className="bg-blue-50 border-blue-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Building2 className="w-8 h-8 text-blue-600" />
-                          <div>
-                            <p className="font-medium text-blue-600 text-sm">Total Equipment</p>
-                            <p className="font-bold text-blue-800 text-2xl">{equipmentData.length}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <div className="gap-4 grid grid-cols-1 md:grid-cols-4 mb-6">
+
                     
-                    <Card className="bg-green-50 border-green-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Wifi className="w-8 h-8 text-green-600" />
-                          <div>
-                            <p className="font-medium text-green-600 text-sm">Online Devices</p>
-                            <p className="font-bold text-green-800 text-2xl">
-                              {equipmentData.filter(eq => eq.ip_address !== 'N/A').length}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="bg-orange-50 border-orange-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Fuel className="w-8 h-8 text-orange-600" />
-                          <div>
-                            <p className="font-medium text-orange-600 text-sm">Active Equipment</p>
-                            <p className="font-bold text-orange-800 text-2xl">
-                              {equipmentData.length}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+
                   </div>
 
                   {/* Equipment Table */}
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
-                          <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
-                          <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL VOL (L)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {equipmentData.map((equipment) => (
-                          <tr key={equipment.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                              {equipment.branch}
-                            </td>
-                            <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <Wifi className="w-4 h-4 text-gray-400" />
-                                {equipment.ip_address}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                              {Number(equipment.fuel_probe_1_volume_in_tank || 0).toFixed(2)}
-                            </td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">ID</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
+                            {/* <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">STATUS</th> */}
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL LEVEL %</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL VOL (L)</th>
+                            {/* <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">LAST UPDATE</th> */}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {equipmentData.map((equipment) => (
+                            <tr key={equipment.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                {equipment.id}
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                {equipment.branch}
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                {equipment.company}
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                                  {equipment.cost_code}
+                                </code>
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <Wifi className="w-4 h-4 text-gray-400" />
+                                  {equipment.ip_address}
+                                </div>
+                              </td>
+                              {/* <td className="px-4 py-4 text-sm whitespace-nowrap">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  equipment.is_active 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {equipment.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </td> */}
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-600 h-2 rounded-full" 
+                                      style={{ 
+                                        width: `${Math.min(100, Math.max(0, parseFloat(equipment.fuel_probe_1_level_percentage || '0')))}%` 
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-xs text-gray-600">
+                                    {equipment.fuel_probe_1_level_percentage}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                {parseFloat(equipment.fuel_probe_1_volume_in_tank || '0').toFixed(1)}L
+                              </td>
+                              {/* <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                <div className="text-xs text-gray-600">
+                                  {new Date(equipment.last_message_date).toLocaleString()}
+                                </div>
+                              </td> */}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
