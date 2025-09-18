@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Activity, Fuel, AlertTriangle, Clock } from 'lucide-react';
 import { HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
 import { costCenterService } from '@/lib/supabase/cost-centers';
+import { useToast } from '@/hooks/use-toast';
 
 interface RealtimeDashboardData {
   statistics?: {
@@ -31,7 +32,8 @@ interface RealtimeDashboardData {
 }
 
 export function DashboardView() {
-  const { costCenters, setSelectedRoute, activeTab, updateFuelDataForCostCenter } = useApp();
+  const { costCenters, selectedRoute, setSelectedRoute, activeTab, updateFuelDataForCostCenter, vehicles } = useApp();
+  const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -47,167 +49,77 @@ export function DashboardView() {
   const [retryCount, setRetryCount] = useState(0);
   const [isUsingFallback, setIsUsingFallback] = useState(false);
 
-  // Fetch real-time dashboard data
+  // Build dashboard stats from API vehicles stats (falls back to in-memory vehicles)
   const fetchRealtimeData = async (costCenter?: HierarchicalCostCenter) => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Use the proxy route instead of direct API call
-      let url = '/api/energy-rite-proxy?endpoint=/api/energy-rite-reports/realtime-dashboard';
-      
-      // Add cost center specific parameters if provided
-      if (costCenter) {
-        const params = new URLSearchParams();
-        if (costCenter.company) {
-          params.append('company', costCenter.company);
-        }
-        if (costCenter.branch) {
-          params.append('branch', costCenter.branch);
-        }
-        if (costCenter.costCode) {
-          params.append('costCenterId', costCenter.costCode);
-        }
-        
-        if (params.toString()) {
-          url += `&${params.toString()}`;
-        }
-      }
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success && result.data) {
-        setIsUsingFallback(false);
-        if (costCenter) {
-          setFilteredRealtimeData(result.data);
-        } else {
-          setRealtimeData(result.data);
-        }
-      } else {
-        // Set fallback data if API response is not in expected format
-        const fallbackData = {
-          statistics: {
-            total_vehicles: '103',
-            theft_incidents: '3',
-            vehicles_with_fuel_data: '95',
-            total_volume_capacity: '1250.50'
-          },
-          recentThefts: [
-            {
-              plate: 'SPUR THUVL',
-              branch: 'Johannesburg',
-              theft_time: '2024-12-31T14:30:00Z',
-              fuel_drop: 25.5,
-              time_window: '15 minutes'
+      // Try API first
+      const params = new URLSearchParams();
+      if (costCenter?.company) params.append('company', costCenter.company);
+      if (costCenter?.branch) params.append('branch', costCenter.branch);
+      const apiUrl = `/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles/stats${params.toString() ? `&${params.toString()}` : ''}`;
+      const resp = await fetch(apiUrl);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json?.success && json.data) {
+          const stats = json.data;
+          const data = {
+            statistics: {
+              total_vehicles: String(stats.total_vehicles || 0),
+              theft_incidents: '0',
+              vehicles_with_fuel_data: String(stats.active_vehicles || 0),
+              total_volume_capacity: String(stats.total_fuel_level || 0),
             },
-            {
-              plate: 'KFC WEST',
-              branch: 'Cape Town',
-              theft_time: '2024-12-31T10:15:00Z',
-              fuel_drop: 18.2,
-              time_window: '12 minutes'
-            },
-            {
-              plate: 'MUSHROOM',
-              branch: 'Durban',
-              theft_time: '2024-12-30T16:45:00Z',
-              fuel_drop: 22.8,
-              time_window: '18 minutes'
-            }
-          ],
-          companyBreakdown: [
-            { company: 'YUM Equity', vehicles: 45, fuel_level: 78.5, incidents: 1 },
-            { company: 'SPUR Corporation', vehicles: 32, fuel_level: 82.3, incidents: 2 },
-            { company: 'Mushroom Group', vehicles: 26, fuel_level: 75.8, incidents: 0 }
-          ],
-          branchBreakdown: [
-            { branch: 'Johannesburg', vehicles: 28, fuel_level: 80.2, incidents: 1 },
-            { branch: 'Cape Town', vehicles: 22, fuel_level: 77.5, incidents: 1 },
-            { branch: 'Durban', vehicles: 18, fuel_level: 79.8, incidents: 1 },
-            { branch: 'Pretoria', vehicles: 15, fuel_level: 83.1, incidents: 0 },
-            { branch: 'Port Elizabeth', vehicles: 12, fuel_level: 76.4, incidents: 0 },
-            { branch: 'Bloemfontein', vehicles: 8, fuel_level: 81.7, incidents: 0 }
-          ]
-        };
-        
-        setIsUsingFallback(true);
-        if (costCenter) {
-          setFilteredRealtimeData(fallbackData);
-        } else {
-          setRealtimeData(fallbackData);
+          } as RealtimeDashboardData;
+          setIsUsingFallback(false);
+          if (costCenter) setFilteredRealtimeData(data); else setRealtimeData(data);
+          return;
         }
       }
-    } catch (err) {
-      console.error('Error fetching real-time data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      
-      // Set fallback data on error - provide more realistic fallback data with fuel information
-      const fallbackData = {
+      // Fallback to local computation
+      const list = Array.isArray(vehicles) ? vehicles : [];
+      const filtered = costCenter?.costCode ? list.filter((v: any) => v.cost_code === costCenter.costCode) : list;
+      const totalVehicles = filtered.length;
+      const withFuel = filtered.filter((v: any) => v.fuel_probe_1_level != null || v.fuel_probe_1_volume_in_tank != null || v.volume != null).length;
+      const totalVolume = filtered.reduce((sum: number, v: any) => {
+        const vol = typeof v.volume === 'number' ? v.volume : parseFloat(v.fuel_probe_1_volume_in_tank || v.volume || '0');
+        return sum + (isNaN(vol) ? 0 : vol);
+      }, 0);
+      const thefts = filtered.filter((v: any) => v.theft === true || v.fuel_anomaly === true).length;
+      const data = {
         statistics: {
-          total_vehicles: '103',
-          theft_incidents: '3',
-          vehicles_with_fuel_data: '95',
-          total_volume_capacity: '1250.50'
+          total_vehicles: String(totalVehicles),
+          theft_incidents: String(thefts),
+          vehicles_with_fuel_data: String(withFuel),
+          total_volume_capacity: totalVolume.toFixed(2),
         },
-        recentThefts: [
-          {
-            plate: 'SPUR THUVL',
-            branch: 'Johannesburg',
-            theft_time: '2024-12-31T14:30:00Z',
-            fuel_drop: 25.5,
-            time_window: '15 minutes'
-          },
-          {
-            plate: 'KFC WEST',
-            branch: 'Cape Town',
-            theft_time: '2024-12-31T10:15:00Z',
-            fuel_drop: 18.2,
-            time_window: '12 minutes'
-          },
-          {
-            plate: 'MUSHROOM',
-            branch: 'Durban',
-            theft_time: '2024-12-30T16:45:00Z',
-            fuel_drop: 22.8,
-            time_window: '18 minutes'
-          }
-        ],
-        companyBreakdown: [
-          { company: 'YUM Equity', vehicles: 45, fuel_level: 78.5, incidents: 1 },
-          { company: 'SPUR Corporation', vehicles: 32, fuel_level: 82.3, incidents: 2 },
-          { company: 'Mushroom Group', vehicles: 26, fuel_level: 75.8, incidents: 0 }
-        ],
-        branchBreakdown: [
-          { branch: 'Johannesburg', vehicles: 28, fuel_level: 80.2, incidents: 1 },
-          { branch: 'Cape Town', vehicles: 22, fuel_level: 77.5, incidents: 1 },
-          { branch: 'Durban', vehicles: 18, fuel_level: 79.8, incidents: 1 },
-          { branch: 'Pretoria', vehicles: 15, fuel_level: 83.1, incidents: 0 },
-          { branch: 'Port Elizabeth', vehicles: 12, fuel_level: 76.4, incidents: 0 },
-          { branch: 'Bloemfontein', vehicles: 8, fuel_level: 81.7, incidents: 0 }
-        ]
-      };
-      
-      console.log('🔄 Using fallback data due to API error');
+      } as RealtimeDashboardData;
       setIsUsingFallback(true);
-      
-      if (costCenter) {
-        setFilteredRealtimeData(fallbackData);
-      } else {
-        setRealtimeData(fallbackData);
-      }
+      if (costCenter) setFilteredRealtimeData(data); else setRealtimeData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to compute stats');
+      setIsUsingFallback(true);
+      toast({
+        title: 'Dashboard stats failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
+      if (!error) {
+        toast({
+          title: 'Dashboard updated',
+          description: costCenter ? `Stats for ${costCenter.name} loaded.` : 'Overall stats loaded.'
+        });
+      }
     }
   };
 
   useEffect(() => {
+    // compute once after initial vehicles load
     fetchRealtimeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle URL parameters for sub-views

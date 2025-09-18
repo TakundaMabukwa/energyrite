@@ -94,6 +94,23 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
 
+## Environment Variables
+
+Copy these to your `.env.local` and fill in your values:
+
+```
+# Primary URL (prefer this)
+DATABASE_URL=postgresql://energyrite_admin:REPLACE_WITH_PASSWORD@127.0.0.1:5432/vehicles
+
+# Alternative discrete settings (used if DATABASE_URL not set)
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME=vehicles
+DB_USER=energyrite_admin
+DB_PASSWORD=REPLACE_WITH_PASSWORD
+DB_SSL=false
+```
+
 ## Feedback and issues
 
 Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).

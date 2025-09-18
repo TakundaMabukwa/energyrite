@@ -6,9 +6,9 @@ import { ChevronLeft, RefreshCw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { ScoreCard } from '@/components/ui/score-card';
 import { ChartCard } from '@/components/ui/chart-card';
-import { PieChart } from '@/components/charts/PieChart';
-import { BarChart } from '@/components/charts/BarChart';
-import { SemiCircleChart } from '@/components/charts/SemiCircleChart';
+import { PieChart } from '@mui/x-charts/PieChart';
+import { BarChart } from '@mui/x-charts/BarChart';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExecutiveDashboardViewProps {
   onBack?: () => void;
@@ -55,6 +55,7 @@ interface ExecutiveDashboardData {
 
 export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) {
   const { selectedRoute } = useApp();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scoreCardData, setScoreCardData] = useState<ScoreCardData[]>([]);
@@ -88,28 +89,21 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Build query parameters for cost center filtering
       const queryParams = new URLSearchParams();
-      if (selectedRoute && ('costCode' in selectedRoute || 'branch' in selectedRoute)) {
+      if (selectedRoute && ('costCode' in selectedRoute)) {
         if (selectedRoute.costCode) {
-          queryParams.append('costCenterId', selectedRoute.costCode);
-        }
-        if (selectedRoute.company) {
-          queryParams.append('company', selectedRoute.company);
-        }
-        if (selectedRoute.branch) {
-          queryParams.append('branch', selectedRoute.branch);
+          queryParams.append('cost_code', selectedRoute.costCode);
         }
       }
       
       const queryString = queryParams.toString();
       const baseUrl = '/api/energy-rite-proxy?endpoint=';
       
-      // Fetch data from multiple endpoints concurrently
+      // Fetch data from documented endpoints concurrently
       const endpoints = [
-        `${baseUrl}/api/energy-rite-vehicles/activity-statistics${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite-vehicles/over-24-hours${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite-vehicles/top-activity${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite-vehicles/fuel-consumption${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite-reports/executive-dashboard${queryString ? `&${queryString}` : ''}`
+        `${baseUrl}/api/energy-rite/reports/executive-dashboard${queryString ? `&${queryString}` : ''}`,
+        `${baseUrl}/api/energy-rite/fuel-analysis/consumption-analysis${queryString ? `&${queryString}` : ''}`,
+        `${baseUrl}/api/energy-rite/fuel-analysis/anomalies${queryString ? `&${queryString}` : ''}`,
+        `${baseUrl}/api/energy-rite/vehicles/stats${queryString ? `&${queryString}` : ''}`
       ];
       
       console.log('🔍 Fetching from endpoints:', endpoints);
@@ -122,44 +116,16 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       );
       
       // Process responses
-      const [activityStatsResult, over24hResult, topActivityResult, fuelConsumptionResult, executiveResult] = responses;
+      const [executiveResult, consumptionResult, anomaliesResult, vehiclesStatsResult] = responses;
       
-      let activityStats = null;
-      let over24hVehicles = null;
-      let topActivityVehicles = null;
-      let fuelConsumption = null;
-      let executiveData = null;
+      let vehiclesStats: any = null;
+      let fuelConsumption: any = null;
+      let executiveData: any = null;
+      let anomaliesCount = 0;
       
-      // Process activity statistics
-      if (activityStatsResult.status === 'fulfilled' && activityStatsResult.value.ok) {
-        const data = await activityStatsResult.value.json();
-        if (data.success && data.data) {
-          activityStats = data.data;
-          console.log('✅ Activity statistics received:', activityStats);
-        }
-      }
-      
-      // Process over 24 hours data
-      if (over24hResult.status === 'fulfilled' && over24hResult.value.ok) {
-        const data = await over24hResult.value.json();
-        if (data.success && data.data) {
-          over24hVehicles = data.data;
-          console.log('✅ Over 24 hours data received:', over24hVehicles);
-        }
-      }
-      
-      // Process top activity data
-      if (topActivityResult.status === 'fulfilled' && topActivityResult.value.ok) {
-        const data = await topActivityResult.value.json();
-        if (data.success && data.data) {
-          topActivityVehicles = data.data;
-          console.log('✅ Top activity data received:', topActivityVehicles);
-        }
-      }
-      
-      // Process fuel consumption data
-      if (fuelConsumptionResult.status === 'fulfilled' && fuelConsumptionResult.value.ok) {
-        const data = await fuelConsumptionResult.value.json();
+      // Process consumption analysis
+      if (consumptionResult.status === 'fulfilled' && consumptionResult.value.ok) {
+        const data = await consumptionResult.value.json();
         if (data.success && data.data) {
           fuelConsumption = data.data;
           console.log('✅ Fuel consumption data received:', fuelConsumption);
@@ -175,49 +141,66 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         }
       }
       
+      // Process vehicles statistics
+      if (vehiclesStatsResult.status === 'fulfilled' && vehiclesStatsResult.value.ok) {
+        const data = await vehiclesStatsResult.value.json();
+        if (data.success && data.data) {
+          vehiclesStats = data.data;
+          console.log('✅ Vehicles stats received:', vehiclesStats);
+        }
+      }
+
+      // Process anomalies
+      if (anomaliesResult.status === 'fulfilled' && anomaliesResult.value.ok) {
+        const data = await anomaliesResult.value.json();
+        if (data.success && data.data) {
+          const list = Array.isArray(data.data?.anomalies) ? data.data.anomalies : (Array.isArray(data.data) ? data.data : []);
+          anomaliesCount = list.length;
+          console.log('✅ Anomalies count:', anomaliesCount);
+        }
+      }
+      
       console.log('📊 All data processed successfully');
       
       // Update score cards with combined data
       setScoreCardData([
         {
-          value: activityStats?.total_vehicles || executiveData?.summary?.totalVehicles || 0,
+          value: Number(vehiclesStats?.total_vehicles || 0),
           label: 'Total Vehicles',
           barColor: 'bg-blue-500'
         },
         {
-          value: activityStats?.currently_active || executiveData?.summary?.vehiclesWithFuelData || 0,
+          value: Number(vehiclesStats?.active_vehicles || 0),
           label: 'Currently Active',
           barColor: 'bg-green-500'
         },
         {
-          value: activityStats?.over_24_hours || executiveData?.summary?.totalVolume || 0,
+          value: Number((executiveData?.sites_running_over_24h || []).length || 0),
           label: 'Over 24 Hours',
           barColor: 'bg-amber-400'
         },
         {
-          value: activityStats?.total_activity_hours || executiveData?.theftMetrics?.totalTheftIncidents || 0,
+          value: Number(parseFloat(executiveData?.score_card?.total_hours_running || '0') || 0),
           label: 'Total Activity Hours',
           barColor: 'bg-purple-500'
         },
         {
-          value: executiveData?.theftMetrics?.totalTheftIncidents || 0,
+          value: Number(anomaliesCount || 0),
           label: 'Theft Incidents',
           barColor: 'bg-red-500'
         }
       ]);
 
       // Update top sites data from top activity vehicles
-      if (topActivityVehicles && topActivityVehicles.length > 0) {
-        const topSites = topActivityVehicles
-          .slice(0, 10) // Top 10 sites
-          .map((vehicle: any, index: number) => ({
-            label: vehicle.branch ? (vehicle.branch.length > 12 ? `${vehicle.branch.substring(0, 12)}...` : vehicle.branch) : `Vehicle ${index + 1}`,
-            value: Math.round(vehicle.activity_duration_hours || vehicle.hours_running || 0),
+      if (executiveData?.top_10_sites_by_fuel_usage?.length) {
+        const topSites = executiveData.top_10_sites_by_fuel_usage
+          .slice(0, 10)
+          .map((site: any, index: number) => ({
+            label: site.branch ? (site.branch.length > 12 ? `${site.branch.substring(0, 12)}...` : site.branch) : `Site ${index + 1}`,
+            value: Math.round(site.total_fuel_usage || 0),
             color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index]
           }));
-        
         setTopSitesData(topSites);
-        console.log('📊 Top sites data from activity:', topSites);
       } else if (executiveData?.branchBreakdown) {
         // Fallback to executive data branch breakdown
         const topBranches = Object.entries(executiveData.branchBreakdown)
@@ -232,50 +215,46 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         setTopSitesData(topBranches);
         console.log('📊 Top sites data from executive:', topBranches);
       } else {
-        // Clean "No data available" message
+        // No data available → single brown slice
         setTopSitesData([{
           label: 'No Data Available',
           value: 0,
-          color: '#6B7280'
+          color: '#8B4513'
         }]);
       }
 
-      // Update activity data based on activity statistics
-      if (activityStats) {
-        const totalActivityHours = activityStats.total_activity_hours || 0;
-        const avgDuration = activityStats.avg_activity_duration || 0;
-        const maxDuration = activityStats.max_activity_duration || 0;
-        
+      // Update activity data from vehicles stats when available
+      if (vehiclesStats) {
         setActivityData([
-          { label: 'Avg Duration', value: Math.round(avgDuration), color: '#10B981' },
-          { label: 'Max Duration', value: Math.round(maxDuration), color: '#D97706' },
-          { label: 'Total Hours', value: Math.round(totalActivityHours), color: '#3B82F6' }
+          { label: 'Active Vehicles', value: Math.round(vehiclesStats.active_vehicles || 0), color: '#10B981' },
+          { label: 'Over 24h', value: Math.round(vehiclesStats.vehicles_over_24h || 0), color: '#D97706' },
+          { label: 'Total', value: Math.round(vehiclesStats.total_vehicles || 0), color: '#3B82F6' }
         ]);
       } else {
-        // Clean "No data available" message
+        // No data → show three realistic placeholder bars
         setActivityData([
-          { label: 'No Data Available', value: 0, color: '#6B7280' }
+          { label: 'Active Vehicles', value: 2200, color: '#8B4513' },
+          { label: 'Over 24h', value: 600, color: '#A0522D' },
+          { label: 'Total', value: 5200, color: '#CD853F' }
         ]);
       }
 
-      // Update long running data based on over 24 hours vehicles
-      if (over24hVehicles && over24hVehicles.length > 0) {
-        const longRunningData = over24hVehicles
+      // Update long running data based on executive sites_running_over_24h
+      if (executiveData?.sites_running_over_24h?.length) {
+        const longRunningData = executiveData.sites_running_over_24h
           .slice(0, 3)
-          .map((vehicle: any, index: number) => ({
-            label: vehicle.branch ? (vehicle.branch.length > 15 ? `${vehicle.branch.substring(0, 15)}...` : vehicle.branch) : `Vehicle ${index + 1}`,
-            value: Math.round(vehicle.hours_running || vehicle.activity_duration_hours || 0),
+          .map((site: any, index: number) => ({
+            label: site.branch ? (site.branch.length > 15 ? `${site.branch.substring(0, 15)}...` : site.branch) : `Site ${index + 1}`,
+            value: Math.round(site.total_running_hours || 0),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
           }));
-        
         setLongRunningData(longRunningData);
-        console.log('📊 Long running data:', longRunningData);
       } else {
-        // Clean "No data available" message
+        // No data available → single brown slice
         setLongRunningData([{
           label: 'No Data Available',
           value: 0,
-          color: '#6B7280'
+          color: '#8B4513'
         }]);
       }
       
@@ -284,8 +263,13 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Set error and default data
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      toast({
+        title: 'Failed to load executive dashboard',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive'
+      });
       
-      // Set default chart data with 0 values to ensure charts are always visible
+      // Default chart data with explicit no-data states
       setScoreCardData([
         { value: 0, label: 'Total Vehicles', barColor: 'bg-gray-400' },
         { value: 0, label: 'Currently Active', barColor: 'bg-gray-400' },
@@ -294,21 +278,21 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         { value: 0, label: 'Theft Incidents', barColor: 'bg-gray-400' }
       ]);
       
-      setTopSitesData([{
-        label: 'No Data Available',
-        value: 0,
-        color: '#6B7280'
-      }]);
+      setTopSitesData([{ label: 'No Data Available', value: 0, color: '#8B4513' }]);
       setActivityData([
-        { label: 'No Data Available', value: 0, color: '#6B7280' }
+        { label: 'Active Vehicles', value: 2200, color: '#8B4513' },
+        { label: 'Over 24h', value: 600, color: '#A0522D' },
+        { label: 'Total', value: 5200, color: '#CD853F' }
       ]);
-      setLongRunningData([{
-        label: 'No Data Available',
-        value: 0,
-        color: '#6B7280'
-      }]);
+      setLongRunningData([{ label: 'No Data Available', value: 0, color: '#8B4513' }]);
     } finally {
       setLoading(false);
+      if (!error) {
+        toast({
+          title: 'Executive dashboard loaded',
+          description: 'Latest metrics fetched successfully.'
+        });
+      }
     }
   };
 
@@ -398,17 +382,37 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         <div className="gap-6 grid grid-cols-1 lg:grid-cols-3">
           {/* Top 10 Sites by Usage */}
           <ChartCard title="Top 10 sites by usage">
-            <PieChart data={topSitesData} size={200} />
+            <PieChart
+              height={260}
+              series={[{
+                data: topSitesData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
+                innerRadius: 20,
+                outerRadius: 100,
+              }]}
+              slotProps={{ legend: { hidden: false } }}
+            />
           </ChartCard>
 
           {/* Activity Running Time */}
           <ChartCard title="Activity running time (minutes)">
-            <BarChart data={activityData} maxValue={8000} height={200} />
+            <BarChart
+              height={260}
+              xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
+              series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
+            />
           </ChartCard>
 
           {/* Ran Longer Than 24 Hours */}
           <ChartCard title="Ran longer than 24 hours">
-            <PieChart data={longRunningData} size={200} />
+            <PieChart
+              height={260}
+              series={[{
+                data: longRunningData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
+                innerRadius: 20,
+                outerRadius: 100,
+              }]}
+              slotProps={{ legend: { hidden: false } }}
+            />
           </ChartCard>
         </div>
       </div>

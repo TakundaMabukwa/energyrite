@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Download, Fuel, RefreshCw, AlertTriangle, Shield, FileX } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface FuelReportsViewProps {
   onBack: () => void;
@@ -80,6 +81,7 @@ interface VehicleWithTheft {
 
 export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   const { selectedRoute } = useApp();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [theftStats, setTheftStats] = useState<TheftStatistics | null>(null);
@@ -120,8 +122,9 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         return url;
       };
       
-      // Fetch real-time dashboard data for reports
-      const dashboardResponse = await fetch(buildUrl('/api/energy-rite-reports/realtime-dashboard'));
+      // Fetch daily report for today (summary)
+      const today = new Date().toISOString().slice(0, 10);
+      const dashboardResponse = await fetch(buildUrl(`/api/energy-rite/reports/daily-report?date=${today}`));
       if (dashboardResponse.ok) {
         const dashboardResult = await dashboardResponse.json();
         if (dashboardResult.success && dashboardResult.data) {
@@ -130,33 +133,63 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         }
       }
 
-      // Fetch theft statistics
-      const statsResponse = await fetch(buildUrl('/api/energy-rite-vehicles/theft-statistics'));
+      // Fetch anomalies (treated as theft statistics proxy)
+      const statsResponse = await fetch(buildUrl('/api/energy-rite/fuel-analysis/anomalies'));
       if (statsResponse.ok) {
         const statsResult = await statsResponse.json();
         if (statsResult.success) {
-          setTheftStats(statsResult.data);
+          // Map anomalies response to theft stats shape
+          const anomalies = Array.isArray(statsResult.data?.anomalies) ? statsResult.data.anomalies : [];
+          setTheftStats({
+            total_vehicles: reportData?.statistics ? parseInt(reportData.statistics.total_vehicles || '0') : 0,
+            vehicles_with_theft: anomalies.length,
+            total_theft_incidents: anomalies.length,
+            theft_rate_percentage: 0,
+            recent_theft_incidents: anomalies.slice(0, 10).map((a: any) => ({
+              plate: a.plate || a.id,
+              branch: a.branch,
+              theft_time: a.detected_at,
+              fuel_drop: Math.abs(a.fuel_difference || 0),
+              time_window: 'N/A'
+            }))
+          });
         }
       }
 
-      // Fetch vehicles with theft flags
-      const vehiclesResponse = await fetch(buildUrl('/api/energy-rite-vehicles/with-theft'));
+      // Fetch vehicles list to correlate with anomalies (fallback to vehicles endpoint)
+      const vehiclesResponse = await fetch(buildUrl('/api/energy-rite/vehicles'));
       if (vehiclesResponse.ok) {
         const vehiclesResult = await vehiclesResponse.json();
         if (vehiclesResult.success) {
-          setVehiclesWithTheft(vehiclesResult.data);
+          const list = Array.isArray(vehiclesResult.data?.vehicles) ? vehiclesResult.data.vehicles : (Array.isArray(vehiclesResult.data) ? vehiclesResult.data : []);
+          setVehiclesWithTheft(list.slice(0, 50).map((v: any) => ({
+            plate: v.plate || v.vehicle_plate || v.id,
+            branch: v.branch,
+            company: v.company,
+            fuel_anomaly: v.fuel_anomaly || '',
+            fuel_anomaly_note: v.notes || '',
+            theft_time: v.theft_time || v.last_message_date,
+            last_message_date: v.last_message_date
+          })));
         }
       }
 
-      // Fetch report documents from the database
-      const reportDocsResponse = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite-report-docs-db');
+      // Build available report documents using generate endpoints
+      const reportDocsResponse = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/reports/monthly-report/generate');
       if (reportDocsResponse.ok) {
         const reportDocsResult = await reportDocsResponse.json();
         console.log('📄 Report documents API response:', reportDocsResult);
         
-        if (reportDocsResult.success && reportDocsResult.data && Array.isArray(reportDocsResult.data)) {
-          setReportDocuments(reportDocsResult.data);
-          console.log('✅ Report documents loaded:', reportDocsResult.data.length, 'documents');
+        if (reportDocsResult.success) {
+          // create synthetic documents from summary responses
+          const today = new Date();
+          const month = String(today.getMonth() + 1);
+          const year = String(today.getFullYear());
+          setReportDocuments([
+            { id: 'daily', name: 'Daily Report', type: 'daily', date: today.toISOString().slice(0,10), size: '—', downloadUrl: `/api/energy-rite/reports/daily-report?date=${today.toISOString().slice(0,10)}`, createdAt: today.toISOString() },
+            { id: 'monthly', name: 'Monthly Report', type: 'monthly', date: `${month}/${year}`, size: '—', downloadUrl: `/api/energy-rite/reports/monthly-report/generate?month=${month}&year=${year}`, createdAt: today.toISOString() }
+          ] as any);
+          console.log('✅ Report documents synthesized');
         } else {
           console.log('⚠️ No report documents found in API response');
           setReportDocuments([]);
@@ -171,8 +204,19 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
     } catch (err) {
       console.error('Error fetching theft data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch theft data');
+      toast({
+        title: 'Failed to load reports',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
+      if (!error) {
+        toast({
+          title: 'Reports loaded',
+          description: 'Latest reports and anomalies have been fetched.'
+        });
+      }
     }
   };
 

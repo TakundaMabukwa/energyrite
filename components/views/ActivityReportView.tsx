@@ -6,20 +6,29 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, RefreshCw, Activity, Clock, AlertTriangle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActivityReportViewProps {
   onBack?: () => void;
 }
 
 interface ActivityStatistics {
-  total_vehicles: number;
-  currently_active: number;
-  active_vehicles: number;
-  vehicles_with_engine_data: number;
-  vehicles_over_24h: number;
-  avg_activity_duration: number;
-  max_activity_duration: number;
-  total_activity_hours: number;
+  // Summary fields from /reports/activity-report
+  total_sites?: number;
+  engine_on_events?: number;
+  engine_off_events?: number;
+  total_fuel_used?: number;
+  total_fuel_filled?: number;
+  irregularities_count?: number;
+  // Legacy/extra fields (kept optional to avoid breakage)
+  total_vehicles?: number;
+  currently_active?: number;
+  active_vehicles?: number;
+  vehicles_with_engine_data?: number;
+  vehicles_over_24h?: number;
+  avg_activity_duration?: number;
+  max_activity_duration?: number;
+  total_activity_hours?: number;
 }
 
 interface ActiveVehicle {
@@ -36,8 +45,10 @@ interface ActiveVehicle {
 
 export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const { selectedRoute } = useApp();
-  const [selectedDate, setSelectedDate] = useState('2025-08-01');
-  const [dateInput, setDateInput] = useState('2025-08-01');
+  const { toast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [dateInput, setDateInput] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [loading, setLoading] = useState(true);
@@ -62,12 +73,37 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDateInput(e.target.value);
-    setSelectedDate(e.target.value);
+    const nextDate = e.target.value;
+    setDateInput(nextDate);
+    setSelectedDate(nextDate);
+    // Fetch only if both date and month are selected
+    setTimeout(() => {
+      if ((selectedMonth || '').length > 0 && (nextDate || '').length > 0) {
+        fetchActivityData(nextDate);
+      }
+    }, 0);
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const month = e.target.value; // YYYY-MM
+    setSelectedMonth(month);
+    // If date not chosen yet, default to first day of month but do not fetch
+    if (!selectedDate) {
+      const firstDay = `${month}-01`;
+      setDateInput(firstDay);
+      setSelectedDate(firstDay);
+    }
+    // Fetch only if both date and month are selected
+    setTimeout(() => {
+      const dateToUse = selectedDate || `${month}-01`;
+      if ((month || '').length > 0 && (dateToUse || '').length > 0) {
+        fetchActivityData(dateToUse);
+      }
+    }, 0);
   };
 
   // Fetch activity data from Energy Rite server
-  const fetchActivityData = async () => {
+  const fetchActivityData = async (forDate?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -80,13 +116,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           // Use query parameters for filtering (most reliable approach)
           const params = new URLSearchParams();
           if (selectedRoute.costCode) {
-            params.append('costCenterId', selectedRoute.costCode);
-          }
-          if (selectedRoute.company) {
-            params.append('company', selectedRoute.company);
-          }
-          if (selectedRoute.branch) {
-            params.append('branch', selectedRoute.branch);
+            params.append('cost_code', selectedRoute.costCode);
           }
           
           if (params.toString()) {
@@ -98,42 +128,84 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
         return url;
       };
       
-      // Fetch activity statistics
-      const statsResponse = await fetch(buildUrl('/api/energy-rite-vehicles/activity-statistics'));
+      // Fetch activity report (summary for selected date)
+      const targetDate = (forDate || selectedDate || '').toString();
+      const statsResponse = await fetch(buildUrl(`/api/energy-rite/reports/activity-report?date=${targetDate}`));
       if (statsResponse.ok) {
         const statsResult = await statsResponse.json();
         if (statsResult.success) {
-          setActivityStats(statsResult.data);
-        }
-      }
+          const data = statsResult.data || {};
+          const summary = data.summary || {};
+          setActivityStats({
+            total_sites: Number(summary.total_sites || 0),
+            engine_on_events: Number(summary.engine_on_events || 0),
+            engine_off_events: Number(summary.engine_off_events || 0),
+            total_fuel_used: Number(parseFloat(summary.total_fuel_used || '0') || 0),
+            total_fuel_filled: Number(parseFloat(summary.total_fuel_filled || '0') || 0),
+            irregularities_count: Number(summary.irregularities_count || 0),
+          });
 
-      // Fetch active vehicles
-      const activeResponse = await fetch(buildUrl('/api/energy-rite-vehicles/active'));
-      if (activeResponse.ok) {
-        const activeResult = await activeResponse.json();
-        if (activeResult.success) {
-          setActiveVehicles(activeResult.data);
-        }
-      }
+          // Derive per-site activity for the selected date to populate the table
+          const sites: any[] = Array.isArray(data.sites) ? data.sites : [];
+          const derivedActiveVehicles = sites.map((s: any, idx: number) => {
+            const activities: any[] = Array.isArray(s.activities) ? s.activities : [];
+            const lastActivity = activities.length ? activities[activities.length - 1] : null;
+            const status = lastActivity?.type === 'ENGINE_ON' ? 'ON' : 'OFF';
+            return {
+              id: idx + 1,
+              branch: s.branch,
+              company: s.company,
+              plate: s.cost_code || String(idx + 1),
+              current_status: status,
+              engine_on_time: s.first_activity || targetDate,
+              hours_running: Number(s.running_duration || 0),
+              activity_start_time: s.first_activity || targetDate,
+              activity_duration_hours: Number(s.running_duration || 0),
+            } as ActiveVehicle;
+          });
+          setActiveVehicles(derivedActiveVehicles);
 
-      // Fetch vehicles over 24 hours
-      const over24hResponse = await fetch(buildUrl('/api/energy-rite-vehicles/over-24-hours'));
-      if (over24hResponse.ok) {
-        const over24hResult = await over24hResponse.json();
-        if (over24hResult.success) {
-          setVehiclesOver24h(over24hResult.data);
+          // Vehicles/sites running over 24h for the selected date
+          const over24 = sites.filter((s: any) => Number(s.running_duration || 0) >= 24).map((s: any, idx: number) => ({
+            id: idx + 1,
+            branch: s.branch,
+            company: s.company,
+            plate: s.cost_code || String(idx + 1),
+            current_status: 'ON',
+            engine_on_time: s.first_activity || targetDate,
+            hours_running: Number(s.running_duration || 0),
+            activity_start_time: s.first_activity || targetDate,
+            activity_duration_hours: Number(s.running_duration || 0),
+          } as ActiveVehicle));
+          setVehiclesOver24h(over24);
         }
       }
+      // Removed fetching of current active endpoints to ensure data reflects the selected date only
     } catch (err) {
       console.error('Error fetching activity data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch activity data');
+      toast({
+        title: 'Failed to load activity report',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
+      if (!error && selectedDate) {
+        toast({
+          title: 'Activity report loaded',
+          description: `Data for ${selectedDate} fetched successfully.`
+        });
+      }
     }
   };
 
   useEffect(() => {
-    fetchActivityData();
+    // Do not auto-fetch on mount or route change. Wait for user to select date & month.
+    setActivityStats(null);
+    setActiveVehicles([]);
+    setVehiclesOver24h([]);
+    setLoading(false);
   }, [selectedRoute]);
 
   return (
@@ -155,17 +227,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={fetchActivityData}>
-              <RefreshCw className="mr-2 w-4 h-4" />
-              Refresh
-            </Button>
-            {activityStats && (
-              <div className="text-gray-500 text-sm">
-                Last updated: {new Date().toLocaleTimeString()}
-              </div>
-            )}
-          </div>
+          {/* Controls moved to the activity card header */}
         </div>
       </div>
 
@@ -179,8 +241,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Activity className="w-8 h-8 text-blue-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_vehicles}</p>
-                    <p className="text-gray-600 text-sm">Total Vehicles</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_sites ?? 0}</p>
+                    <p className="text-gray-600 text-sm">Total Sites</p>
                   </div>
                 </div>
               </CardContent>
@@ -191,20 +253,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.currently_active}</p>
-                    <p className="text-gray-600 text-sm">Currently Active</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-8 h-8 text-orange-500" />
-                  <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.vehicles_over_24h}</p>
-                    <p className="text-gray-600 text-sm">Over 24 Hours</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.engine_on_events ?? 0}</p>
+                    <p className="text-gray-600 text-sm">Engine ON</p>
                   </div>
                 </div>
               </CardContent>
@@ -215,8 +265,20 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-purple-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.avg_activity_duration.toFixed(1)}h</p>
-                    <p className="text-gray-600 text-sm">Avg Duration</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.engine_off_events ?? 0}</p>
+                    <p className="text-gray-600 text-sm">Engine OFF</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-sm border border-gray-200">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-8 h-8 text-orange-500" />
+                  <div>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.irregularities_count ?? 0}</p>
+                    <p className="text-gray-600 text-sm">Irregularities</p>
                   </div>
                 </div>
               </CardContent>
@@ -227,7 +289,27 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
         {/* Active Vehicles Table */}
         <Card className="shadow-sm border border-gray-200">
           <CardHeader>
-            <CardTitle className="font-semibold text-gray-900 text-xl">Currently Active Vehicles</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Activity</CardTitle>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={dateInput}
+                  onChange={handleDateChange}
+                  className="h-9"
+                />
+                <Input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={handleMonthChange}
+                  className="h-9"
+                />
+                <Button variant="outline" size="sm" onClick={() => fetchActivityData()} disabled={!selectedDate || !selectedMonth}>
+                  <RefreshCw className="mr-2 w-4 h-4" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

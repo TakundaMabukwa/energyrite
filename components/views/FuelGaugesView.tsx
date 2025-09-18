@@ -11,6 +11,7 @@ interface FuelGaugesViewProps {
 }
 
 interface FuelConsumptionData {
+  id?: string | number;
   plate: string;
   branch: string;
   company: string;
@@ -25,93 +26,55 @@ interface FuelConsumptionData {
 }
 
 export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
-  const { fuelData, selectedRoute } = useApp();
+  const { fuelData, selectedRoute, vehicles } = useApp();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fuelConsumptionData, setFuelConsumptionData] = useState<FuelConsumptionData[]>([]);
 
-  // Fetch vehicle data from Energy Rite server
+  // Build fuel data from global vehicles in context (initial + realtime)
   const fetchFuelData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Check if we have a selected route (cost center) to filter by
-      if (selectedRoute && (selectedRoute as any).costCode) {
-        console.log('📊 Fetching vehicle data for cost center:', (selectedRoute as any).costCode);
-        
-        // Use the cost code endpoint to get specific vehicles via proxy
-        const response = await fetch(`/api/energy-rite-proxy?endpoint=/api/energy-rite-vehicles/by-cost-code&costCode=${(selectedRoute as any).costCode}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('📥 Cost code API response:', result);
-        
-        if (result.success && result.data && Array.isArray(result.data)) {
-          // Convert vehicle data to fuel consumption format
-          const fuelData: FuelConsumptionData[] = result.data.map((vehicle: any, index: number) => ({
-            id: vehicle.id || `vehicle-${index + 1}`,
-            plate: vehicle.plate || 'Unknown Plate',
-            branch: vehicle.branch || 'Unknown Branch',
-            company: vehicle.company || 'Unknown Company',
-            fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level || 0,
-            fuel_probe_1_volume_in_tank: parseFloat(vehicle.volume) || 0,
-            fuel_probe_2_level_percentage: vehicle.fuel_probe_2_level || 0,
-            fuel_probe_2_volume_in_tank: vehicle.fuel_probe_2_volume_in_tank || 0,
-            current_status: vehicle.status || 'Unknown',
-            last_message_date: vehicle.last_message_date || vehicle.updated_at || new Date().toISOString(),
-            fuel_anomaly: vehicle.theft || false,
-            fuel_anomaly_note: vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''
-          }));
-          
-          setFuelConsumptionData(fuelData);
-          console.log('✅ Vehicle data loaded for cost center:', fuelData.length, 'vehicles');
-          console.log('📊 Vehicle data:', fuelData);
-        } else {
-          console.log('⚠️ No vehicle data found for cost code:', (selectedRoute as any).costCode);
-          setFuelConsumptionData([]);
-        }
-      } else {
-        console.log('📊 Fetching all vehicles from Energy Rite API...');
-        
-        // Use the all vehicles endpoint as fallback via proxy
-        const response = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite-vehicles');
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('📥 All vehicles API response:', result);
-        
-        if (result.success && result.data && Array.isArray(result.data)) {
-          // Convert vehicle data to fuel consumption format
-          const fuelData: FuelConsumptionData[] = result.data.map((vehicle: any, index: number) => ({
-            id: vehicle.id || `vehicle-${index + 1}`,
-            plate: vehicle.plate || 'Unknown Plate',
-            branch: vehicle.branch || 'Unknown Branch',
-            company: vehicle.company || 'Unknown Company',
-            fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level || 0,
-            fuel_probe_1_volume_in_tank: parseFloat(vehicle.volume) || 0,
-            fuel_probe_2_level_percentage: vehicle.fuel_probe_2_level || 0,
-            fuel_probe_2_volume_in_tank: vehicle.fuel_probe_2_volume_in_tank || 0,
-            current_status: vehicle.status || 'Unknown',
-            last_message_date: vehicle.last_message_date || vehicle.updated_at || new Date().toISOString(),
-            fuel_anomaly: vehicle.theft || false,
-            fuel_anomaly_note: vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''
-          }));
-          
-          setFuelConsumptionData(fuelData);
-          console.log('✅ All vehicles data loaded:', fuelData.length, 'vehicles');
-          console.log('📊 All vehicles data:', fuelData);
-        } else {
-          console.log('⚠️ No vehicle data found in API response');
-          setFuelConsumptionData([]);
-        }
+      const costCode = (selectedRoute as any)?.costCode;
+      const source = Array.isArray(vehicles) ? vehicles : [];
+      const filtered = costCode ? source.filter((v: any) => v.cost_code === costCode) : source;
+
+      if (!filtered.length) {
+        console.log('⚠️ No vehicles available from SSE/context; using dummy data');
       }
+
+      const mapped: FuelConsumptionData[] = filtered.map((vehicle: any, index: number) => {
+        const percentage = Number(vehicle.fuel_probe_1_level_percentage ?? vehicle.fuel_probe_1_level ?? 0);
+        // Treat `volume` as TANK CAPACITY. Do NOT use feed remaining directly.
+        const capacity = Number(typeof vehicle.volume === 'number' ? vehicle.volume : vehicle.volume ?? 0);
+        const remainingLiters = (Number.isFinite(capacity) && Number.isFinite(percentage))
+          ? (capacity * (percentage / 100))
+          : 0;
+
+        const engineStatus = (typeof vehicle.engine_on === 'boolean')
+          ? (vehicle.engine_on ? 'ENGINE ON' : 'ENGINE OFF')
+          : (vehicle.status || 'Unknown');
+
+        return {
+          id: vehicle.id || `vehicle-${index + 1}`,
+          plate: vehicle.plate || 'Unknown Plate',
+          branch: vehicle.branch || 'Unknown Branch',
+          company: vehicle.company || 'Unknown Company',
+          fuel_probe_1_level_percentage: Math.max(0, Math.min(100, percentage || 0)),
+          fuel_probe_1_volume_in_tank: Math.max(0, Number(capacity || 0)),
+          fuel_probe_2_level_percentage: Number(vehicle.fuel_probe_2_level_percentage ?? vehicle.fuel_probe_2_level ?? 0),
+          fuel_probe_2_volume_in_tank: Number(vehicle.fuel_probe_2_volume_in_tank ?? 0),
+          current_status: engineStatus,
+          last_message_date: vehicle.last_message_date || vehicle.updated_at || new Date().toISOString(),
+          fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
+          fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : '')
+        };
+      });
+
+      setFuelConsumptionData(mapped);
+      console.log('✅ Fuel data built from context vehicles:', mapped.length);
     } catch (err) {
       console.error('❌ Error fetching vehicle data:', err);
       setError('Failed to load vehicle data. Please try again.');
@@ -207,22 +170,28 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
   useEffect(() => {
     fetchFuelData();
-  }, [selectedRoute]);
+  }, [selectedRoute, vehicles]);
 
   // Convert fuel consumption data to fuel gauge format
   const getFuelGaugeData = () => {
-    return fuelConsumptionData.map((vehicle, index) => ({
+    return fuelConsumptionData.map((vehicle, index) => {
+      const percent = Number(vehicle.fuel_probe_1_level_percentage || 0);
+      const capacity = Number(vehicle.fuel_probe_1_volume_in_tank || 0);
+      const remaining = capacity * (percent / 100);
+
+      return ({
       id: vehicle.id || index + 1,
       location: vehicle.branch || vehicle.plate || 'Unknown Location',
-      fuelLevel: vehicle.fuel_probe_1_level_percentage || 0,
-      temperature: 25, // Default temperature
-      volume: vehicle.fuel_probe_1_volume_in_tank || 0,
-      remaining: vehicle.fuel_probe_1_volume_in_tank || 0,
+      fuelLevel: percent || 0,
+      temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
+      volume: capacity,
+      remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
       status: vehicle.current_status || 'active',
       lastUpdated: vehicle.last_message_date || new Date().toLocaleString(),
       anomaly: !!vehicle.fuel_anomaly,
       anomalyNote: vehicle.fuel_anomaly_note || ''
-    }));
+    });
+  });
   };
 
   if (loading) {

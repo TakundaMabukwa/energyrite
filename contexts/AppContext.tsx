@@ -30,18 +30,22 @@ type CostCenter = HierarchicalCostCenter;
 interface AppContextType {
   routes: Route[];
   fuelData: FuelData[];
+  vehicles: EnergyRiteVehicle[];
   costCenters: CostCenter[];
   selectedRoute: Route | null;
   activeTab: string;
   sidebarCollapsed: boolean;
   setRoutes: (routes: Route[]) => void;
   setFuelData: (fuelData: FuelData[]) => void;
+  setVehicles: (vehicles: EnergyRiteVehicle[]) => void;
   setCostCenters: (costCenters: CostCenter[]) => void;
   setSelectedRoute: (route: Route | null) => void;
   setActiveTab: (tab: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   updateFuelDataForCostCenter: (costCenter: CostCenter) => Promise<void>;
   loading: boolean;
+  sseConnected: boolean;
+  lastSseUpdate?: string | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -52,11 +56,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const [routes, setRoutes] = useState<Route[]>([]);
   const [fuelData, setFuelData] = useState<FuelData[]>([]);
+  const [vehicles, setVehicles] = useState<EnergyRiteVehicle[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sseConnected, setSseConnected] = useState(false);
+  const [lastSseUpdate, setLastSseUpdate] = useState<string | null>(null);
 
   // Handle URL parameters for navigation
   useEffect(() => {
@@ -96,7 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  // Update fuel data using cost code endpoint
+  // Update fuel data using vehicles from SSE/context (filter by cost code)
   const updateFuelDataForCostCenter = async (costCenter: CostCenter) => {
     try {
       console.log('📊 Fetching vehicle data for cost center:', costCenter.costCode);
@@ -107,35 +114,74 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Use the new cost code endpoint to get vehicles for this specific cost center via proxy
-      const response = await fetch(`/api/energy-rite-proxy?endpoint=/api/energy-rite-vehicles/by-cost-code&costCode=${costCenter.costCode}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Filter from in-memory vehicles
+      let filteredVehicles: any[] = (vehicles as any[]).filter((v: any) => v.cost_code === costCenter.costCode);
+
+      if ((!filteredVehicles || filteredVehicles.length === 0) && (!vehicles || vehicles.length === 0)) {
+        // Load vehicles once if not present, then filter
+        try {
+          const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json?.success && Array.isArray(json.data)) {
+              setVehicles(json.data);
+              filteredVehicles = json.data.filter((v: any) => v.cost_code === costCenter.costCode);
+            }
+          }
+        } catch {}
       }
-      
-      const result = await response.json();
-      console.log('📥 Cost code API response:', result);
-      
-      if (result && result.success && result.data && Array.isArray(result.data)) {
-        // Convert vehicle data to fuel data format
-        const formattedFuelData: FuelData[] = result.data.map((vehicle: any, index: number) => ({
-          id: vehicle.id || `vehicle-${index + 1}`,
-          location: vehicle.branch || vehicle.plate || 'Unknown Vehicle',
-          fuelLevel: vehicle.fuel_probe_1_level || 0,
-          temperature: vehicle.fuel_probe_1_temperature || 25,
-          volume: parseFloat(vehicle.volume) || 0,
-          remaining: `${parseFloat(vehicle.volume) || 0}L`,
-          status: vehicle.status || 'Unknown',
-          lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString()
-        }));
+
+      if (filteredVehicles && filteredVehicles.length > 0) {
+        const formattedFuelData: FuelData[] = filteredVehicles.map((vehicle: any, index: number) => {
+          const percentage = Number(vehicle.fuel_probe_1_level_percentage ?? vehicle.fuel_probe_1_level ?? 0);
+          // Treat `volume` as TANK CAPACITY. Do NOT use feed remaining directly.
+          const capacity = Number(typeof vehicle.volume === 'number' ? vehicle.volume : vehicle.volume ?? 0);
+          const remainingLiters = (Number.isFinite(capacity) && Number.isFinite(percentage))
+            ? (capacity * (percentage / 100))
+            : 0;
+
+          return ({
+            id: vehicle.id || `vehicle-${index + 1}`,
+            location: vehicle.branch || vehicle.plate || 'Unknown Vehicle',
+            fuelLevel: Math.max(0, Math.min(100, Number(percentage) || 0)),
+            temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
+            volume: Math.max(0, Number(capacity || 0)),
+            remaining: `${Math.max(0, Number(capacity || 0)).toFixed(1)}L / ${Math.max(0, Number(remainingLiters || 0)).toFixed(1)}L`,
+            status: vehicle.status || 'Unknown',
+            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString()
+          });
+        });
 
         setFuelData(formattedFuelData);
-        console.log('✅ Updated fuel data from cost code endpoint:', formattedFuelData.length, 'vehicles found');
-        console.log('📊 Vehicle data:', formattedFuelData);
+        console.log('✅ Updated fuel data from SSE/context vehicles:', formattedFuelData.length, 'vehicles');
       } else {
-        console.log('⚠️ No vehicle data found for cost code:', costCenter.costCode);
-        setFuelData([]);
+        console.log('⚠️ No vehicle data found for cost code in context:', costCenter.costCode, '→ fetching vehicles from external once');
+        const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setVehicles(json.data);
+            filteredVehicles = json.data.filter((v: any) => v.cost_code === costCenter.costCode);
+            const formattedFuelData: FuelData[] = filteredVehicles.map((vehicle: any, index: number) => ({
+              id: vehicle.id || `vehicle-${index + 1}`,
+              location: vehicle.branch || vehicle.plate || 'Unknown Vehicle',
+              fuelLevel: Number(vehicle.fuel_probe_1_level ?? vehicle.fuel_probe_1_level_percentage ?? 0),
+              temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
+              volume: Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0)),
+              remaining: `${Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0))}L`,
+              status: vehicle.status || 'Unknown',
+              lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString()
+            }));
+            setFuelData(formattedFuelData);
+            console.log('✅ Updated fuel data from local API:', formattedFuelData.length, 'vehicles');
+          } else {
+            console.log('⚠️ Local API returned no data for cost code:', costCenter.costCode);
+            setFuelData([]);
+          }
+        } else {
+          console.warn('⚠️ Local API error:', resp.status);
+          setFuelData([]);
+        }
       }
     } catch (error) {
       console.error('❌ Error fetching vehicle data for cost center:', error);
@@ -303,6 +349,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         setRoutes(mockRoutes);
         setFuelData(mockFuelData);
+
+        // Load vehicles once from external endpoint via proxy (non-realtime)
+        try {
+          console.log('🚚 Fetching all vehicles from Energy Rite via proxy...');
+          const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json?.success && Array.isArray(json.data)) {
+              setVehicles(json.data);
+              setLastSseUpdate(new Date().toISOString());
+              console.log('✅ Loaded vehicles:', json.data.length);
+            } else {
+              console.warn('⚠️ Vehicles API returned no data');
+            }
+          } else {
+            console.warn('⚠️ Vehicles API error:', resp.status);
+          }
+        } catch (vehErr) {
+          console.error('❌ Error loading vehicles:', vehErr);
+        }
       } catch (error) {
         console.error('Error initializing data:', error);
       } finally {
@@ -313,23 +379,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     initializeData();
   }, []);
 
+  // Realtime disabled: we fetch once on load per requirements
+
   return (
     <AppContext.Provider
       value={{
         routes,
         fuelData,
+        vehicles,
         costCenters,
         selectedRoute,
         activeTab,
         sidebarCollapsed,
         setRoutes,
         setFuelData,
+        setVehicles,
         setCostCenters,
         setSelectedRoute: updateSelectedRoute,
         setActiveTab: updateActiveTab,
         setSidebarCollapsed,
         updateFuelDataForCostCenter,
-        loading
+        loading,
+        sseConnected,
+        lastSseUpdate
       }}
     >
       {children}
@@ -343,4 +415,32 @@ export function useApp() {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
+}
+
+// Minimal vehicle type capturing known fields from the table; allows additional fields
+export interface EnergyRiteVehicle {
+  id?: string | number;
+  plate?: string;
+  branch?: string;
+  company?: string;
+  cost_code?: string;
+  speed?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+  fuel_probe_1_level?: number | null;
+  fuel_probe_1_volume_in_tank?: number | null;
+  fuel_probe_1_temperature?: number | null;
+  fuel_probe_1_level_percentage?: number | null;
+  fuel_probe_2_level?: number | null;
+  fuel_probe_2_volume_in_tank?: number | null;
+  fuel_probe_2_temperature?: number | null;
+  fuel_probe_2_level_percentage?: number | null;
+  is_active?: boolean | null;
+  volume?: number | string | null;
+  status?: string | null;
+  last_notification?: string | null;
+  [key: string]: any;
 }

@@ -29,14 +29,15 @@ interface VehicleEquipment {
   ip_address: string;
   branch: string;
   company: string;
+  fuel_probe_1_volume_in_tank?: number;
 }
 
 export function StoreEquipmentView() {
-  const { costCenters, setSelectedRoute, activeTab, selectedRoute } = useApp();
+  const { costCenters, setSelectedRoute, activeTab, selectedRoute, vehicles } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [showVehicles, setShowVehicles] = useState(false);
+  const [showVehicles, setShowVehicles] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [realtimeData, setRealtimeData] = useState<RealtimeDashboardData | null>(null);
@@ -73,10 +74,43 @@ export function StoreEquipmentView() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.warn('Realtime dashboard endpoint returned non-OK status:', response.status);
+        const fallbackData = {
+          statistics: {
+            total_vehicles: '0',
+            theft_incidents: '0',
+            vehicles_with_fuel_data: '0',
+            total_volume_capacity: '0.00'
+          }
+        };
+        if (costCenter) {
+          setFilteredRealtimeData(fallbackData);
+        } else {
+          setRealtimeData(fallbackData);
+        }
+        return;
       }
       
-      const result = await response.json();
+      let result: any = null;
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.warn('Failed to parse realtime dashboard JSON. Using fallback.');
+        const fallbackData = {
+          statistics: {
+            total_vehicles: '0',
+            theft_incidents: '0',
+            vehicles_with_fuel_data: '0',
+            total_volume_capacity: '0.00'
+          }
+        };
+        if (costCenter) {
+          setFilteredRealtimeData(fallbackData);
+        } else {
+          setRealtimeData(fallbackData);
+        }
+        return;
+      }
       
       if (result.success && result.data) {
         if (costCenter) {
@@ -125,56 +159,31 @@ export function StoreEquipmentView() {
     }
   };
 
-  // Fetch equipment data for selected cost center
+  // Load equipment data directly from Energy Rite realtime endpoint
   const fetchEquipmentData = async (costCode: string) => {
     try {
       setEquipmentLoading(true);
-      console.log('🔧 Fetching vehicle data for cost code:', costCode);
-      
-      // Use the proxy endpoint to get vehicles by cost code
-      let response = await fetch(`/api/energy-rite-proxy?endpoint=/api/energy-rite-vehicles/by-cost-code&costCode=${costCode}`);
-      
-      if (!response.ok) {
-        console.log('⚠️ Cost code endpoint failed, trying all vehicles...');
-        // Fallback to all vehicles and filter client-side
-        response = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite-vehicles');
-      }
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('📊 Vehicle data received:', result);
-      
-      // Handle the API response structure
-      const data = result.success ? result.data : result;
-      
-      // Filter vehicles that match the cost code
-      const matchingVehicles = data.filter((vehicle: any) => 
-        vehicle.cost_code === costCode || 
-        vehicle.costCode === costCode ||
-        vehicle.cost_center === costCode
-      );
-      
-      console.log('🔍 Vehicles matching cost code:', matchingVehicles);
-      
-      // Transform the data to our equipment format
-      const equipment: VehicleEquipment[] = matchingVehicles.map((vehicle: any) => ({
-        id: vehicle.id || vehicle.vehicle_id || `vehicle-${Math.random()}`,
+      const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/realtime');
+      const json = await resp.json();
+      const raw = Array.isArray(json) ? json : (Array.isArray(json?.data?.vehicles) ? json.data.vehicles : (Array.isArray(json?.data) ? json.data : (Array.isArray(json?.rows) ? json.rows : [])));
+      const matching = Array.isArray(raw) ? raw : [];
+
+      const equipment: VehicleEquipment[] = matching.map((vehicle: any, idx: number) => ({
+        id: vehicle.id || vehicle.vehicle_id || `vehicle-${idx + 1}`,
         vehicle_id: vehicle.vehicle_id || vehicle.id || 'N/A',
-        cost_code: vehicle.cost_code || vehicle.costCode || costCode,
-        ip_address: vehicle.ip_address || vehicle.ip || vehicle.unitIpAddress || 'N/A',
-        branch: vehicle.branch || 'N/A',
-        company: vehicle.company || 'N/A'
+        cost_code: vehicle.cost_code || costCode || vehicle.costCode || 'N/A',
+        ip_address: vehicle.ip_address || vehicle.unitIpAddress || vehicle.ip || 'N/A',
+        branch: vehicle.branch || vehicle.branch_name || 'N/A',
+        company: vehicle.company || vehicle.company_name || 'N/A',
+        fuel_probe_1_volume_in_tank: Number(
+          vehicle.fuel_probe_1_volume_in_tank ??
+          vehicle.fuel_probe_1_volume ??
+          vehicle.volume ?? 0
+        )
       }));
-      
       setEquipmentData(equipment);
-      console.log('✅ Equipment data processed:', equipment);
-      
     } catch (error) {
-      console.error('❌ Error fetching equipment data:', error);
-      setError('Failed to fetch equipment data');
+      console.error('❌ Error building equipment data from context:', error);
       setEquipmentData([]);
     } finally {
       setEquipmentLoading(false);
@@ -217,18 +226,8 @@ export function StoreEquipmentView() {
 
   // Handle back to table (same as dashboard)
   const handleBackToTable = () => {
-    setShowVehicles(false);
-    setSelectedRoute(null);
-    
-    // Clear filtered data when going back to main view
-    setFilteredRealtimeData(null);
-    setEquipmentData([]);
-    
-    // Clear view and route parameters from URL
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('view');
-    params.delete('route');
-    router.push(`?${params.toString()}`, { scroll: false });
+    // No-op in simplified view
+    return;
   };
 
   // Initialize data (same as dashboard)
@@ -237,6 +236,7 @@ export function StoreEquipmentView() {
       try {
         setLoading(true);
         await fetchRealtimeData();
+        await fetchEquipmentData('');
       } catch (error) {
         console.error('Error initializing data:', error);
         setError('Failed to initialize data');
@@ -283,18 +283,12 @@ export function StoreEquipmentView() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="font-semibold text-gray-900 text-lg">
-                  {filteredRealtimeData && selectedRoute ? 
-                    `Equipment Dashboard - ${selectedRoute.name}` : 
-                    'Equipment Dashboard Overview'
-                  }
+                  All Equipment
                 </h2>
                 <button
                   onClick={() => {
-                    if (selectedRoute) {
-                      fetchRealtimeData(selectedRoute as HierarchicalCostCenter);
-                    } else {
-                      fetchRealtimeData();
-                    }
+                    fetchRealtimeData();
+                    fetchEquipmentData('');
                   }}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-white text-sm"
                   disabled={loading}
@@ -379,22 +373,12 @@ export function StoreEquipmentView() {
           <Card className="shadow-sm border border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleBackToTable}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
-                  >
-                    ← Back to Cost Centers
-                  </button>
-                  <CardTitle className="font-semibold text-gray-900 text-lg">
-                    Equipment Details
-                  </CardTitle>
-                </div>
-                {selectedRoute && (
-                  <Badge variant="outline" className="text-gray-600">
-                    {selectedRoute.name}
-                  </Badge>
-                )}
+                <CardTitle className="font-semibold text-gray-900 text-lg">
+                  Equipment Details
+                </CardTitle>
+                <Badge variant="outline" className="text-gray-600">
+                  All Vehicles
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -462,6 +446,7 @@ export function StoreEquipmentView() {
                         <tr>
                           <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
                           <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
+                          <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL VOL (L)</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -475,6 +460,9 @@ export function StoreEquipmentView() {
                                 <Wifi className="w-4 h-4 text-gray-400" />
                                 {equipment.ip_address}
                               </div>
+                            </td>
+                            <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                              {Number(equipment.fuel_probe_1_volume_in_tank || 0).toFixed(2)}
                             </td>
                           </tr>
                         ))}
