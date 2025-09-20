@@ -40,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# eslint cache
+.eslintcache
+.eslintignore
+
+# turbo cache
+.turbo
+
+# linting and type checking disabled
+# All linting and type checking has been disabled for this project
