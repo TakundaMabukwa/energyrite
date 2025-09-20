@@ -67,6 +67,28 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Check for first login redirect if user is authenticated
+  if (user && !request.nextUrl.pathname.startsWith("/auth")) {
+    try {
+      // Get user data from users table to check first_login status
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('first_login')
+        .eq('id', user.sub)
+        .single();
+
+      // If user has first_login=true and is not already on update-password page, redirect them
+      if (!userError && userData?.first_login && request.nextUrl.pathname !== "/auth/update-password") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/update-password";
+        return NextResponse.redirect(url);
+      }
+    } catch (error) {
+      // If there's an error checking first_login, continue normally
+      console.error('Error checking first_login in middleware:', error);
+    }
+  }
+
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:

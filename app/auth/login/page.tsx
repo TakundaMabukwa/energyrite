@@ -10,8 +10,20 @@ export default async function Page() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
-      // User is already logged in, redirect to protected dashboard
-      redirect("/protected");
+      // Check if this is a first login
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('first_login')
+        .eq('id', user.id)
+        .single();
+
+      if (!userError && userData?.first_login) {
+        // First login - redirect to update password page
+        redirect("/auth/update-password");
+      } else {
+        // User is already logged in, redirect to protected dashboard
+        redirect("/protected");
+      }
     }
   }
   return (

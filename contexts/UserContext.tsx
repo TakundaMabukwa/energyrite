@@ -10,6 +10,7 @@ interface User {
   cost_code: string | null;
   company: string | null;
   tech_admin: boolean | null;
+  first_login: boolean | null;
 }
 
 interface UserContextType {
@@ -63,7 +64,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               role: metaData.role || null,
               cost_code: metaData.cost_code || null,
               company: metaData.company || null,
-              tech_admin: metaData.tech_admin || false
+              tech_admin: metaData.tech_admin || false,
+              first_login: metaData.first_login || false
             });
           } else {
             console.log('⚠️ No user metadata found, creating basic user object');
@@ -74,7 +76,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               role: null,
               cost_code: null,
               company: null,
-              tech_admin: false
+              tech_admin: false,
+              first_login: false
             });
           }
         } else {
@@ -85,7 +88,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             role: userData.role,
             cost_code: userData.cost_code,
             company: userData.company,
-            tech_admin: userData.tech_admin
+            tech_admin: userData.tech_admin,
+            first_login: userData.first_login
           });
         }
 
@@ -110,7 +114,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                   role: userData.role,
                   cost_code: userData.cost_code,
                   company: userData.company,
-                  tech_admin: userData.tech_admin
+                  tech_admin: userData.tech_admin,
+                  first_login: userData.first_login
                 });
               } else {
                 // Fallback: Get data from auth user's metadata
@@ -123,7 +128,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     role: metaData.role || null,
                     cost_code: metaData.cost_code || null,
                     company: metaData.company || null,
-                    tech_admin: metaData.tech_admin || false
+                    tech_admin: metaData.tech_admin || false,
+                    first_login: metaData.first_login || false
                   });
                 }
               }
@@ -144,9 +150,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      console.log('🚪 UserContext: Starting signOut process...');
+      
+      const supabase = createClient();
+      
+      // Sign out from Supabase with scope: 'local' to clear local session
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      
+      if (error) {
+        console.error('❌ Supabase signOut error:', error);
+        throw error;
+      }
+      
+      console.log('✅ UserContext: Supabase signOut successful');
+      
+      // Clear user state immediately
+      setUser(null);
+      
+      // Clear loading state
+      setLoading(false);
+      
+      console.log('✅ UserContext: User state cleared');
+      
+    } catch (error) {
+      console.error('❌ UserContext signOut error:', error);
+      
+      // Even if there's an error, clear the user state
+      setUser(null);
+      setLoading(false);
+      
+      // Re-throw the error so the calling component can handle it
+      throw error;
+    }
   };
 
   const isAdmin = user?.role === 'admin' || user?.role === 'energyrite_admin';

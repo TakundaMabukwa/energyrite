@@ -4,14 +4,26 @@ import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 
 export default async function Page() {
-  // Check if user is already authenticated
+  // Check if user is authenticated and has first_login=true
   if (hasEnvVars) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (user) {
-      // User is already logged in, redirect to protected dashboard
-      redirect("/protected");
+    if (!user) {
+      // User is not authenticated, redirect to login
+      redirect("/auth/login");
+    } else {
+      // Check if this is a first login
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('first_login')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !userData?.first_login) {
+        // Not a first login or error occurred, redirect to protected dashboard
+        redirect("/protected");
+      }
     }
   }
   return (

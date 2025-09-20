@@ -51,6 +51,7 @@ interface AppContextType {
   setSidebarCollapsed: (collapsed: boolean) => void;
   updateFuelDataForCostCenter: (costCenter: CostCenter) => Promise<void>;
   loadDataForUser: () => Promise<void>;
+  clearAllData: () => void;
   loading: boolean;
   sseConnected: boolean;
   lastSseUpdate?: string | null;
@@ -189,6 +190,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Clear all data when user logs out
+  const clearAllData = () => {
+    console.log('🧹 Clearing all AppContext data...');
+    setRoutes([]);
+    setFuelData([]);
+    setVehicles([]);
+    setCostCenters([]);
+    setSelectedRoute(null);
+    setActiveTab('dashboard');
+    setSidebarCollapsed(false);
+    setSseConnected(false);
+    setLastSseUpdate(null);
+    console.log('✅ All AppContext data cleared');
   };
 
   // Update fuel data for a specific cost code (simplified version)
@@ -513,6 +529,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSidebarCollapsed,
         updateFuelDataForCostCenter,
         loadDataForUser,
+        clearAllData,
         loading,
         sseConnected,
         lastSseUpdate

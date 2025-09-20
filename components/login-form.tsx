@@ -34,13 +34,30 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+
+      // Check if this is the user's first login
+      if (authData.user) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('first_login')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (!userError && userData?.first_login) {
+          // First login - redirect to update password page
+          router.push("/auth/update-password");
+        } else {
+          // Not first login - redirect to protected dashboard
+          router.push("/protected");
+        }
+      } else {
+        router.push("/protected");
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
