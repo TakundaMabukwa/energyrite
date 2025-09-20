@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TopNavigation } from '@/components/layout/TopNavigation';
-import { Download, Fuel, RefreshCw, FileX } from 'lucide-react';
+import { Download, Fuel, RefreshCw, FileX, Plus } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -288,6 +288,90 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
     }
   };
 
+  // Generate Excel report using the API
+  const handleGenerateReport = async (reportType: 'daily' | 'weekly' | 'monthly') => {
+    try {
+      setLoading(true);
+      
+      const costCode = isAdmin ? null : userCostCode;
+      
+      if (!isAdmin && !userCostCode) {
+        toast({
+          title: 'Error',
+          description: 'No cost code available for report generation',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      console.log(`📊 Generating ${reportType} Excel report:`, isAdmin ? 'for all cost codes (admin)' : `for cost code: ${userCostCode}`);
+      
+      // Prepare request body
+      const requestBody: any = {
+        report_type: reportType
+      };
+      
+      // Add cost_code if not admin
+      if (costCode) {
+        requestBody.cost_code = costCode;
+      }
+      
+      // Add target_date for daily and monthly reports
+      if (reportType === 'daily') {
+        requestBody.target_date = new Date().toISOString().split('T')[0];
+      } else if (reportType === 'monthly') {
+        const firstDayOfMonth = new Date();
+        firstDayOfMonth.setDate(1);
+        requestBody.target_date = firstDayOfMonth.toISOString().split('T')[0];
+      }
+      
+      const generateUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/generate-excel`;
+      
+      const response = await fetch(generateUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.success && result.data?.download_url) {
+          // Open the download URL
+          window.open(result.data.download_url, '_blank');
+          
+          toast({
+            title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report Generated`,
+            description: `Excel report has been generated and downloaded successfully`
+          });
+          
+          // Refresh the reports after generation
+          setTimeout(() => {
+            fetchTheftData();
+          }, 1000);
+          
+        } else {
+          throw new Error(result.message || 'Failed to generate report');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate report');
+      }
+      
+    } catch (error) {
+      console.error(`Error generating ${reportType} report:`, error);
+      toast({
+        title: 'Report Generation Failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getBadgeColor = (type: 'daily' | 'weekly' | 'monthly') => {
     switch (type) {
       case 'daily': return 'bg-blue-100 text-blue-800';
@@ -388,15 +472,21 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 </div>
               )}
               
-              {/* Auto-generated reports are fetched automatically */}
-              {!getLatestReportByType('daily') && (
-                <div className="mt-4 pt-3 border-t">
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>Engine sessions reports appear here</p>
-                    <p className="mt-1 text-xs">Real-time engine ON/OFF events</p>
-                  </div>
-                </div>
-              )}
+              {/* Generate Report Button */}
+              <div className="mt-4 pt-3 border-t">
+                <Button 
+                  onClick={() => handleGenerateReport('daily')}
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  size="sm"
+                >
+                  <Plus className="mr-2 w-4 h-4" />
+                  Generate Daily Report
+                </Button>
+                <p className="mt-2 text-center text-gray-500 text-xs">
+                  Generate Excel report for today's data
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -446,15 +536,21 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 </div>
               )}
               
-              {/* Auto-generated reports are fetched automatically */}
-              {!getLatestReportByType('weekly') && (
-                <div className="mt-4 pt-3 border-t">
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>Engine sessions reports appear here</p>
-                    <p className="mt-1 text-xs">Real-time engine ON/OFF events</p>
-                  </div>
-                </div>
-              )}
+              {/* Generate Report Button */}
+              <div className="mt-4 pt-3 border-t">
+                <Button 
+                  onClick={() => handleGenerateReport('weekly')}
+                  disabled={loading}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  <Plus className="mr-2 w-4 h-4" />
+                  Generate Weekly Report
+                </Button>
+                <p className="mt-2 text-center text-gray-500 text-xs">
+                  Generate Excel report for last 7 days
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -504,15 +600,21 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 </div>
               )}
               
-              {/* Auto-generated reports are fetched automatically */}
-              {!getLatestReportByType('monthly') && (
-                <div className="mt-4 pt-3 border-t">
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>Engine sessions reports appear here</p>
-                    <p className="mt-1 text-xs">Real-time engine ON/OFF events</p>
-                </div>
-                </div>
-              )}
+              {/* Generate Report Button */}
+              <div className="mt-4 pt-3 border-t">
+                <Button 
+                  onClick={() => handleGenerateReport('monthly')}
+                  disabled={loading}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  size="sm"
+                >
+                  <Plus className="mr-2 w-4 h-4" />
+                  Generate Monthly Report
+                </Button>
+                <p className="mt-2 text-center text-gray-500 text-xs">
+                  Generate Excel report for current month
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

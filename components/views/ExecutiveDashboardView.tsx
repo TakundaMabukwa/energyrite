@@ -191,13 +191,23 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             value: Math.round(parseFloat(site.total_fuel_usage || '0')),
             color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index]
           }));
+        
+        // If all values are 0, distribute equally
+        const totalValue = topSites.reduce((sum, site) => sum + site.value, 0);
+        if (totalValue === 0) {
+          const equalValue = 100 / topSites.length;
+          topSites.forEach(site => site.value = equalValue);
+        }
+        
+        console.log('📊 Top sites data for pie chart:', topSites);
         setTopSitesData(topSites);
       } else {
-        // No data available → single brown slice
+        // No data available → single red slice
+        console.log('📊 No top sites data available, showing red pie chart');
         setTopSitesData([{
           label: 'No Data Available',
-          value: 0,
-          color: '#8B4513'
+          value: 100,
+          color: '#EF4444'
         }]);
       }
 
@@ -232,6 +242,14 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             value: Number(dist.session_count || 0),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
           }));
+        
+        // If all values are 0, distribute equally
+        const totalValue = longRunningData.reduce((sum, item) => sum + item.value, 0);
+        if (totalValue === 0) {
+          const equalValue = 100 / longRunningData.length;
+          longRunningData.forEach(item => item.value = equalValue);
+        }
+        
         setLongRunningData(longRunningData);
       } else if (executiveData?.sites_running_over_24h?.length) {
         // Fallback to sites running over 24h
@@ -242,13 +260,22 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             value: Math.round(parseFloat(site.total_operating_hours || '0')),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
           }));
+        
+        // If all values are 0, distribute equally
+        const totalValue = longRunningData.reduce((sum, item) => sum + item.value, 0);
+        if (totalValue === 0) {
+          const equalValue = 100 / longRunningData.length;
+          longRunningData.forEach(item => item.value = equalValue);
+        }
+        
         setLongRunningData(longRunningData);
       } else {
-        // No data available → single brown slice
+        // No data available → single red slice
+        console.log('📊 No long running data available, showing red pie chart');
         setLongRunningData([{
           label: 'No Data Available',
-          value: 0,
-          color: '#8B4513'
+          value: 100,
+          color: '#EF4444'
         }]);
       }
       
@@ -368,11 +395,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           {/* Top 10 Sites by Usage */}
           <ChartCard title="Top 10 sites by usage">
             <PieChart
-              height={260}
+              height={200}
               series={[{
                 data: topSitesData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
-                innerRadius: 20,
-                outerRadius: 100,
+                innerRadius: 15,
+                outerRadius: 80,
               }]}
               slotProps={{ legend: { hidden: false } }}
             />
@@ -381,7 +408,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           {/* Activity Running Time */}
           <ChartCard title="Activity running time (minutes)">
             <BarChart
-              height={260}
+              height={200}
               xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
               series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
             />
@@ -390,11 +417,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           {/* Ran Longer Than 24 Hours */}
           <ChartCard title="Ran longer than 24 hours">
             <PieChart
-              height={260}
+              height={200}
               series={[{
                 data: longRunningData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
-                innerRadius: 20,
-                outerRadius: 100,
+                innerRadius: 15,
+                outerRadius: 80,
               }]}
               slotProps={{ legend: { hidden: false } }}
             />

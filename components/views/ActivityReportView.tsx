@@ -22,11 +22,12 @@ interface ActivityStatistics {
   ongoing_sessions?: number;
   total_operating_hours?: number;
   total_fuel_usage?: number;
+  total_fuel_filled?: number;
   average_efficiency?: number;
 }
 
 interface SiteDayRow {
-  id: number;
+  id: string;
   branch: string;
   company: string;
   cost_code: string;
@@ -36,6 +37,8 @@ interface SiteDayRow {
   operating_hours: number;
   opening_percentage: number;
   opening_fuel: number;
+  midday_percentage: number;
+  midday_fuel: number;
   closing_percentage: number;
   closing_fuel: number;
   total_usage: number;
@@ -51,10 +54,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [dateInput, setDateInput] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [useDateRange, setUseDateRange] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'completed' | 'ongoing'>('all');
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +83,22 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     return 'Energyrite => Activity Reports';
   };
 
+  // Filter sessions based on selected filter
+  const getFilteredSessions = () => {
+    if (sessionFilter === 'all') {
+      return siteRows;
+    }
+    return siteRows.filter(row => {
+      if (sessionFilter === 'completed') {
+        return row.session_status === 'NORMAL' || row.session_status === 'COMPLETED';
+      }
+      if (sessionFilter === 'ongoing') {
+        return row.session_status === 'IRREGULAR'; // Show irregular snapshots as "ongoing"
+      }
+      return true;
+    });
+  };
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextDate = e.target.value;
     setDateInput(nextDate);
@@ -97,6 +114,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
   // Fetch engine sessions data from Energy Rite server
   const fetchActivityData = async (forDate?: string) => {
+    const targetDate = forDate || selectedDate || '';
+    
     try {
       setLoading(true);
       setError(null);
@@ -104,19 +123,13 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       // Build URL for engine sessions endpoint
       const params = new URLSearchParams();
       
-      if (useDateRange && startDate && endDate) {
-        params.append('start_date', startDate);
-        params.append('end_date', endDate);
-      } else {
-        const targetDate = (forDate || selectedDate || '').toString();
-        if (targetDate) params.append('date', targetDate);
-      }
+      if (targetDate) params.append('date', targetDate);
       
       // Only add cost_code filter if user is not admin
       if (!isAdmin && userCostCode) {
         params.append('cost_code', userCostCode);
       }
-      const sessionsUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/engine-sessions${params.toString() ? `?${params.toString()}` : ''}`;
+      const sessionsUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report${params.toString() ? `?${params.toString()}` : ''}`;
       const sessionsResponse = await fetch(sessionsUrl);
       
       if (sessionsResponse.ok) {
@@ -125,57 +138,68 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           const data = sessionsResult.data || {};
           const summary = data.summary || {};
           
-          // Set activity statistics from operating sessions summary
+          // Map sites to rows for table display, filtering out empty cost codes
+          const sites: any[] = Array.isArray(data.sites) ? data.sites : [];
+          const filteredSites = sites
+            .filter((site: any) => site.cost_code && site.cost_code.trim() !== '') // Only show rows with non-empty cost codes
+            .filter((site: any) => site.company && site.company.trim() !== ''); // Only show rows with non-empty company
+          
+          // Calculate statistics from filtered sites
+          const totalSites = filteredSites.length;
+          const totalFuelUsed = filteredSites.reduce((sum, site) => sum + Number(site.total_fuel_used || 0), 0);
+          const totalFuelFilled = filteredSites.reduce((sum, site) => sum + Number(site.total_fuel_filled || 0), 0);
+          const avgEfficiency = totalSites > 0 ? (totalFuelUsed / totalSites) : 0;
+          
+          // Set activity statistics from calculated data
           setActivityStats({
-            total_sessions: Number(summary.total_sessions || 0),
-            completed_sessions: Number(summary.completed_sessions || 0),
-            ongoing_sessions: Number(summary.ongoing_sessions || 0),
-            total_operating_hours: Number(summary.total_operating_hours || 0),
-            total_fuel_usage: Number(summary.total_fuel_usage || 0),
-            average_efficiency: Number(summary.average_efficiency || 0),
+            total_sessions: totalSites,
+            completed_sessions: totalSites, // All sites have snapshots
+            ongoing_sessions: 0, // Snapshots don't track ongoing sessions
+            total_operating_hours: 0, // Not available in snapshots
+            total_fuel_usage: totalFuelUsed,
+            total_fuel_filled: totalFuelFilled,
+            average_efficiency: avgEfficiency,
           });
 
-          // Map sessions to rows for table display
-          const sessions: any[] = Array.isArray(data.sessions) ? data.sessions : [];
-          const rows: SiteDayRow[] = sessions.map((session: any, idx: number) => ({
-            id: session.id || idx + 1,
-            branch: session.branch || '',
-            company: session.company || '',
-            cost_code: session.cost_code || '',
-            session_date: session.session_date || '',
-            session_start_time: session.session_start_time || '',
-            session_end_time: session.session_end_time || null,
-            operating_hours: Number(session.operating_hours || 0),
-            opening_percentage: Number(session.opening_percentage || 0),
-            opening_fuel: Number(session.opening_fuel || 0),
-            closing_percentage: Number(session.closing_percentage || 0),
-            closing_fuel: Number(session.closing_fuel || 0),
-            total_usage: Number(session.total_usage || 0),
-            total_fill: Number(session.total_fill || 0),
-            liter_usage_per_hour: Number(session.liter_usage_per_hour || 0),
-            cost_for_usage: Number(session.cost_for_usage || 0),
-            session_status: session.session_status || '',
+          const rows: SiteDayRow[] = filteredSites.map((site: any, idx: number) => ({
+            id: site.branch || idx + 1,
+            branch: site.branch || '',
+            company: site.company || '',
+            cost_code: site.cost_code || '',
+            session_date: data.date || '',
+            session_start_time: site.first_snapshot || '',
+            session_end_time: site.last_snapshot || null,
+            operating_hours: 0, // Not available in snapshots
+            opening_percentage: Number(site.fuel_level_morning || 0),
+            opening_fuel: Number(site.fuel_level_morning || 0),
+            midday_percentage: Number(site.fuel_level_midday || 0),
+            midday_fuel: Number(site.fuel_level_midday || 0),
+            closing_percentage: Number(site.fuel_level_evening || 0),
+            closing_fuel: Number(site.fuel_level_evening || 0),
+            total_usage: Number(site.total_fuel_used || 0),
+            total_fill: Number(site.total_fuel_filled || 0),
+            liter_usage_per_hour: 0, // Not available in snapshots
+            cost_for_usage: 0, // Not available in snapshots
+            session_status: site.irregularities_count > 0 ? 'IRREGULAR' : 'NORMAL',
           }));
           
           setSiteRows(rows);
         }
       }
     } catch (err) {
-      console.error('Error fetching engine sessions data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch engine sessions data');
+      console.error('Error fetching snapshots data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch snapshots data');
       toast({
-        title: 'Failed to load engine sessions',
+        title: 'Failed to load snapshots',
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
-      if (!error && (selectedDate || (startDate && endDate))) {
-        const dateDescription = useDateRange 
-          ? `Engine sessions from ${startDate} to ${endDate} fetched successfully.`
-          : `Engine sessions for ${selectedDate} fetched successfully.`;
+      if (!error && targetDate) {
+        const dateDescription = `Snapshots for ${targetDate} fetched successfully.`;
         toast({
-          title: 'Engine sessions loaded',
+          title: 'Snapshots loaded',
           description: dateDescription
         });
       }
@@ -198,7 +222,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
       {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Engine Sessions Statistics Cards */}
+        {/* Snapshots Statistics Cards */}
         {activityStats && (
           <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border border-gray-200">
@@ -207,7 +231,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                   <Activity className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="font-bold text-gray-900 text-2xl">{activityStats.total_sessions ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Total Sessions</p>
+                    <p className="text-gray-600 text-sm">Total Sites</p>
                   </div>
                 </div>
               </CardContent>
@@ -218,8 +242,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_operating_hours?.toFixed(1) ?? '0.0'}</p>
-                    <p className="text-gray-600 text-sm">Operating Hours</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_usage?.toFixed(1) ?? '0.0'}</p>
+                    <p className="text-gray-600 text-sm">Fuel Usage (L)</p>
                   </div>
                 </div>
               </CardContent>
@@ -230,8 +254,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-purple-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_usage?.toFixed(1) ?? '0.0'}</p>
-                    <p className="text-gray-600 text-sm">Fuel Used (L)</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_filled?.toFixed(1) ?? '0.0'}</p>
+                    <p className="text-gray-600 text-sm">Fuel Filled (L)</p>
                   </div>
                 </div>
               </CardContent>
@@ -251,59 +275,39 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </div>
         )}
 
-        {/* Engine Sessions Table */}
+
+        {/* Daily Snapshots Table */}
         <Card className="shadow-sm border border-gray-200">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Engine Sessions</CardTitle>
+              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Daily Snapshots</CardTitle>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Single Date:</label>
+                  <label className="text-sm font-medium text-gray-700">Date:</label>
                   <Input
                     type="date"
                     value={dateInput}
                     onChange={handleDateChange}
                     className="h-9"
-                    disabled={useDateRange}
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Date Range:</label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="h-9"
-                    disabled={!useDateRange}
-                    placeholder="Start Date"
-                  />
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="h-9"
-                    disabled={!useDateRange}
-                    placeholder="End Date"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Mode:</label>
+                  <label className="text-sm font-medium text-gray-700">Sessions:</label>
                   <select
-                    value={useDateRange ? 'range' : 'single'}
-                    onChange={(e) => setUseDateRange(e.target.value === 'range')}
+                    value={sessionFilter}
+                    onChange={(e) => setSessionFilter(e.target.value as 'all' | 'completed' | 'ongoing')}
                     className="h-9 px-3 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="single">Single Date</option>
-                    <option value="range">Date Range</option>
+                    <option value="all">All Sites</option>
+                    <option value="completed">Normal Sites</option>
+                    <option value="ongoing">Irregular Sites</option>
                   </select>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => fetchActivityData()} 
-                  disabled={
-                    useDateRange ? (!startDate || !endDate) : !selectedDate
-                  }
+                  disabled={!selectedDate}
                 >
                   <RefreshCw className="mr-2 w-4 h-4" />
                   Refresh
@@ -312,11 +316,33 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Session Filter Summary */}
+            {siteRows.length > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-blue-900">
+                      Showing {getFilteredSessions().length} of {siteRows.length} sites
+                    </span>
+                    {sessionFilter !== 'all' && (
+                      <span className="text-xs text-blue-700">
+                        ({sessionFilter === 'completed' ? 'Normal' : 'Irregular'} sites only)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700">
+                    <span>Normal: {siteRows.filter(r => r.session_status === 'NORMAL').length}</span>
+                    <span>•</span>
+                    <span>Irregular: {siteRows.filter(r => r.session_status === 'IRREGULAR').length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             {loading ? (
               <div className="flex justify-center items-center py-8">
                 <div className="text-center">
                   <div className="mx-auto mb-4 border-b-2 border-blue-600 rounded-full w-8 h-8 animate-spin"></div>
-                  <p className="text-gray-600">Loading engine sessions...</p>
+                  <p className="text-gray-600">Loading snapshots...</p>
                 </div>
               </div>
             ) : error ? (
@@ -338,45 +364,40 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                     <tr>
                       <th className="px-6 py-4 font-medium text-sm text-left">Branch</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Company</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Start Time</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">End Time</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Duration (hrs)</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Opening Fuel</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Closing Fuel</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Usage (L)</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Efficiency</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Status</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Morning Fuel</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Midday Fuel</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Evening Fuel</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Total Usage</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Total Fill</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {siteRows.length > 0 ? (
-                      siteRows.map((row) => (
-                        <tr key={row.id}>
+                    {getFilteredSessions().length > 0 ? (
+                      getFilteredSessions().map((row) => (
+                        <tr key={row.branch}>
                           <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.branch}</td>
                           <td className="px-6 py-4 text-gray-900 text-sm">{row.company}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.session_start_time ? formatForDisplay(row.session_start_time) : '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.session_end_time ? formatForDisplay(row.session_end_time) : 'Ongoing'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.operating_hours.toFixed(1)}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.opening_fuel.toFixed(1)}L ({row.opening_percentage.toFixed(1)}%)</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.closing_fuel.toFixed(1)}L ({row.closing_percentage.toFixed(1)}%)</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.opening_percentage.toFixed(1)}%</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.midday_percentage.toFixed(1)}%</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.closing_percentage.toFixed(1)}%</td>
                           <td className="px-6 py-4 text-gray-900 text-sm">{row.total_usage.toFixed(1)}L</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.liter_usage_per_hour.toFixed(2)} L/hr</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              row.session_status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                              row.session_status === 'ONGOING' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {row.session_status}
-                            </span>
-                          </td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.total_fill.toFixed(1)}L</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={10} className="px-6 py-12 text-center">
+                        <td colSpan={7} className="px-6 py-12 text-center">
                           <div className="text-gray-500">
-                            <p className="text-lg">No engine sessions data</p>
+                            <p className="text-lg">
+                              {sessionFilter === 'all' ? 'No snapshots data' :
+                               sessionFilter === 'completed' ? 'No normal sites found' :
+                               'No irregular sites found'}
+                            </p>
+                            {sessionFilter !== 'all' && (
+                              <p className="text-sm mt-2">
+                                Try selecting "All Sites" to see all available data
+                              </p>
+                            )}
                           </div>
                         </td>
                       </tr>
