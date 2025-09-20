@@ -5,8 +5,21 @@ import { Bell, Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LogoutButton } from '@/components/logout-button';
+import { useUser } from '@/contexts/UserContext';
 
 export function Header() {
+  const { user, signOut } = useUser();
+
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+    return user.email?.split('@')[0] || 'User';
+  };
+
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const name = getUserDisplayName();
+    return name.charAt(0).toUpperCase();
+  };
 
   return (
     <header className="flex justify-between items-center bg-[#1e3a5f] px-6 border-gray-700 border-b h-16">
@@ -20,7 +33,7 @@ export function Header() {
       {/* Right Section */}
       <div className="flex items-center gap-4">
         <span className="hidden md:block text-white/80 text-sm">
-          Good evening, mabukwa takunda
+          Good evening, {getUserDisplayName()}
         </span>
         
         <Button variant="ghost" size="sm" className="relative hover:bg-white/10 text-white">
@@ -30,7 +43,7 @@ export function Header() {
 
         <Avatar className="w-8 h-8">
           <AvatarFallback className="bg-white/20 font-medium text-white text-sm">
-            M
+            {getUserInitials()}
           </AvatarFallback>
         </Avatar>
 

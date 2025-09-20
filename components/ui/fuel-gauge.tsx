@@ -4,6 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Thermometer, Droplets, Gauge, Clock } from 'lucide-react';
+import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface FuelGaugeProps {
   location: string;
@@ -13,6 +14,11 @@ interface FuelGaugeProps {
   remaining: string;
   status: string;
   lastUpdated: string;
+  lastFuelFill?: {
+    time: string;
+    amount: number;
+    previousLevel: number;
+  };
   className?: string;
 }
 
@@ -24,6 +30,7 @@ export function FuelGauge({
   remaining,
   status,
   lastUpdated,
+  lastFuelFill,
   className
 }: FuelGaugeProps) {
   const radius = 80;
@@ -131,8 +138,24 @@ export function FuelGauge({
 
         <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg">
           <Clock className="w-4 h-4 text-gray-400" />
-          <span className="text-gray-600 text-xs">{lastUpdated}</span>
+          <span className="text-gray-600 text-xs">{formatForDisplay(lastUpdated)}</span>
         </div>
+
+        {/* Last Fuel Fill Information */}
+        {lastFuelFill && (
+          <div className="bg-green-50 p-3 rounded-lg">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-medium text-green-900 text-sm">Last Fill</span>
+              <span className="font-bold text-green-900 text-sm">{lastFuelFill.amount.toFixed(1)}L</span>
+            </div>
+            <div className="text-green-700 text-xs">
+              {formatForDisplay(lastFuelFill.time)}
+            </div>
+            <div className="text-green-600 text-xs">
+              From {lastFuelFill.previousLevel.toFixed(1)}% to {fuelLevel.toFixed(1)}%
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Note Button */}

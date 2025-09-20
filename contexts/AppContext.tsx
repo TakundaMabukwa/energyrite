@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { costCenterService, HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
+import { getLastFuelFill } from '@/lib/fuel-fill-detector';
+import { useUser } from './UserContext';
 
 interface Route {
   id: string;
@@ -22,6 +24,11 @@ interface FuelData {
   remaining: string;
   status: string;
   lastUpdated: string;
+  lastFuelFill?: {
+    time: string;
+    amount: number;
+    previousLevel: number;
+  };
 }
 
 // Use the HierarchicalCostCenter from the service
@@ -43,6 +50,7 @@ interface AppContextType {
   setActiveTab: (tab: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   updateFuelDataForCostCenter: (costCenter: CostCenter) => Promise<void>;
+  loadDataForUser: () => Promise<void>;
   loading: boolean;
   sseConnected: boolean;
   lastSseUpdate?: string | null;
@@ -53,6 +61,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, isAdmin, userCostCode } = useUser();
   
   const [routes, setRoutes] = useState<Route[]>([]);
   const [fuelData, setFuelData] = useState<FuelData[]>([]);
@@ -103,6 +112,161 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
+  // Load data based on user role and cost code
+  const loadDataForUser = async () => {
+    try {
+      setLoading(true);
+      console.log('🚀 Loading data for user:', { isAdmin, userCostCode, userRole: user?.role, userEmail: user?.email });
+
+      if (isAdmin) {
+        // Admin users see all data
+        console.log('👑 Admin user - loading all data');
+        
+        // Load all cost centers
+        const costCentersData = await costCenterService.fetchAllCostCenters();
+        setCostCenters(costCentersData);
+        
+        // Load all vehicles
+        const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles`);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setVehicles(json.data);
+            setLastSseUpdate(new Date().toISOString());
+            console.log('✅ Loaded all vehicles for admin:', json.data.length);
+          }
+        }
+      } else if (userCostCode) {
+        // Non-admin users see only their cost code data
+        console.log('👤 Regular user - loading data for cost code:', userCostCode);
+        
+        // Load vehicles filtered by cost code
+        const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles?cost_code=${userCostCode}`);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setVehicles(json.data);
+            setLastSseUpdate(new Date().toISOString());
+            console.log('✅ Loaded vehicles for user cost code:', json.data.length);
+            
+            // Automatically set fuel data for the user's cost code
+            await updateFuelDataForCostCode(userCostCode);
+          }
+        }
+        
+        // Set a single cost center for the user
+        const userCostCenter: CostCenter = {
+          id: userCostCode,
+          name: user?.company || 'User Cost Center',
+          costCode: userCostCode,
+          company: user?.company || 'Unknown Company',
+          branch: user?.company || 'User Branch',
+          subBranch: null,
+          level: 1,
+          children: [],
+          path: user?.company || 'User Cost Center',
+          newAccountNumber: 'ENER-0001',
+          parentId: null,
+          hasChildren: false
+        };
+        setCostCenters([userCostCenter]);
+        
+        // Set the selected route to the user's cost center
+        setSelectedRoute({
+          id: userCostCode,
+          route: userCostCenter.name,
+          locationCode: userCostCode,
+          costCode: userCostCode
+        });
+      } else {
+        console.log('⚠️ User has no cost code - setting empty data');
+        setCostCenters([]);
+        setVehicles([]);
+        setFuelData([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading data for user:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update fuel data for a specific cost code (simplified version)
+  const updateFuelDataForCostCode = async (costCode: string) => {
+    try {
+      console.log('📊 Fetching vehicle data for cost code:', costCode);
+      
+      // Filter vehicles by cost code
+      const filteredVehicles = vehicles.filter(v => v.cost_code === costCode);
+      
+      if (filteredVehicles.length > 0) {
+        const formattedFuelData: FuelData[] = filteredVehicles.map((vehicle, index) => {
+          const percentage = Number(vehicle.fuel_probe_1_level_percentage ?? vehicle.fuel_probe_1_level ?? 0);
+          const capacity = Number(typeof vehicle.volume === 'number' ? vehicle.volume : vehicle.volume ?? 0);
+          const remainingLiters = (Number.isFinite(capacity) && Number.isFinite(percentage))
+            ? (capacity * (percentage / 100))
+            : 0;
+
+          return ({
+            id: vehicle.id || `vehicle-${index + 1}`,
+            location: vehicle.branch || vehicle.plate || 'Unknown Vehicle',
+            fuelLevel: Math.max(0, Math.min(100, Number(percentage) || 0)),
+            temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
+            volume: Math.max(0, Number(capacity || 0)),
+            remaining: `${Math.max(0, Number(capacity || 0)).toFixed(1)}L / ${Math.max(0, Number(remainingLiters || 0)).toFixed(1)}L`,
+            status: vehicle.drivername || 'Unknown',
+            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+            lastFuelFill: undefined
+          });
+        });
+
+        // Fetch activity report data to detect fuel fills
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const activityUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report?date=${today}&cost_code=${costCode}`;
+          
+          console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
+          const activityResponse = await fetch(activityUrl);
+          
+          if (activityResponse.ok) {
+            const activityData = await activityResponse.json();
+            
+            if (activityData.success && activityData.data?.sites) {
+              const sitesWithFills = activityData.data.sites.map((site: any) => {
+                const lastFill = getLastFuelFill(
+                  site.snapshots || [], 
+                  site.site_id || site.id, 
+                  site.branch || site.name
+                );
+                return { siteId: site.site_id || site.id, lastFill };
+              });
+
+              formattedFuelData.forEach(vehicle => {
+                const siteData = sitesWithFills.find(s => s.siteId === vehicle.id);
+                if (siteData?.lastFill) {
+                  vehicle.lastFuelFill = siteData.lastFill;
+                }
+              });
+
+              console.log('✅ Fuel fills detected for cost code:', sitesWithFills.filter(s => s.lastFill).length);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch activity report for fuel fills:', err);
+        }
+
+        setFuelData(formattedFuelData);
+        console.log('✅ Updated fuel data for cost code:', formattedFuelData.length, 'vehicles');
+      } else {
+        console.log('⚠️ No vehicles found for cost code:', costCode);
+        setFuelData([]);
+      }
+    } catch (error) {
+      console.error('❌ Error updating fuel data for cost code:', error);
+      setFuelData([]);
+    }
+  };
+
   // Update fuel data using vehicles from SSE/context (filter by cost code)
   const updateFuelDataForCostCenter = async (costCenter: CostCenter) => {
     try {
@@ -120,7 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if ((!filteredVehicles || filteredVehicles.length === 0) && (!vehicles || vehicles.length === 0)) {
         // Load vehicles once if not present, then filter
         try {
-          const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
+          const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles`);
           if (resp.ok) {
             const json = await resp.json();
             if (json?.success && Array.isArray(json.data)) {
@@ -147,16 +311,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
             volume: Math.max(0, Number(capacity || 0)),
             remaining: `${Math.max(0, Number(capacity || 0)).toFixed(1)}L / ${Math.max(0, Number(remainingLiters || 0)).toFixed(1)}L`,
-            status: vehicle.status || 'Unknown',
-            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString()
+            status: vehicle.drivername || 'Unknown',
+            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+            lastFuelFill: undefined // Will be populated below
           });
         });
+
+        // Fetch activity report data to detect fuel fills
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const activityUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report?date=${today}&cost_code=${costCenter.costCode}`;
+          
+          console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
+          const activityResponse = await fetch(activityUrl);
+          
+          if (activityResponse.ok) {
+            const activityData = await activityResponse.json();
+            
+            if (activityData.success && activityData.data?.sites) {
+              // Process each site to detect fuel fills
+              const sitesWithFills = activityData.data.sites.map((site: any) => {
+                const lastFill = getLastFuelFill(
+                  site.snapshots || [], 
+                  site.site_id || site.id, 
+                  site.branch || site.name
+                );
+                return { siteId: site.site_id || site.id, lastFill };
+              });
+
+              // Update formatted data with fuel fill information
+              formattedFuelData.forEach(vehicle => {
+                const siteData = sitesWithFills.find(s => s.siteId === vehicle.id);
+                if (siteData?.lastFill) {
+                  vehicle.lastFuelFill = siteData.lastFill;
+                }
+              });
+
+              console.log('✅ Fuel fills detected for cost center:', sitesWithFills.filter(s => s.lastFill).length);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch activity report for fuel fills:', err);
+        }
 
         setFuelData(formattedFuelData);
         console.log('✅ Updated fuel data from SSE/context vehicles:', formattedFuelData.length, 'vehicles');
       } else {
         console.log('⚠️ No vehicle data found for cost code in context:', costCenter.costCode, '→ fetching vehicles from external once');
-        const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
+        const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles`);
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success && Array.isArray(json.data)) {
@@ -169,9 +371,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
               volume: Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0)),
               remaining: `${Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0))}L`,
-              status: vehicle.status || 'Unknown',
-              lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString()
+              status: vehicle.drivername || 'Unknown',
+              lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+              lastFuelFill: undefined // Will be populated below
             }));
+
+            // Fetch activity report data to detect fuel fills
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const activityUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report?date=${today}&cost_code=${costCenter.costCode}`;
+              
+              console.log('🔍 Fetching activity report for fuel fill detection (fallback):', activityUrl);
+              const activityResponse = await fetch(activityUrl);
+              
+              if (activityResponse.ok) {
+                const activityData = await activityResponse.json();
+                
+                if (activityData.success && activityData.data?.sites) {
+                  // Process each site to detect fuel fills
+                  const sitesWithFills = activityData.data.sites.map((site: any) => {
+                    const lastFill = getLastFuelFill(
+                      site.snapshots || [], 
+                      site.site_id || site.id, 
+                      site.branch || site.name
+                    );
+                    return { siteId: site.site_id || site.id, lastFill };
+                  });
+
+                  // Update formatted data with fuel fill information
+                  formattedFuelData.forEach(vehicle => {
+                    const siteData = sitesWithFills.find(s => s.siteId === vehicle.id);
+                    if (siteData?.lastFill) {
+                      vehicle.lastFuelFill = siteData.lastFill;
+                    }
+                  });
+
+                  console.log('✅ Fuel fills detected for cost center (fallback):', sitesWithFills.filter(s => s.lastFill).length);
+                }
+              }
+            } catch (err) {
+              console.warn('⚠️ Could not fetch activity report for fuel fills (fallback):', err);
+            }
+
             setFuelData(formattedFuelData);
             console.log('✅ Updated fuel data from local API:', formattedFuelData.length, 'vehicles');
           } else {
@@ -246,138 +487,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const initializeData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch cost centers from Supabase
-        console.log('🚀 Starting to fetch cost centers from Supabase...');
-        const costCentersData = await costCenterService.fetchAllCostCenters();
-        console.log('✅ Cost centers fetched and set in context:', costCentersData);
-        setCostCenters(costCentersData);
-        
-        // Keep mock data for routes and fuel data for now
-        const mockRoutes: Route[] = [
-          {
-            id: '1',
-            route: '845DA2',
-            locationCode: '8459201',
-            serviceDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            userGroup: '845',
-            created: '9/2/2025'
-          },
-          {
-            id: '2',
-            route: '845DA3',
-            locationCode: '8459202',
-            serviceDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            userGroup: '845',
-            created: '9/2/2025'
-          },
-          {
-            id: '3',
-            route: '845DA4',
-            locationCode: '8459301',
-            serviceDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'],
-            userGroup: '845',
-            created: '9/2/2025'
-          }
-        ];
-
-        const mockFuelData: FuelData[] = [
-          {
-            id: '1',
-            location: 'BLUE HILL',
-            fuelLevel: 71,
-            temperature: 28,
-            volume: 972.0,
-            remaining: '696.7L',
-            status: 'ENGINE OFF',
-            lastUpdated: '28 Aug 2025 14:37 PM'
-          },
-          {
-            id: '2',
-            location: 'KFC Ballyclare',
-            fuelLevel: 95,
-            temperature: 32,
-            volume: 484.3,
-            remaining: '463.9L',
-            status: 'Possible Fuel Fill',
-            lastUpdated: '29 Aug 2025 16:22 PM'
-          },
-          {
-            id: '3',
-            location: 'KFC KAALFONTEIN',
-            fuelLevel: 94,
-            temperature: 30,
-            volume: 520.0,
-            remaining: '488.8L',
-            status: 'ENGINE OFF',
-            lastUpdated: '28 Aug 2025 15:45 PM'
-          },
-          {
-            id: '4',
-            location: 'KYALAMI - (Water contaminated generator)',
-            fuelLevel: 102,
-            temperature: 215,
-            volume: 750.0,
-            remaining: '765.0L',
-            status: 'ENGINE OFF',
-            lastUpdated: '27 Aug 2025 11:30 AM'
-          },
-          {
-            id: '5',
-            location: 'LION\'S PRIDE',
-            fuelLevel: 97,
-            temperature: 25,
-            volume: 680.0,
-            remaining: '659.6L',
-            status: 'ENGINE OFF',
-            lastUpdated: '29 Aug 2025 09:15 AM'
-          },
-          {
-            id: '6',
-            location: 'MARLBORO',
-            fuelLevel: 92,
-            temperature: 27,
-            volume: 450.0,
-            remaining: '414.0L',
-            status: 'ENGINE OFF',
-            lastUpdated: '28 Aug 2025 13:20 PM'
-          }
-        ];
-
-        setRoutes(mockRoutes);
-        setFuelData(mockFuelData);
-
-        // Load vehicles once from external endpoint via proxy (non-realtime)
-        try {
-          console.log('🚚 Fetching all vehicles from Energy Rite via proxy...');
-          const resp = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite/vehicles');
-          if (resp.ok) {
-            const json = await resp.json();
-            if (json?.success && Array.isArray(json.data)) {
-              setVehicles(json.data);
-              setLastSseUpdate(new Date().toISOString());
-              console.log('✅ Loaded vehicles:', json.data.length);
-            } else {
-              console.warn('⚠️ Vehicles API returned no data');
-            }
-          } else {
-            console.warn('⚠️ Vehicles API error:', resp.status);
-          }
-        } catch (vehErr) {
-          console.error('❌ Error loading vehicles:', vehErr);
-        }
-      } catch (error) {
-        console.error('Error initializing data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeData();
-  }, []);
+    if (user !== null) { // Only load data when user is loaded (including null for unauthenticated)
+      loadDataForUser();
+    }
+  }, [user, isAdmin, userCostCode]);
 
   // Realtime disabled: we fetch once on load per requirements
 
@@ -399,6 +512,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveTab: updateActiveTab,
         setSidebarCollapsed,
         updateFuelDataForCostCenter,
+        loadDataForUser,
         loading,
         sseConnected,
         lastSseUpdate
@@ -441,6 +555,7 @@ export interface EnergyRiteVehicle {
   is_active?: boolean | null;
   volume?: number | string | null;
   status?: string | null;
+  drivername?: string | null;
   last_notification?: string | null;
   [key: string]: any;
 }

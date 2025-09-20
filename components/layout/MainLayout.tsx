@@ -4,18 +4,21 @@ import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { DashboardView } from '@/components/views/DashboardView';
-import { CostCentersView } from '@/components/views/CostCentersView';
+import { FuelGaugesView } from '@/components/views/FuelGaugesView';
 import { StoreEquipmentView } from '@/components/views/StoreEquipmentView';
 import { UrlIndicator } from '@/components/ui/url-indicator';
 import { useApp } from '@/contexts/AppContext';
+import { useUser } from '@/contexts/UserContext';
 
 export function MainLayout() {
   const { activeTab } = useApp();
+  const { isAdmin } = useUser();
 
   const renderMainContent = () => {
     switch (activeTab) {
       case 'cost-centres':
-        return <CostCentersView />;
+        // Show fuel gauges instead of cost centers table
+        return <FuelGaugesView />;
       case 'store-equipment':
         return <StoreEquipmentView />;
       case 'dashboard':

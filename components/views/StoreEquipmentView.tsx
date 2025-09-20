@@ -89,7 +89,7 @@ export function StoreEquipmentView() {
       setLoading(true);
       setError(null);
       
-      let url = '/api/energy-rite-proxy?endpoint=/api/energy-rite-reports/realtime-dashboard';
+      let url = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite-reports/realtime-dashboard`;
       
       // Add cost center specific parameters if provided
       if (costCenter) {

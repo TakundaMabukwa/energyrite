@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, RefreshCw } from 'lucide-react';
+import { TopNavigation } from '@/components/layout/TopNavigation';
+import { RefreshCw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useUser } from '@/contexts/UserContext';
 import { ScoreCard } from '@/components/ui/score-card';
 import { ChartCard } from '@/components/ui/chart-card';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useToast } from '@/hooks/use-toast';
+import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface ExecutiveDashboardViewProps {
   onBack?: () => void;
@@ -55,6 +58,7 @@ interface ExecutiveDashboardData {
 
 export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) {
   const { selectedRoute } = useApp();
+  const { userCostCode, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,116 +69,78 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [dashboardData, setDashboardData] = useState<ExecutiveDashboardData | null>(null);
 
   const getCostCenterName = () => {
-    if (selectedRoute && 'name' in selectedRoute) {
-      return selectedRoute.name as string;
+    if (isAdmin) {
+      return 'Executive Dashboard (All Cost Centers)';
+    }
+    if (userCostCode) {
+      return `Executive Dashboard (${userCostCode})`;
     }
     return 'Executive Dashboard';
   };
 
   const getBreadcrumbPath = () => {
-    if (selectedRoute && 'name' in selectedRoute) {
-      const costCenterName = selectedRoute.name as string;
-      return `Energyrite => KFC => ${costCenterName} - (COST CODE: ${selectedRoute.costCode || 'KFC-ALCFOOD'})`;
+    if (isAdmin) {
+      return 'Energyrite => All Cost Centers - (ADMIN VIEW)';
     }
-    return 'Energyrite => KFC => Executive Overview';
+    if (userCostCode) {
+      return `Energyrite => User Cost Center - (COST CODE: ${userCostCode})`;
+    }
+    return 'Energyrite => Executive Dashboard';
   };
 
-  // Fetch data from Energy Rite server using multiple endpoints
+  // Fetch data from Energy Rite server using new executive dashboard endpoint
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('📊 Fetching executive dashboard data from multiple endpoints...');
+      console.log('📊 Fetching executive dashboard data from new endpoint...');
       
-      // Build query parameters for month/year and cost center filtering (new API guide)
+      // Build query parameters for month/year and cost center filtering
       const queryParams = new URLSearchParams();
       const now = new Date();
       queryParams.append('month', String(now.getMonth() + 1));
       queryParams.append('year', String(now.getFullYear()));
-      if (selectedRoute && ('costCode' in selectedRoute)) {
-        if (selectedRoute.costCode) {
-          queryParams.append('cost_code', selectedRoute.costCode);
-        }
+      // Only add cost_code filter if user is not admin
+      if (!isAdmin && userCostCode) {
+        queryParams.append('cost_code', userCostCode);
       }
       
       const queryString = queryParams.toString();
-      const baseUrl = '/api/energy-rite-proxy?endpoint=';
+      const executiveUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/executive-dashboard${queryString ? `?${queryString}` : ''}`;
       
-      // Fetch data from documented endpoints concurrently
-      const endpoints = [
-        `${baseUrl}/api/energy-rite/reports/executive-dashboard${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite/fuel-analysis/consumption-analysis${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite/fuel-analysis/anomalies${queryString ? `&${queryString}` : ''}`,
-        `${baseUrl}/api/energy-rite/vehicles/stats${queryString ? `&${queryString}` : ''}`
-      ];
+      console.log('🔍 Fetching from executive dashboard endpoint:', executiveUrl);
       
-      console.log('🔍 Fetching from endpoints:', endpoints);
+      const response = await fetch(executiveUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
       
-      const responses = await Promise.allSettled(
-        endpoints.map(url => fetch(url, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        }))
-      );
-      
-      // Process responses
-      const [executiveResult, consumptionResult, anomaliesResult, vehiclesStatsResult] = responses;
-      
-      let vehiclesStats: any = null;
-      let fuelConsumption: any = null;
-      let executiveData: any = null;
-      let anomaliesCount = 0;
-      
-      // Process consumption analysis
-      if (consumptionResult.status === 'fulfilled' && consumptionResult.value.ok) {
-        const data = await consumptionResult.value.json();
-        if (data.success && data.data) {
-          fuelConsumption = data.data;
-          console.log('✅ Fuel consumption data received:', fuelConsumption);
-        }
+      if (!response.ok) {
+        throw new Error(`Failed to fetch executive dashboard: ${response.status}`);
       }
       
-      // Process executive dashboard data
-      if (executiveResult.status === 'fulfilled' && executiveResult.value.ok) {
-        const data = await executiveResult.value.json();
-        if (data.success && data.data) {
-          executiveData = data.data;
-          console.log('✅ Executive dashboard data received:', executiveData);
-        }
+      const result = await response.json();
+      
+      if (!result.success || !result.data) {
+        throw new Error('Invalid response from executive dashboard endpoint');
       }
       
-      // Process vehicles statistics
-      if (vehiclesStatsResult.status === 'fulfilled' && vehiclesStatsResult.value.ok) {
-        const data = await vehiclesStatsResult.value.json();
-        if (data.success && data.data) {
-          vehiclesStats = data.data;
-          console.log('✅ Vehicles stats received:', vehiclesStats);
-        }
-      }
-
-      // Process anomalies
-      if (anomaliesResult.status === 'fulfilled' && anomaliesResult.value.ok) {
-        const data = await anomaliesResult.value.json();
-        if (data.success && data.data) {
-          const list = Array.isArray(data.data?.anomalies) ? data.data.anomalies : (Array.isArray(data.data) ? data.data : []);
-          anomaliesCount = list.length;
-          console.log('✅ Anomalies count:', anomaliesCount);
-        }
-      }
+      const executiveData = result.data;
       
-      console.log('📊 All data processed successfully');
+      console.log('✅ Executive dashboard data received:', executiveData);
+      setDashboardData(executiveData);
       
-      // Update score cards with executive score_card data
+      // Update score cards using the new API structure
       setScoreCardData([
         {
-          value: Number(executiveData?.score_card?.sites_running_over_day ?? 0),
-          label: 'Sites Running Today',
+          value: Number(executiveData?.score_card?.active_sites ?? 0),
+          label: 'Active Sites',
           barColor: 'bg-green-500'
         },
         {
-          value: Number(parseFloat(executiveData?.score_card?.total_hours_running ?? '0') || 0),
-          label: 'Hours Running',
+          value: Number(parseFloat(executiveData?.score_card?.total_operational_hours ?? '0') || 0),
+          label: 'Operating Hours',
           barColor: 'bg-blue-500'
         },
         {
@@ -186,32 +152,46 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           value: Number(parseFloat(executiveData?.score_card?.total_litres_used ?? '0') || 0),
           label: 'Litres Used',
           barColor: 'bg-red-500'
-        }
+        },
+        // Additional cards from current_status if available
+        ...(executiveData?.current_status ? [
+          {
+            value: Number(executiveData.current_status.total_registered_sites ?? 0),
+            label: 'Total Registered Sites',
+            barColor: 'bg-indigo-500'
+          },
+          {
+            value: Number(executiveData.current_status.currently_running ?? 0),
+            label: 'Currently Running',
+            barColor: 'bg-orange-500'
+          },
+          {
+            value: Number(executiveData.current_status.active_last_24h ?? 0),
+            label: 'Active Last 24h',
+            barColor: 'bg-teal-500'
+          },
+          {
+            value: Number(parseFloat(executiveData.current_status.average_fuel_level ?? '0') || 0),
+            label: 'Avg Fuel Level %',
+            barColor: 'bg-cyan-500'
+          }
+        ] : [])
       ]);
 
-      // Update top sites data from top activity vehicles
+      // Log additional data sections for debugging
+      console.log('📊 Current Status:', executiveData?.current_status);
+      console.log('📊 Activity Patterns:', executiveData?.activity_patterns);
+
+      // Update top sites data from top_10_sites_by_fuel_usage
       if (executiveData?.top_10_sites_by_fuel_usage?.length) {
         const topSites = executiveData.top_10_sites_by_fuel_usage
           .slice(0, 10)
           .map((site: any, index: number) => ({
             label: site.branch ? (site.branch.length > 12 ? `${site.branch.substring(0, 12)}...` : site.branch) : `Site ${index + 1}`,
-            value: Math.round(site.total_fuel_usage || 0),
+            value: Math.round(parseFloat(site.total_fuel_usage || '0')),
             color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index]
           }));
         setTopSitesData(topSites);
-      } else if (executiveData?.branchBreakdown) {
-        // Fallback to executive data branch breakdown
-        const topBranches = Object.entries(executiveData.branchBreakdown)
-          .sort(([, a], [, b]) => (b.totalVolume || 0) - (a.totalVolume || 0))
-          .slice(0, 10)
-          .map(([branch, data], index) => ({
-            label: branch.length > 12 ? `${branch.substring(0, 12)}...` : branch,
-            value: Math.round(data.totalVolume || 0),
-            color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index]
-          }));
-        
-        setTopSitesData(topBranches);
-        console.log('📊 Top sites data from executive:', topBranches);
       } else {
         // No data available → single brown slice
         setTopSitesData([{
@@ -221,25 +201,45 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         }]);
       }
 
-      // Update activity running time (minutes) using executive score_card values
-      const hoursRunning = Number(parseFloat(executiveData?.score_card?.total_hours_running ?? '0') || 0);
-      const hoursNotRunning = Number(parseFloat(executiveData?.score_card?.total_hours_not_running ?? '0') || 0);
-      const runningMinutes = Math.round(hoursRunning * 60);
-      const notRunningMinutes = Math.round(hoursNotRunning * 60);
-      const totalMinutes = runningMinutes + notRunningMinutes;
-      setActivityData([
-        { label: 'Running', value: runningMinutes, color: '#10B981' },
-        { label: 'Not Running', value: notRunningMinutes, color: '#D97706' },
-        { label: 'Total', value: totalMinutes, color: '#3B82F6' }
-      ]);
+      // Update activity data using session metrics and activity patterns
+      const completedSessions = Number(executiveData?.score_card?.completed_sessions ?? 0);
+      const ongoingSessions = Number(executiveData?.score_card?.ongoing_sessions ?? 0);
+      const totalSessions = completedSessions + ongoingSessions;
+      
+      // Use activity patterns if available, otherwise fall back to session metrics
+      if (executiveData?.activity_patterns?.daily_breakdown?.length) {
+        const dailyData = executiveData.activity_patterns.daily_breakdown[0]; // Most recent day
+        setActivityData([
+          { label: 'Sessions Started', value: Number(dailyData?.sessions_started ?? 0), color: '#10B981' },
+          { label: 'Sessions Completed', value: Number(dailyData?.sessions_completed ?? 0), color: '#3B82F6' },
+          { label: 'Daily Operating Hours', value: Number(parseFloat(dailyData?.daily_operating_hours ?? '0') || 0), color: '#D97706' }
+        ]);
+      } else {
+        setActivityData([
+          { label: 'Completed Sessions', value: completedSessions, color: '#10B981' },
+          { label: 'Ongoing Sessions', value: ongoingSessions, color: '#D97706' },
+          { label: 'Total Sessions', value: totalSessions, color: '#3B82F6' }
+        ]);
+      }
 
-      // Update long running data based on executive sites_running_over_24h
-      if (executiveData?.sites_running_over_24h?.length) {
+      // Update long running data based on sites_running_over_24h or running_time_distribution
+      if (executiveData?.activity_patterns?.running_time_distribution?.length) {
+        // Use running time distribution from activity patterns
+        const longRunningData = executiveData.activity_patterns.running_time_distribution
+          .slice(0, 3)
+          .map((dist: any, index: number) => ({
+            label: dist.duration_category || `Category ${index + 1}`,
+            value: Number(dist.session_count || 0),
+            color: ['#D97706', '#3B82F6', '#10B981'][index]
+          }));
+        setLongRunningData(longRunningData);
+      } else if (executiveData?.sites_running_over_24h?.length) {
+        // Fallback to sites running over 24h
         const longRunningData = executiveData.sites_running_over_24h
           .slice(0, 3)
           .map((site: any, index: number) => ({
             label: site.branch ? (site.branch.length > 15 ? `${site.branch.substring(0, 15)}...` : site.branch) : `Site ${index + 1}`,
-            value: Math.round(site.total_running_hours || 0),
+            value: Math.round(parseFloat(site.total_operating_hours || '0')),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
           }));
         setLongRunningData(longRunningData);
@@ -290,8 +290,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [selectedRoute]);
+    // Auto-fetch data on load for user's cost code (or all data for admin)
+    if (userCostCode || isAdmin) {
+      fetchDashboardData();
+    }
+  }, [userCostCode, isAdmin]);
 
   if (loading) {
     return (
@@ -322,22 +325,15 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
 
   return (
     <div className="bg-gray-50 h-full">
-      {/* Header */}
-      <div className="bg-white p-6 border-gray-200 border-b">
+      <TopNavigation />
+
+      {/* Main Content */}
+      <div className="space-y-6 p-6">
+        {/* Header with refresh button */}
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            {onBack && (
-              <Button variant="ghost" size="sm" onClick={onBack}>
-                <ChevronLeft className="mr-2 w-4 h-4" />
-                Back
-              </Button>
-            )}
-            <div>
-              <h1 className="font-semibold text-blue-600 text-2xl">{getCostCenterName()}</h1>
-              <p className="mt-1 text-gray-600 text-sm">
-                {getBreadcrumbPath()}
-              </p>
-            </div>
+          <div>
+            <h1 className="font-semibold text-blue-600 text-2xl">{getCostCenterName()}</h1>
+            <p className="mt-1 text-gray-600 text-sm">{getBreadcrumbPath()}</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={fetchDashboardData}>
@@ -346,15 +342,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             </Button>
             {dashboardData && (
               <div className="text-gray-500 text-sm">
-                Last updated: {new Date().toLocaleTimeString()}
+                Last updated: {formatForDisplay(new Date().toISOString())}
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="space-y-6 p-6">
         {/* Score Card Section */}
         <div>
           <h2 className="mb-4 font-semibold text-gray-900 text-xl">SCORE CARD</h2>

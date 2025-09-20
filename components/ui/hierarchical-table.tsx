@@ -42,17 +42,18 @@ export function HierarchicalTable({
   const allCostCenters = flattenCostCenters(data);
 
   const filteredData = allCostCenters.filter(item => {
-    // Filter out items with null in their path or name
-    const hasNull = item.path.toLowerCase().includes('null') || 
-                   item.name.toLowerCase().includes('null') ||
-                   item.branch.toLowerCase().includes('null');
+    // Filter out items with null or undefined properties
+    const hasNull = (item.path && item.path.toLowerCase().includes('null')) || 
+                   (item.name && item.name.toLowerCase().includes('null')) ||
+                   (item.branch && item.branch.toLowerCase().includes('null'));
     
     if (hasNull) return false;
     
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.costCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.branch.toLowerCase().includes(searchTerm.toLowerCase());
+    // Check if required properties exist before calling toLowerCase
+    const matchesSearch = (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (item.costCode && item.costCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (item.company && item.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (item.branch && item.branch.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesLevel = filterLevel === 'all' || item.level.toString() === filterLevel;
     
@@ -164,7 +165,7 @@ export function HierarchicalTable({
               filteredData.map(item => renderRow(item))
             ) : (
                <tr>
-                 <td colSpan={5} className="px-6 py-12 text-center">
+                 <td colSpan={7} className="px-6 py-12 text-center">
                    <div className="text-gray-500">
                      <Building2 className="mx-auto mb-4 w-12 h-12 text-gray-300" />
                      <p className="text-lg">No cost centers found</p>

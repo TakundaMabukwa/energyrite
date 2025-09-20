@@ -214,7 +214,7 @@ export class CostCenterService {
   // Method to search Energy Rite data by cost center
   async searchEnergyRiteData(costCenter: HierarchicalCostCenter, endpoint: string): Promise<any> {
     try {
-      let url = `/api/energy-rite-proxy?endpoint=${endpoint}`;
+      let url = `http://${process.env.NEXT_PUBLIC_SERVER_URL}${endpoint}`;
       
       // Try with cost center parameters first
       const searchParams = new URLSearchParams();
@@ -256,7 +256,7 @@ export class CostCenterService {
           fallbackParams.append('costCenterId', costCenter.costCode);
         }
         
-        const fallbackUrl = `/api/energy-rite-proxy?endpoint=${endpoint}${fallbackParams.toString() ? `&${fallbackParams.toString()}` : ''}`;
+        const fallbackUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}${endpoint}${fallbackParams.toString() ? `?${fallbackParams.toString()}` : ''}`;
         console.log('🔄 Fallback request:', fallbackUrl);
         
         response = await fetch(fallbackUrl);
@@ -267,7 +267,7 @@ export class CostCenterService {
       if (result.success && (!result.data || result.data.length === 0) && costCenter.company) {
         console.log('⚠️ Still no data, trying with just company filter');
         
-        const companyUrl = `/api/energy-rite-proxy?endpoint=${endpoint}&company=${encodeURIComponent(costCenter.company)}`;
+        const companyUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}${endpoint}?company=${encodeURIComponent(costCenter.company)}`;
         console.log('🏢 Company-only request:', companyUrl);
         
         response = await fetch(companyUrl);
@@ -292,7 +292,7 @@ export class CostCenterService {
       console.log('🌐 Fetching company/branch data from Energy Rite API...');
       
       // Get realtime dashboard data to extract companies and branches
-      const response = await fetch('/api/energy-rite-proxy?endpoint=/api/energy-rite-reports/realtime-dashboard');
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite-reports/realtime-dashboard`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

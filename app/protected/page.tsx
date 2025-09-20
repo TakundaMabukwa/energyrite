@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 // import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { MainLayout } from '@/components/layout/MainLayout';
 import { AppProvider } from '@/contexts/AppContext';
+import { UserProvider } from '@/contexts/UserContext';
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -14,8 +15,10 @@ export default async function ProtectedPage() {
   }
 
   return (
-    <AppProvider>
-      <MainLayout />
-    </AppProvider>
+    <UserProvider>
+      <AppProvider>
+        <MainLayout />
+      </AppProvider>
+    </UserProvider>
   );
 }

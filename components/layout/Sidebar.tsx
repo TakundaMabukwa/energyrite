@@ -28,7 +28,7 @@ const sidebarItems = [
   },
   {
     id: 'cost-centres',
-    label: 'Cost Centres',
+    label: 'Fuel Gauges',
     icon: Building2,
     active: false
   }

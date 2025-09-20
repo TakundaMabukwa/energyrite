@@ -4,23 +4,25 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, RefreshCw, Activity, Clock, AlertTriangle } from 'lucide-react';
+import { TopNavigation } from '@/components/layout/TopNavigation';
+import { RefreshCw, Activity, Clock, AlertTriangle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
+import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface ActivityReportViewProps {
   onBack?: () => void;
 }
 
 interface ActivityStatistics {
-  // Summary fields from /reports/activity-report (new schema)
-  total_sites?: number;
-  morning_snapshots?: number;
-  midday_snapshots?: number;
-  evening_snapshots?: number;
-  avg_morning_fuel?: number;
-  avg_evening_fuel?: number;
-  irregularities_count?: number;
+  // Summary fields from /reports/operating-sessions
+  total_sessions?: number;
+  completed_sessions?: number;
+  ongoing_sessions?: number;
+  total_operating_hours?: number;
+  total_fuel_usage?: number;
+  average_efficiency?: number;
 }
 
 interface SiteDayRow {
@@ -28,25 +30,30 @@ interface SiteDayRow {
   branch: string;
   company: string;
   cost_code: string;
-  fuel_level_morning: number | null;
-  fuel_level_midday: number | null;
-  fuel_level_evening: number | null;
-  engine_status_morning: string | null;
-  engine_status_midday: string | null;
-  engine_status_evening: string | null;
-  total_fuel_used: number;
-  total_fuel_filled: number;
-  irregularities_count: number;
-  first_snapshot: string | null;
-  last_snapshot: string | null;
+  session_date: string;
+  session_start_time: string;
+  session_end_time: string | null;
+  operating_hours: number;
+  opening_percentage: number;
+  opening_fuel: number;
+  closing_percentage: number;
+  closing_fuel: number;
+  total_usage: number;
+  total_fill: number;
+  liter_usage_per_hour: number;
+  cost_for_usage: number;
+  session_status: string;
 }
 
 export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const { selectedRoute } = useApp();
+  const { userCostCode, isAdmin } = useUser();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [dateInput, setDateInput] = useState<string>('');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [useDateRange, setUseDateRange] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [loading, setLoading] = useState(true);
@@ -56,156 +63,142 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const [vehiclesOver24h, setVehiclesOver24h] = useState<never[]>([]);
 
   const getCostCenterName = () => {
-    if (selectedRoute && 'name' in selectedRoute) {
-      return selectedRoute.name as string;
+    if (isAdmin) {
+      return 'All Cost Centers';
     }
-    return 'Cost Centre (13)';
+    if (userCostCode) {
+      return `Cost Centre (${userCostCode})`;
+    }
+    return 'Activity Reports';
   };
 
   const getBreadcrumbPath = () => {
-    if (selectedRoute && 'name' in selectedRoute) {
-      const costCenterName = selectedRoute.name as string;
-      return `Energyrite => KFC => ${costCenterName} - (COST CODE: ${selectedRoute.costCode || 'KFC-ALCFOOD'})`;
+    if (isAdmin) {
+      return 'Energyrite => All Cost Centers - (ADMIN VIEW)';
     }
-    return 'Energyrite => KFC => Alchemy Foods - (COST CODE: KFC-ALCFOOD)';
+    if (userCostCode) {
+      return `Energyrite => User Cost Center - (COST CODE: ${userCostCode})`;
+    }
+    return 'Energyrite => Activity Reports';
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextDate = e.target.value;
     setDateInput(nextDate);
     setSelectedDate(nextDate);
-    // Fetch only if both date and month are selected
+    // Fetch when date is selected (no month dependency)
     setTimeout(() => {
-      if ((selectedMonth || '').length > 0 && (nextDate || '').length > 0) {
+      if ((nextDate || '').length > 0) {
         fetchActivityData(nextDate);
       }
     }, 0);
   };
 
-  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const month = e.target.value; // YYYY-MM
-    setSelectedMonth(month);
-    // If date not chosen yet, default to first day of month but do not fetch
-    if (!selectedDate) {
-      const firstDay = `${month}-01`;
-      setDateInput(firstDay);
-      setSelectedDate(firstDay);
-    }
-    // Fetch only if both date and month are selected
-    setTimeout(() => {
-      const dateToUse = selectedDate || `${month}-01`;
-      if ((month || '').length > 0 && (dateToUse || '').length > 0) {
-        fetchActivityData(dateToUse);
-      }
-    }, 0);
-  };
 
-  // Fetch activity data from Energy Rite server (new schema)
+  // Fetch engine sessions data from Energy Rite server
   const fetchActivityData = async (forDate?: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      // Build proxy URL: keep query params separate from endpoint to avoid double '?'
-      const targetDate = (forDate || selectedDate || '').toString();
+      // Build URL for engine sessions endpoint
       const params = new URLSearchParams();
-      if (targetDate) params.append('date', targetDate);
-      if (selectedRoute && 'costCode' in selectedRoute && selectedRoute.costCode) {
-        params.append('cost_code', selectedRoute.costCode);
+      
+      if (useDateRange && startDate && endDate) {
+        params.append('start_date', startDate);
+        params.append('end_date', endDate);
+      } else {
+        const targetDate = (forDate || selectedDate || '').toString();
+        if (targetDate) params.append('date', targetDate);
       }
-      const statsUrl = `/api/energy-rite-proxy?endpoint=/api/energy-rite/reports/activity-report${params.toString() ? `&${params.toString()}` : ''}`;
-      const statsResponse = await fetch(statsUrl);
-      if (statsResponse.ok) {
-        const statsResult = await statsResponse.json();
-        if (statsResult.success) {
-          const data = statsResult.data || {};
+      
+      // Only add cost_code filter if user is not admin
+      if (!isAdmin && userCostCode) {
+        params.append('cost_code', userCostCode);
+      }
+      const sessionsUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/engine-sessions${params.toString() ? `?${params.toString()}` : ''}`;
+      const sessionsResponse = await fetch(sessionsUrl);
+      
+      if (sessionsResponse.ok) {
+        const sessionsResult = await sessionsResponse.json();
+        if (sessionsResult.success) {
+          const data = sessionsResult.data || {};
           const summary = data.summary || {};
+          
+          // Set activity statistics from operating sessions summary
           setActivityStats({
-            total_sites: Number(summary.total_sites || 0),
-            morning_snapshots: Number(summary.morning_snapshots || 0),
-            midday_snapshots: Number(summary.midday_snapshots || 0),
-            evening_snapshots: Number(summary.evening_snapshots || 0),
-            avg_morning_fuel: Number(parseFloat(summary.avg_morning_fuel || '0') || 0),
-            avg_evening_fuel: Number(parseFloat(summary.avg_evening_fuel || '0') || 0),
-            irregularities_count: Number(summary.irregularities_count || 0),
+            total_sessions: Number(summary.total_sessions || 0),
+            completed_sessions: Number(summary.completed_sessions || 0),
+            ongoing_sessions: Number(summary.ongoing_sessions || 0),
+            total_operating_hours: Number(summary.total_operating_hours || 0),
+            total_fuel_usage: Number(summary.total_fuel_usage || 0),
+            average_efficiency: Number(summary.average_efficiency || 0),
           });
 
-          // Map sites to rows for table display
-          const sites: any[] = Array.isArray(data.sites) ? data.sites : [];
-          const rows: SiteDayRow[] = sites.map((s: any, idx: number) => ({
-            id: idx + 1,
-            branch: s.branch,
-            company: s.company,
-            cost_code: s.cost_code || '',
-            fuel_level_morning: typeof s.fuel_level_morning === 'number' ? s.fuel_level_morning : null,
-            fuel_level_midday: typeof s.fuel_level_midday === 'number' ? s.fuel_level_midday : null,
-            fuel_level_evening: typeof s.fuel_level_evening === 'number' ? s.fuel_level_evening : null,
-            engine_status_morning: s.engine_status_morning || null,
-            engine_status_midday: s.engine_status_midday || null,
-            engine_status_evening: s.engine_status_evening || null,
-            total_fuel_used: Number(s.total_fuel_used || 0),
-            total_fuel_filled: Number(s.total_fuel_filled || 0),
-            irregularities_count: Number(s.irregularities_count || 0),
-            first_snapshot: s.first_snapshot || null,
-            last_snapshot: s.last_snapshot || null,
+          // Map sessions to rows for table display
+          const sessions: any[] = Array.isArray(data.sessions) ? data.sessions : [];
+          const rows: SiteDayRow[] = sessions.map((session: any, idx: number) => ({
+            id: session.id || idx + 1,
+            branch: session.branch || '',
+            company: session.company || '',
+            cost_code: session.cost_code || '',
+            session_date: session.session_date || '',
+            session_start_time: session.session_start_time || '',
+            session_end_time: session.session_end_time || null,
+            operating_hours: Number(session.operating_hours || 0),
+            opening_percentage: Number(session.opening_percentage || 0),
+            opening_fuel: Number(session.opening_fuel || 0),
+            closing_percentage: Number(session.closing_percentage || 0),
+            closing_fuel: Number(session.closing_fuel || 0),
+            total_usage: Number(session.total_usage || 0),
+            total_fill: Number(session.total_fill || 0),
+            liter_usage_per_hour: Number(session.liter_usage_per_hour || 0),
+            cost_for_usage: Number(session.cost_for_usage || 0),
+            session_status: session.session_status || '',
           }));
+          
           setSiteRows(rows);
         }
       }
-      // No additional endpoints; the report returns pre-generated daily data
     } catch (err) {
-      console.error('Error fetching activity data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch activity data');
+      console.error('Error fetching engine sessions data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch engine sessions data');
       toast({
-        title: 'Failed to load activity report',
+        title: 'Failed to load engine sessions',
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
-      if (!error && selectedDate) {
+      if (!error && (selectedDate || (startDate && endDate))) {
+        const dateDescription = useDateRange 
+          ? `Engine sessions from ${startDate} to ${endDate} fetched successfully.`
+          : `Engine sessions for ${selectedDate} fetched successfully.`;
         toast({
-          title: 'Activity report loaded',
-          description: `Data for ${selectedDate} fetched successfully.`
+          title: 'Engine sessions loaded',
+          description: dateDescription
         });
       }
     }
   };
 
   useEffect(() => {
-    // Do not auto-fetch on mount or route change. Wait for user to select date & month.
-    setActivityStats(null);
-    setSiteRows([]);
-    setVehiclesOver24h([] as never[]);
-    setLoading(false);
-  }, [selectedRoute]);
+    // Auto-fetch data on load for user's cost code (or all data for admin)
+    if (userCostCode || isAdmin) {
+      const today = new Date().toISOString().split('T')[0];
+      setSelectedDate(today);
+      setDateInput(today);
+      fetchActivityData(today);
+    }
+  }, [userCostCode, isAdmin]);
 
   return (
     <div className="bg-gray-50 h-full">
-      {/* Header */}
-      <div className="bg-white p-6 border-gray-200 border-b">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            {onBack && (
-              <Button variant="ghost" size="sm" onClick={onBack}>
-                <ChevronLeft className="mr-2 w-4 h-4" />
-                Back
-              </Button>
-            )}
-            <div>
-              <h1 className="font-semibold text-blue-600 text-2xl">{getCostCenterName()}</h1>
-              <p className="mt-1 text-gray-600 text-sm">
-                {getBreadcrumbPath()}
-              </p>
-            </div>
-          </div>
-          {/* Controls moved to the activity card header */}
-        </div>
-      </div>
+      <TopNavigation />
 
       {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Activity Statistics Cards (new schema) */}
+        {/* Engine Sessions Statistics Cards */}
         {activityStats && (
           <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border border-gray-200">
@@ -213,8 +206,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Activity className="w-8 h-8 text-blue-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_sites ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Total Sites</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_sessions ?? 0}</p>
+                    <p className="text-gray-600 text-sm">Total Sessions</p>
                   </div>
                 </div>
               </CardContent>
@@ -225,8 +218,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.avg_morning_fuel?.toFixed(2) ?? '0.00'}</p>
-                    <p className="text-gray-600 text-sm">Avg Morning Fuel</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_operating_hours?.toFixed(1) ?? '0.0'}</p>
+                    <p className="text-gray-600 text-sm">Operating Hours</p>
                   </div>
                 </div>
               </CardContent>
@@ -237,8 +230,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-purple-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.avg_evening_fuel?.toFixed(2) ?? '0.00'}</p>
-                    <p className="text-gray-600 text-sm">Avg Evening Fuel</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_usage?.toFixed(1) ?? '0.0'}</p>
+                    <p className="text-gray-600 text-sm">Fuel Used (L)</p>
                   </div>
                 </div>
               </CardContent>
@@ -249,8 +242,8 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="w-8 h-8 text-orange-500" />
                   <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.irregularities_count ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Irregularities</p>
+                    <p className="font-bold text-gray-900 text-2xl">{activityStats.average_efficiency?.toFixed(2) ?? '0.00'}</p>
+                    <p className="text-gray-600 text-sm">Avg Efficiency</p>
                   </div>
                 </div>
               </CardContent>
@@ -258,25 +251,60 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </div>
         )}
 
-        {/* Daily Snapshots Table */}
+        {/* Engine Sessions Table */}
         <Card className="shadow-sm border border-gray-200">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Daily Snapshots</CardTitle>
+              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Engine Sessions</CardTitle>
               <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={dateInput}
-                  onChange={handleDateChange}
-                  className="h-9"
-                />
-                <Input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={handleMonthChange}
-                  className="h-9"
-                />
-                <Button variant="outline" size="sm" onClick={() => fetchActivityData()} disabled={!selectedDate || !selectedMonth}>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Single Date:</label>
+                  <Input
+                    type="date"
+                    value={dateInput}
+                    onChange={handleDateChange}
+                    className="h-9"
+                    disabled={useDateRange}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Date Range:</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-9"
+                    disabled={!useDateRange}
+                    placeholder="Start Date"
+                  />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-9"
+                    disabled={!useDateRange}
+                    placeholder="End Date"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Mode:</label>
+                  <select
+                    value={useDateRange ? 'range' : 'single'}
+                    onChange={(e) => setUseDateRange(e.target.value === 'range')}
+                    className="h-9 px-3 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="single">Single Date</option>
+                    <option value="range">Date Range</option>
+                  </select>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => fetchActivityData()} 
+                  disabled={
+                    useDateRange ? (!startDate || !endDate) : !selectedDate
+                  }
+                >
                   <RefreshCw className="mr-2 w-4 h-4" />
                   Refresh
                 </Button>
@@ -288,7 +316,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
               <div className="flex justify-center items-center py-8">
                 <div className="text-center">
                   <div className="mx-auto mb-4 border-b-2 border-blue-600 rounded-full w-8 h-8 animate-spin"></div>
-                  <p className="text-gray-600">Loading active vehicles...</p>
+                  <p className="text-gray-600">Loading engine sessions...</p>
                 </div>
               </div>
             ) : error ? (
@@ -308,37 +336,47 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                 <table className="w-full">
                   <thead className="bg-[#1e3a5f] text-white">
                     <tr>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Cost Code</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Branch</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Company</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Morning</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Midday</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Fuel Evening</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Engine Morning</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">Start Time</th>
                       <th className="px-6 py-4 font-medium text-sm text-left">End Time</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Duration (hrs)</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Opening Fuel</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Closing Fuel</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Usage (L)</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Efficiency</th>
+                      <th className="px-6 py-4 font-medium text-sm text-left">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {siteRows.length > 0 ? (
                       siteRows.map((row) => (
                         <tr key={row.id}>
-                          <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.cost_code}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.branch}</td>
+                          <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.branch}</td>
                           <td className="px-6 py-4 text-gray-900 text-sm">{row.company}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_morning ?? '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_midday ?? '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.fuel_level_evening ?? '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.engine_status_morning ?? '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.first_snapshot ? new Date(row.first_snapshot).toLocaleString() : '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.last_snapshot ? new Date(row.last_snapshot).toLocaleString() : '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.session_start_time ? formatForDisplay(row.session_start_time) : '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.session_end_time ? formatForDisplay(row.session_end_time) : 'Ongoing'}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.operating_hours.toFixed(1)}</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.opening_fuel.toFixed(1)}L ({row.opening_percentage.toFixed(1)}%)</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.closing_fuel.toFixed(1)}L ({row.closing_percentage.toFixed(1)}%)</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.total_usage.toFixed(1)}L</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">{row.liter_usage_per_hour.toFixed(2)} L/hr</td>
+                          <td className="px-6 py-4 text-gray-900 text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              row.session_status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                              row.session_status === 'ONGOING' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {row.session_status}
+                            </span>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={9} className="px-6 py-12 text-center">
+                        <td colSpan={10} className="px-6 py-12 text-center">
                           <div className="text-gray-500">
-                            <p className="text-lg">No snapshot data</p>
+                            <p className="text-lg">No engine sessions data</p>
                           </div>
                         </td>
                       </tr>

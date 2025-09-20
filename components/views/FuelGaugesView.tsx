@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { FuelGauge } from '@/components/ui/fuel-gauge';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Settings, Download, RefreshCw, Fuel } from 'lucide-react';
+import { TopNavigation } from '@/components/layout/TopNavigation';
+import { RefreshCw, Fuel } from 'lucide-react';
+import { getLastFuelFill, FuelFill } from '@/lib/fuel-fill-detector';
+import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface FuelGaugesViewProps {
   onBack: () => void;
@@ -23,6 +26,7 @@ interface FuelConsumptionData {
   last_message_date: string;
   fuel_anomaly?: string;
   fuel_anomaly_note?: string;
+  lastFuelFill?: FuelFill;
 }
 
 export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
@@ -55,7 +59,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
         const engineStatus = (typeof vehicle.engine_on === 'boolean')
           ? (vehicle.engine_on ? 'ENGINE ON' : 'ENGINE OFF')
-          : (vehicle.status || 'Unknown');
+          : (vehicle.drivername || 'Unknown');
 
         return {
           id: vehicle.id || `vehicle-${index + 1}`,
@@ -69,9 +73,49 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           current_status: engineStatus,
           last_message_date: vehicle.last_message_date || vehicle.updated_at || new Date().toISOString(),
           fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
-          fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : '')
+          fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
+          lastFuelFill: undefined // Will be populated below
         };
       });
+
+      // Fetch activity report data to detect fuel fills
+      if (costCode) {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const activityUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report?date=${today}&cost_code=${costCode}`;
+          
+          console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
+          const activityResponse = await fetch(activityUrl);
+          
+          if (activityResponse.ok) {
+            const activityData = await activityResponse.json();
+            
+            if (activityData.success && activityData.data?.sites) {
+              // Process each site to detect fuel fills
+              const sitesWithFills = activityData.data.sites.map((site: any) => {
+                const lastFill = getLastFuelFill(
+                  site.snapshots || [], 
+                  site.site_id || site.id, 
+                  site.branch || site.name
+                );
+                return { siteId: site.site_id || site.id, lastFill };
+              });
+
+              // Update mapped data with fuel fill information
+              mapped.forEach(vehicle => {
+                const siteData = sitesWithFills.find(s => s.siteId === vehicle.id);
+                if (siteData?.lastFill) {
+                  vehicle.lastFuelFill = siteData.lastFill;
+                }
+              });
+
+              console.log('✅ Fuel fills detected:', sitesWithFills.filter(s => s.lastFill).length);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch activity report for fuel fills:', err);
+        }
+      }
 
       setFuelConsumptionData(mapped);
       console.log('✅ Fuel data built from context vehicles:', mapped.length);
@@ -187,9 +231,10 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       volume: capacity,
       remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
       status: vehicle.current_status || 'active',
-      lastUpdated: vehicle.last_message_date || new Date().toLocaleString(),
+      lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
       anomaly: !!vehicle.fuel_anomaly,
-      anomalyNote: vehicle.fuel_anomaly_note || ''
+      anomalyNote: vehicle.fuel_anomaly_note || '',
+      lastFuelFill: vehicle.lastFuelFill
     });
   });
   };
@@ -223,48 +268,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
   return (
     <div className="bg-gray-50 h-full">
-      {/* Header */}
-      <div className="bg-white p-6 border-gray-200 border-b">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="mr-2 w-4 h-4" />
-              Back to Routes
-            </Button>
-            <div>
-              <h1 className="font-semibold text-gray-900 text-2xl">Fuel Monitoring</h1>
-              {selectedRoute && (
-                <p className="mt-1 text-gray-600 text-sm">
-                  {(selectedRoute as any).costCode ? 
-                    `Cost Center: ${(selectedRoute as any).costCode} - ${(selectedRoute as any).name}` :
-                    `Route ${selectedRoute.route} - Location ${selectedRoute.locationCode}`
-                  }
-                </p>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={fetchFuelData}>
-              <RefreshCw className="mr-2 w-4 h-4" />
-              Refresh
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 w-4 h-4" />
-              Export Data
-            </Button>
-            <Button variant="outline" size="sm">
-              <Settings className="mr-2 w-4 h-4" />
-              Configure
-            </Button>
-            {fuelConsumptionData.length > 0 && (
-              <div className="text-gray-500 text-sm">
-                Last updated: {new Date().toLocaleTimeString()}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <TopNavigation />
 
       {/* Gauges Grid */}
       <div className="p-6">
@@ -280,6 +284,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 remaining={data.remaining}
                 status={data.status}
                 lastUpdated={data.lastUpdated}
+                lastFuelFill={data.lastFuelFill}
                 className="hover:scale-105 transition-transform duration-200 transform"
               />
             ))}
