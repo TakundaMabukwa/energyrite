@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { 
   BarChart3, 
   Store, 
-  Building2, 
   ChevronLeft,
   ChevronRight,
   UserPlus
@@ -30,12 +29,6 @@ export function Sidebar() {
       id: 'store-equipment',
       label: 'Equipment',
       icon: Store,
-      active: false
-    },
-    {
-      id: 'cost-centres',
-      label: 'Fuel Gauges',
-      icon: Building2,
       active: false
     },
     {

@@ -430,7 +430,7 @@ export function StoreEquipmentView() {
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
-                            {/* <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">STATUS</th> */}
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">ENGINE STATUS</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL LEVEL %</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">FUEL VOL (L)</th>
                             {/* <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">LAST UPDATE</th> */}
@@ -459,15 +459,15 @@ export function StoreEquipmentView() {
                                   {equipment.ip_address}
                                 </div>
                               </td>
-                              {/* <td className="px-4 py-4 text-sm whitespace-nowrap">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
+                              <td className="px-4 py-4 text-sm whitespace-nowrap">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                   equipment.is_active 
                                     ? 'bg-green-100 text-green-800' 
                                     : 'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {equipment.is_active ? 'Active' : 'Inactive'}
+                                  {equipment.is_active ? 'Engine On' : 'Engine Off'}
                                 </span>
-                              </td> */}
+                              </td>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                   <div className="w-16 bg-gray-200 rounded-full h-2">

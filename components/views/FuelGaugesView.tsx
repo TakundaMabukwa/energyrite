@@ -57,8 +57,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           ? (capacity * (percentage / 100))
           : 0;
 
-        const engineStatus = (typeof vehicle.engine_on === 'boolean')
-          ? (vehicle.engine_on ? 'ENGINE ON' : 'ENGINE OFF')
+        const engineStatus = (typeof vehicle.is_active === 'boolean')
+          ? (vehicle.is_active ? 'ENGINE ON' : 'ENGINE OFF')
           : (vehicle.drivername || 'Unknown');
 
         return {

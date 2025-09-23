@@ -23,8 +23,8 @@
   "eslint.format.enable": false,
   "eslint.codeActionsOnSave.mode": "off",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": false,
-    "source.organizeImports": false
+    "source.fixAll.eslint": "never",
+    "source.organizeImports": "never"
   },
   "editor.formatOnSave": false,
   "editor.formatOnPaste": false,
@@ -41,14 +41,13 @@
   "editor.wordBasedSuggestions": "off",
   "editor.parameterHints.enabled": false,
   "editor.hover.enabled": false,
-  "editor.lightbulb.enabled": false,
+  "editor.lightbulb.enabled": "off",
   "editor.semanticHighlighting.enabled": false,
   "editor.bracketPairColorization.enabled": false,
   "editor.guides.bracketPairs": false,
   "editor.guides.indentation": false,
   "editor.renderWhitespace": "none",
   "editor.renderControlCharacters": false,
-  "editor.renderIndentGuides": false,
   "editor.showUnused": false,
   "editor.showDeprecated": false,
   "editor.inlayHints.enabled": "off",
