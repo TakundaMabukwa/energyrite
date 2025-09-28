@@ -156,11 +156,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         // Additional cards from current_status if available
         ...(executiveData?.current_status ? [
           {
-            value: Number(executiveData.current_status.total_registered_sites ?? 0),
-            label: 'Total Registered Sites',
-            barColor: 'bg-indigo-500'
-          },
-          {
             value: Number(executiveData.current_status.currently_running ?? 0),
             label: 'Currently Running',
             barColor: 'bg-orange-500'

@@ -41,9 +41,11 @@ export function FuelGauge({
   const strokeDashoffset = circumference - (fuelLevel / 100) * circumference;
 
   const getStatusColor = (status: string) => {
-    if (status.includes('ENGINE OFF')) return 'bg-gray-100 text-gray-700 border-gray-200';
+    if (status.includes('OFF') || status.includes('off')) return 'bg-gray-100 text-gray-700 border-gray-200';
+    if (status.includes('ON') || status.includes('on')) return 'bg-green-100 text-green-700 border-green-200';
+    if (status.includes('No Signal')) return 'bg-red-100 text-red-700 border-red-200';
     if (status.includes('Possible Fuel Fill')) return 'bg-orange-100 text-orange-700 border-orange-200';
-    return 'bg-green-100 text-green-700 border-green-200';
+    return 'bg-blue-100 text-blue-700 border-blue-200';
   };
 
   const getFuelColor = (level: number) => {
@@ -55,12 +57,17 @@ export function FuelGauge({
 
   return (
     <div className={cn(
-      "bg-white shadow-sm hover:shadow-md p-6 border border-gray-200 rounded-xl transition-all duration-300",
+      "shadow-sm hover:shadow-md p-4 border rounded-xl transition-all duration-300",
+      status.includes('ON') || status.includes('on') 
+        ? "bg-green-50 border-green-200" 
+        : status.includes('No Signal')
+        ? "bg-red-50 border-red-200"
+        : "bg-gray-200 border-gray-300",
       className
     )}>
       {/* Header */}
-      <div className="mb-4 text-center">
-        <h3 className="mb-2 font-semibold text-gray-900 text-lg">{location}</h3>
+      <div className="mb-3 text-center">
+        <h3 className="mb-2 font-semibold text-gray-900 text-base">{location}</h3>
         <Badge 
           variant="outline" 
           className={cn("font-medium text-xs", getStatusColor(status))}
@@ -70,7 +77,7 @@ export function FuelGauge({
       </div>
 
       {/* Fuel Gauge */}
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center mb-4">
         <div className="relative">
           <svg
             height={radius * 2}
@@ -112,38 +119,88 @@ export function FuelGauge({
       </div>
 
       {/* Stats Grid */}
-      <div className="space-y-3">
-        <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+      <div className="space-y-2">
+        <div className={cn(
+          "flex justify-between items-center p-2 rounded-lg",
+          status.includes('ON') || status.includes('on') 
+            ? "bg-green-100" 
+            : status.includes('No Signal')
+            ? "bg-red-100"
+            : "bg-gray-50"
+        )}>
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-blue-500" />
-            <span className="font-medium text-gray-700 text-sm">{temperature}°C</span>
+            <span className={cn(
+              "font-medium text-sm",
+              status.includes('ON') || status.includes('on') 
+                ? "text-green-800" 
+                : status.includes('No Signal')
+                ? "text-red-800"
+                : "text-gray-700"
+            )}>{temperature}°C</span>
           </div>
-          <span className="text-gray-500 text-xs">Temperature</span>
+          <span className={cn(
+            "text-xs",
+            status.includes('ON') || status.includes('on') 
+              ? "text-green-600" 
+              : status.includes('No Signal')
+              ? "text-red-600"
+              : "text-gray-500"
+          )}>Temperature</span>
         </div>
 
-        <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Droplets className="w-4 h-4 text-blue-500" />
-            <span className="font-medium text-gray-700 text-sm">{volume}L</span>
+        <div className={cn(
+          "p-2 rounded-lg",
+          status.includes('ON') || status.includes('on') 
+            ? "bg-green-100" 
+            : status.includes('No Signal')
+            ? "bg-red-100"
+            : "bg-blue-50"
+        )}>
+          <div className="text-center mb-1">
+            <span className={cn(
+              "font-medium text-sm",
+              status.includes('ON') || status.includes('on') 
+                ? "text-green-800" 
+                : status.includes('No Signal')
+                ? "text-red-800"
+                : "text-blue-900"
+            )}>Remaining</span>
           </div>
-          <span className="text-gray-500 text-xs">Volume</span>
+          <div className="text-center">
+            <span className={cn(
+              "font-bold text-sm",
+              status.includes('ON') || status.includes('on') 
+                ? "text-green-800" 
+                : status.includes('No Signal')
+                ? "text-red-800"
+                : "text-blue-900"
+            )}>{remaining}</span>
+          </div>
         </div>
 
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <div className="flex justify-between items-center mb-1">
-            <span className="font-medium text-blue-900 text-sm">Remaining</span>
-            <span className="font-bold text-blue-900 text-sm">{remaining}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg">
+        <div className={cn(
+          "flex items-center gap-2 p-2 rounded-lg",
+          status.includes('ON') || status.includes('on') 
+            ? "bg-green-100" 
+            : status.includes('No Signal')
+            ? "bg-red-100"
+            : "bg-gray-50"
+        )}>
           <Clock className="w-4 h-4 text-gray-400" />
-          <span className="text-gray-600 text-xs">{formatForDisplay(lastUpdated)}</span>
+          <span className={cn(
+            "text-xs",
+            status.includes('ON') || status.includes('on') 
+              ? "text-green-700" 
+              : status.includes('No Signal')
+              ? "text-red-700"
+              : "text-gray-600"
+          )}>{formatForDisplay(lastUpdated)}</span>
         </div>
 
         {/* Last Fuel Fill Information */}
         {lastFuelFill && (
-          <div className="bg-green-50 p-3 rounded-lg">
+          <div className="bg-green-50 p-2 rounded-lg">
             <div className="flex justify-between items-center mb-1">
               <span className="font-medium text-green-900 text-sm">Last Fill</span>
               <span className="font-bold text-green-900 text-sm">{lastFuelFill.amount.toFixed(1)}L</span>
@@ -157,11 +214,6 @@ export function FuelGauge({
           </div>
         )}
       </div>
-
-      {/* Add Note Button */}
-      <button className="bg-gray-100 hover:bg-gray-200 mt-4 px-4 py-2 rounded-lg w-full font-medium text-gray-700 text-sm transition-colors duration-200">
-        Add Note
-      </button>
     </div>
   );
 }

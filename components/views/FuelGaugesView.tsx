@@ -50,16 +50,30 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       }
 
       const mapped: FuelConsumptionData[] = filtered.map((vehicle: any, index: number) => {
-        const percentage = Number(vehicle.fuel_probe_1_level_percentage ?? vehicle.fuel_probe_1_level ?? 0);
-        // Treat `volume` as TANK CAPACITY. Do NOT use feed remaining directly.
-        const capacity = Number(typeof vehicle.volume === 'number' ? vehicle.volume : vehicle.volume ?? 0);
+        // Better string to number conversion with proper parsing
+        const percentage = parseFloat(vehicle.fuel_probe_1_level_percentage) || 0;
+        const capacity = parseFloat(vehicle.fuel_probe_1_volume_in_tank) || 0;
         const remainingLiters = (Number.isFinite(capacity) && Number.isFinite(percentage))
           ? (capacity * (percentage / 100))
           : 0;
 
-        const engineStatus = (typeof vehicle.is_active === 'boolean')
-          ? (vehicle.is_active ? 'ENGINE ON' : 'ENGINE OFF')
-          : (vehicle.drivername || 'Unknown');
+        const engineStatus = vehicle.status && vehicle.status !== 'Unknown' ? vehicle.status : 'No Signal';
+
+        // Use original time without shift
+        const lastMessageDate = vehicle.last_message_date || vehicle.updated_at || new Date().toISOString();
+
+        // Debug logging to help identify conversion issues
+        if (percentage === 0 || capacity === 0) {
+          console.log('Fuel data conversion debug:', {
+            id: vehicle.id,
+            branch: vehicle.branch,
+            raw_level_percentage: vehicle.fuel_probe_1_level_percentage,
+            raw_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank,
+            parsed_percentage: percentage,
+            parsed_capacity: capacity,
+            calculated_remaining: remainingLiters
+          });
+        }
 
         return {
           id: vehicle.id || `vehicle-${index + 1}`,
@@ -68,10 +82,10 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           company: vehicle.company || 'Unknown Company',
           fuel_probe_1_level_percentage: Math.max(0, Math.min(100, percentage || 0)),
           fuel_probe_1_volume_in_tank: Math.max(0, Number(capacity || 0)),
-          fuel_probe_2_level_percentage: Number(vehicle.fuel_probe_2_level_percentage ?? vehicle.fuel_probe_2_level ?? 0),
-          fuel_probe_2_volume_in_tank: Number(vehicle.fuel_probe_2_volume_in_tank ?? 0),
+          fuel_probe_2_level_percentage: parseFloat(vehicle.fuel_probe_2_level_percentage) || 0,
+          fuel_probe_2_volume_in_tank: parseFloat(vehicle.fuel_probe_2_volume_in_tank) || 0,
           current_status: engineStatus,
-          last_message_date: vehicle.last_message_date || vehicle.updated_at || new Date().toISOString(),
+          last_message_date: lastMessageDate,
           fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
           fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
           lastFuelFill: undefined // Will be populated below
@@ -218,25 +232,54 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
   // Convert fuel consumption data to fuel gauge format
   const getFuelGaugeData = () => {
-    return fuelConsumptionData.map((vehicle, index) => {
-      const percent = Number(vehicle.fuel_probe_1_level_percentage || 0);
-      const capacity = Number(vehicle.fuel_probe_1_volume_in_tank || 0);
-      const remaining = capacity * (percent / 100);
+    return fuelConsumptionData
+      .map((vehicle, index) => {
+        // Use parseFloat for better string to number conversion
+        const percent = parseFloat(vehicle.fuel_probe_1_level_percentage) || 0;
+        const capacity = parseFloat(vehicle.fuel_probe_1_volume_in_tank) || 0;
+        const remaining = capacity * (percent / 100);
 
-      return ({
-      id: vehicle.id || index + 1,
-      location: vehicle.branch || vehicle.plate || 'Unknown Location',
-      fuelLevel: percent || 0,
-      temperature: Number(vehicle.fuel_probe_1_temperature ?? 25),
-      volume: capacity,
-      remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
-      status: vehicle.current_status || 'active',
-      lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
-      anomaly: !!vehicle.fuel_anomaly,
-      anomalyNote: vehicle.fuel_anomaly_note || '',
-      lastFuelFill: vehicle.lastFuelFill
+        return ({
+        id: vehicle.id || index + 1,
+        location: vehicle.branch || vehicle.plate || 'Unknown Location',
+        fuelLevel: percent || 0,
+        temperature: parseFloat(vehicle.fuel_probe_1_temperature) || 25,
+        volume: capacity,
+        remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
+        status: vehicle.current_status || 'active',
+        lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
+        anomaly: !!vehicle.fuel_anomaly,
+        anomalyNote: vehicle.fuel_anomaly_note || '',
+        lastFuelFill: vehicle.lastFuelFill
+      });
+    })
+    .sort((a, b) => {
+      // Sort in order: ON, OFF, No Signal, null/unknown
+      const aIsOn = a.status.includes('ON') || a.status.includes('on');
+      const bIsOn = b.status.includes('ON') || b.status.includes('on');
+      const aIsOff = a.status.includes('OFF') || a.status.includes('off');
+      const bIsOff = b.status.includes('OFF') || b.status.includes('off');
+      const aIsNoSignal = a.status.includes('No Signal');
+      const bIsNoSignal = b.status.includes('No Signal');
+      
+      // ON comes first
+      if (aIsOn && !bIsOn) return -1;
+      if (!aIsOn && bIsOn) return 1;
+      
+      // If both are ON or both are not ON, check OFF status
+      if (aIsOn === bIsOn) {
+        if (aIsOff && !bIsOff) return -1; // a is OFF, b is not OFF
+        if (!aIsOff && bIsOff) return 1;  // b is OFF, a is not OFF
+        
+        // If both are OFF or both are not OFF, check No Signal status
+        if (aIsOff === bIsOff) {
+          if (aIsNoSignal && !bIsNoSignal) return -1; // a is No Signal, b is not
+          if (!aIsNoSignal && bIsNoSignal) return 1;  // b is No Signal, a is not
+        }
+      }
+      
+      return 0; // maintain original order for same status
     });
-  });
   };
 
   if (loading) {
@@ -271,9 +314,9 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       <TopNavigation />
 
       {/* Gauges Grid */}
-      <div className="p-6">
+      <div className="p-4">
         {fuelConsumptionData.length > 0 ? (
-          <div className="gap-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 xl:grid-cols-4">
+          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 xl:grid-cols-5">
             {getFuelGaugeData().map((data) => (
               <FuelGauge
                 key={data.id}
