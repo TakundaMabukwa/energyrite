@@ -57,7 +57,19 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           ? (capacity * (percentage / 100))
           : 0;
 
-        const engineStatus = vehicle.status && vehicle.status !== 'Unknown' ? vehicle.status : 'No Signal';
+        // Determine engine status based on status and fuel data availability
+        let engineStatus;
+        if (vehicle.status && vehicle.status !== 'Unknown') {
+          engineStatus = vehicle.status;
+        } else {
+          // If status is null/unknown, check if fuel data is available
+          const hasFuelData = vehicle.fuel_probe_1_level_percentage !== null && 
+                             vehicle.fuel_probe_1_level_percentage !== undefined &&
+                             vehicle.fuel_probe_1_volume_in_tank !== null && 
+                             vehicle.fuel_probe_1_volume_in_tank !== undefined;
+          
+          engineStatus = hasFuelData ? 'OFF' : 'No Signal';
+        }
 
         // Use original time without shift
         const lastMessageDate = vehicle.last_message_date || vehicle.updated_at || new Date().toISOString();
@@ -254,7 +266,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       });
     })
     .sort((a, b) => {
-      // Sort in order: ON, OFF, No Signal, null/unknown
+      // Sort in order: ON, OFF, No Signal
       const aIsOn = a.status.includes('ON') || a.status.includes('on');
       const bIsOn = b.status.includes('ON') || b.status.includes('on');
       const aIsOff = a.status.includes('OFF') || a.status.includes('off');
