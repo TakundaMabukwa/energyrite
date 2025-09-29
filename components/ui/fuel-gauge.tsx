@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Thermometer, Droplets, Gauge, Clock } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 
@@ -14,6 +15,7 @@ interface FuelGaugeProps {
   remaining: string;
   status: string;
   lastUpdated: string;
+  updated_at?: string;
   lastFuelFill?: {
     time: string;
     amount: number;
@@ -30,6 +32,7 @@ export function FuelGauge({
   remaining,
   status,
   lastUpdated,
+  updated_at,
   lastFuelFill,
   className
 }: FuelGaugeProps) {
@@ -57,7 +60,7 @@ export function FuelGauge({
 
   return (
     <div className={cn(
-      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300",
+      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
       status.includes('ON') || status.includes('on') 
         ? "bg-green-50 border-green-200" 
         : status.includes('No Signal')
@@ -68,12 +71,29 @@ export function FuelGauge({
       {/* Header */}
       <div className="mb-3 text-center">
         <h3 className="mb-2 font-semibold text-gray-900 text-base">{location}</h3>
-        <Badge 
-          variant="outline" 
-          className={cn("font-medium text-xs px-2 py-0.5", getStatusColor(status))}
-        >
-          {status}
-        </Badge>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
+              >
+                {status}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent 
+              className="bg-white border border-gray-200 shadow-lg max-w-xs"
+              side="bottom"
+              align="center"
+              sideOffset={5}
+            >
+              <div className="flex flex-col items-center py-1 px-2">
+                <p className="text-sm text-black font-medium">Last updated</p>
+                <p className="text-xs text-gray-700">{formatForDisplay(updated_at || lastUpdated)}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Fuel Gauge */}

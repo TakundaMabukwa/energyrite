@@ -24,6 +24,7 @@ interface FuelConsumptionData {
   fuel_probe_2_volume_in_tank: number;
   current_status: string;
   last_message_date: string;
+  updated_at?: string;
   fuel_anomaly?: string;
   fuel_anomaly_note?: string;
   lastFuelFill?: FuelFill;
@@ -98,6 +99,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           fuel_probe_2_volume_in_tank: parseFloat(vehicle.fuel_probe_2_volume_in_tank) || 0,
           current_status: engineStatus,
           last_message_date: lastMessageDate,
+          updated_at: vehicle.updated_at,
           fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
           fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
           lastFuelFill: undefined // Will be populated below
@@ -260,6 +262,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
         status: vehicle.current_status || 'active',
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
+        updated_at: vehicle.updated_at,
         anomaly: !!vehicle.fuel_anomaly,
         anomalyNote: vehicle.fuel_anomaly_note || '',
         lastFuelFill: vehicle.lastFuelFill
@@ -339,6 +342,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 remaining={data.remaining}
                 status={data.status}
                 lastUpdated={data.lastUpdated}
+                updated_at={data.updated_at}
                 lastFuelFill={data.lastFuelFill}
                 className="hover:scale-105 transition-transform duration-200 transform"
               />
