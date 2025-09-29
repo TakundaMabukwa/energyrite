@@ -328,7 +328,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       {/* Gauges Grid */}
       <div className="p-4">
         {fuelConsumptionData.length > 0 ? (
-          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 xl:grid-cols-5">
+          <div className="gap-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 xl:grid-cols-5">
             {getFuelGaugeData().map((data) => (
               <FuelGauge
                 key={data.id}

@@ -57,7 +57,7 @@ export function FuelGauge({
 
   return (
     <div className={cn(
-      "shadow-sm hover:shadow-md p-4 border rounded-xl transition-all duration-300",
+      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300",
       status.includes('ON') || status.includes('on') 
         ? "bg-green-50 border-green-200" 
         : status.includes('No Signal')
@@ -70,7 +70,7 @@ export function FuelGauge({
         <h3 className="mb-2 font-semibold text-gray-900 text-base">{location}</h3>
         <Badge 
           variant="outline" 
-          className={cn("font-medium text-xs", getStatusColor(status))}
+          className={cn("font-medium text-xs px-2 py-0.5", getStatusColor(status))}
         >
           {status}
         </Badge>
@@ -110,8 +110,8 @@ export function FuelGauge({
           
           {/* Center Content */}
           <div className="absolute inset-0 flex flex-col justify-center items-center">
-            <Gauge className="mb-1 w-6 h-6 text-gray-400" />
-            <span className="font-medium text-gray-500 text-xs">Fuel</span>
+            <Gauge className="mb-1 w-5 h-5 text-gray-400" />
+            <span className="font-medium text-gray-500 text-sm">Fuel</span>
             <span className="mt-1 font-bold text-gray-900 text-2xl">{fuelLevel}</span>
             <span className="text-gray-500 text-xs">%</span>
           </div>
