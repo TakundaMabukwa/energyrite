@@ -288,7 +288,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
     }
   };
 
-  // Generate Excel report using the API
+  // Generate Excel report using the endpoints and handling the JSON response
   const handleGenerateReport = async (reportType: 'daily' | 'weekly' | 'monthly') => {
     try {
       setLoading(true);
@@ -304,66 +304,58 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         return;
       }
       
-      console.log(`📊 Generating ${reportType} Excel report:`, isAdmin ? 'for all cost codes (admin)' : `for cost code: ${userCostCode}`);
+      console.log(`📊 Requesting ${reportType} Excel report:`, isAdmin ? 'for all cost codes (admin)' : `for cost code: ${userCostCode}`);
       
-      // Prepare request body
-      const requestBody: any = {
-        report_type: reportType
-      };
+      // Define the API URLs based on report type
+      let apiUrl = '';
       
-      // Add cost_code if not admin
+      switch (reportType) {
+        case 'daily':
+          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/daily`;
+          break;
+        case 'weekly':
+          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/weekly`;
+          break;
+        case 'monthly':
+          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/monthly`;
+          break;
+      }
+      
+      // Add cost code parameter if not admin
       if (costCode) {
-        requestBody.cost_code = costCode;
+        apiUrl += `?cost_code=${encodeURIComponent(costCode)}`;
       }
       
-      // Add target_date for daily and monthly reports
-      if (reportType === 'daily') {
-        requestBody.target_date = new Date().toISOString().split('T')[0];
-      } else if (reportType === 'monthly') {
-        const firstDayOfMonth = new Date();
-        firstDayOfMonth.setDate(1);
-        requestBody.target_date = firstDayOfMonth.toISOString().split('T')[0];
+      // Fetch the API response first
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate report: ${response.status}`);
       }
       
-      const generateUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/generate-excel`;
+      // Parse the JSON response
+      const data = await response.json();
       
-      const response = await fetch(generateUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+      if (!data.success || !data.data?.download_url) {
+        throw new Error(data.message || 'Failed to generate report: No download URL');
+      }
+      
+      // Extract the download URL from the response
+      const downloadUrl = data.data.download_url;
+      console.log(`📥 Downloaded report info:`, data.data);
+      
+      // Open the download URL in a new tab/window
+      window.open(downloadUrl, '_blank');
+      
+      toast({
+        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report Ready`,
+        description: `Excel report "${data.data.file_name}" is downloading`
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        
-        if (result.success && result.data?.download_url) {
-          // Open the download URL
-          window.open(result.data.download_url, '_blank');
-          
-          toast({
-            title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report Generated`,
-            description: `Excel report has been generated and downloaded successfully`
-          });
-          
-          // Refresh the reports after generation
-          setTimeout(() => {
-            fetchTheftData();
-          }, 1000);
-          
-        } else {
-          throw new Error(result.message || 'Failed to generate report');
-        }
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate report');
-      }
-      
     } catch (error) {
-      console.error(`Error generating ${reportType} report:`, error);
+      console.error(`Error generating or downloading ${reportType} report:`, error);
       toast({
-        title: 'Report Generation Failed',
+        title: 'Report Request Failed',
         description: error instanceof Error ? error.message : 'Unknown error occurred',
         variant: 'destructive'
       });
@@ -471,7 +463,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Generate Excel report for today's data
+                  Download Excel report for today's data
                 </p>
               </div>
             </CardContent>
@@ -522,7 +514,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Generate Excel report for last 7 days
+                  Download Excel report for last 7 days
                 </p>
               </div>
             </CardContent>
@@ -573,7 +565,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Generate Excel report for current month
+                  Download Excel report for current month
                 </p>
               </div>
             </CardContent>
