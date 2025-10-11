@@ -135,7 +135,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       setScoreCardData([
         {
           value: Number(executiveData?.score_card?.active_sites ?? 0),
-          label: 'Active Sites',
+          label: 'On-Today',
           barColor: 'bg-green-500'
         },
         {
@@ -155,11 +155,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         },
         // Additional cards from current_status if available
         ...(executiveData?.current_status ? [
-          {
-            value: Number(executiveData.current_status.currently_running ?? 0),
-            label: 'Currently Running',
-            barColor: 'bg-orange-500'
-          },
           {
             value: Number(executiveData.current_status.active_last_24h ?? 0),
             label: 'Active Last 24h',
@@ -287,7 +282,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Default chart data with explicit no-data states
       setScoreCardData([
-        { value: 0, label: 'Sites Running Today', barColor: 'bg-gray-400' },
+        { value: 0, label: 'On-Today', barColor: 'bg-gray-400' },
         { value: 0, label: 'Hours Running', barColor: 'bg-gray-400' },
         { value: 0, label: 'Litres Filled', barColor: 'bg-gray-400' },
         { value: 0, label: 'Litres Used', barColor: 'bg-gray-400' }

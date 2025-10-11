@@ -3,8 +3,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Thermometer, Droplets, Gauge, Clock } from 'lucide-react';
+import { Thermometer, Droplets, Gauge, Clock, NotebookPen } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface FuelGaugeProps {
@@ -22,6 +23,10 @@ interface FuelGaugeProps {
     previousLevel: number;
   };
   className?: string;
+  onAddNote?: (location: string, id?: string | number) => void;
+  hasNotes?: boolean;
+  notes?: string | null;
+  id?: string | number;
 }
 
 export function FuelGauge({
@@ -34,7 +39,11 @@ export function FuelGauge({
   lastUpdated,
   updated_at,
   lastFuelFill,
-  className
+  className,
+  onAddNote,
+  hasNotes,
+  notes,
+  id
 }: FuelGaugeProps) {
   const radius = 80;
   const strokeWidth = 12;
@@ -94,6 +103,19 @@ export function FuelGauge({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        
+        {/* Display Notes - Always show notes section with "---" for empty notes */}
+        <div className={cn(
+          "mt-2 px-3 py-2 text-sm rounded-md max-h-16 overflow-y-auto text-left",
+          status.includes('ON') || status.includes('on') 
+            ? "bg-green-50 text-green-700 border border-green-100" 
+            : status.includes('No Signal')
+            ? "bg-red-50 text-red-700 border border-red-100"
+            : "bg-blue-50 text-blue-700 border border-blue-100"
+        )}>
+          <span className="block mb-1 text-xs font-medium">Note:</span>
+          {notes || "---"}
+        </div>
       </div>
 
       {/* Fuel Gauge */}
@@ -233,6 +255,20 @@ export function FuelGauge({
             </div>
           </div>
         )}
+        
+        {/* Note Button */}
+        <div className="mt-2">
+          {/* Add Note Button */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 w-full"
+            onClick={() => onAddNote ? onAddNote(location, id) : alert(`Add note for ${location}`)}
+          >
+            <NotebookPen className="w-4 h-4 mr-1" />
+            Add Note
+          </Button>
+        </div>
       </div>
     </div>
   );

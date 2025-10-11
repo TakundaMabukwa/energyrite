@@ -431,15 +431,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="font-semibold text-gray-900 text-lg">Daily Report</CardTitle>
-                {getLatestReportByType('daily') ? (
-                <Badge className={`${getBadgeColor('daily')} px-3 py-1`}>
-                    Latest
-                  </Badge>
-                ) : (
-                  <Badge className="bg-gray-100 px-3 py-1 text-gray-600">
-                    Not Available
-                </Badge>
-                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -463,11 +454,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               ) : (
                 <div className="flex justify-center items-center p-6 text-gray-500">
                   <div className="text-center">
-                    <FileX className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                    <p className="text-sm">No daily engine sessions available</p>
-                    {userCostCode && (
-                      <p className="mt-1 text-xs">for cost center: {userCostCode}</p>
-                    )}
+                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
                   </div>
                 </div>
               )}
@@ -480,8 +467,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   size="sm"
                 >
-                  <Plus className="mr-2 w-4 h-4" />
-                  Generate Daily Report
+                  <Download className="mr-2 w-4 h-4" />
+                  Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
                   Generate Excel report for today's data
@@ -495,15 +482,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="font-semibold text-gray-900 text-lg">Weekly Report</CardTitle>
-                {getLatestReportByType('weekly') ? (
-                <Badge className={`${getBadgeColor('weekly')} px-3 py-1`}>
-                    Latest
-                  </Badge>
-                ) : (
-                  <Badge className="bg-gray-100 px-3 py-1 text-gray-600">
-                    Not Available
-                </Badge>
-                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -527,11 +505,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               ) : (
                 <div className="flex justify-center items-center p-6 text-gray-500">
                   <div className="text-center">
-                    <FileX className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                    <p className="text-sm">No weekly engine sessions available</p>
-                    {userCostCode && (
-                      <p className="mt-1 text-xs">for cost center: {userCostCode}</p>
-                    )}
+                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
                   </div>
                 </div>
               )}
@@ -544,8 +518,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                   size="sm"
                 >
-                  <Plus className="mr-2 w-4 h-4" />
-                  Generate Weekly Report
+                  <Download className="mr-2 w-4 h-4" />
+                  Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
                   Generate Excel report for last 7 days
@@ -559,15 +533,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="font-semibold text-gray-900 text-lg">Monthly Report</CardTitle>
-                {getLatestReportByType('monthly') ? (
-                <Badge className={`${getBadgeColor('monthly')} px-3 py-1`}>
-                    Latest
-                  </Badge>
-                ) : (
-                  <Badge className="bg-gray-100 px-3 py-1 text-gray-600">
-                    Not Available
-                </Badge>
-                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -591,12 +556,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               ) : (
                 <div className="flex justify-center items-center p-6 text-gray-500">
                   <div className="text-center">
-                    <FileX className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                    <p className="text-sm">No monthly engine sessions available</p>
-                    {userCostCode && (
-                      <p className="mt-1 text-xs">for cost center: {userCostCode}</p>
-                    )}
-                </div>
+                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
+                  </div>
                 </div>
               )}
               
@@ -608,8 +569,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                   size="sm"
                 >
-                  <Plus className="mr-2 w-4 h-4" />
-                  Generate Monthly Report
+                  <Download className="mr-2 w-4 h-4" />
+                  Download Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
                   Generate Excel report for current month
