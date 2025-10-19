@@ -23,9 +23,11 @@ interface FuelGaugeProps {
     previousLevel: number;
   };
   className?: string;
-  onAddNote?: (location: string, id?: string | number) => void;
-  hasNotes?: boolean;
-  notes?: string | null;
+  colorCodes?: {
+    25?: string;
+    50?: string;
+    75?: string;
+  };
   id?: string | number;
 }
 
@@ -40,9 +42,7 @@ export function FuelGauge({
   updated_at,
   lastFuelFill,
   className,
-  onAddNote,
-  hasNotes,
-  notes,
+  colorCodes,
   id
 }: FuelGaugeProps) {
   const radius = 80;
@@ -53,27 +53,31 @@ export function FuelGauge({
   const strokeDashoffset = circumference - (fuelLevel / 100) * circumference;
 
   const getStatusColor = (status: string) => {
-    if (status.includes('OFF') || status.includes('off')) return 'bg-gray-100 text-gray-700 border-gray-200';
-    if (status.includes('ON') || status.includes('on')) return 'bg-green-100 text-green-700 border-green-200';
-    if (status.includes('No Signal')) return 'bg-red-100 text-red-700 border-red-200';
+    if (status.includes('PTO ON') || status.includes('ENGINE ON')) return 'bg-green-100 text-green-700 border-green-200';
+    if (status.includes('PTO OFF') || status.includes('ENGINE OFF')) return 'bg-gray-100 text-gray-700 border-gray-200';
     if (status.includes('Possible Fuel Fill')) return 'bg-orange-100 text-orange-700 border-orange-200';
-    return 'bg-blue-100 text-blue-700 border-blue-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
   const getFuelColor = (level: number) => {
-    if (level < 25) return '#ef4444'; // red
-    if (level < 50) return '#f97316'; // orange
-    if (level < 75) return '#eab308'; // yellow
-    return '#22c55e'; // green
+    const colors = {
+      25: colorCodes?.['25'] || '#ef4444', // red
+      50: colorCodes?.['50'] || '#f97316', // orange  
+      75: colorCodes?.['75'] || '#eab308', // yellow
+      100: '#22c55e' // green
+    };
+    
+    if (level < 25) return colors[25];
+    if (level < 50) return colors[50];
+    if (level < 75) return colors[75];
+    return colors[100];
   };
 
   return (
     <div className={cn(
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
-      status.includes('ON') || status.includes('on') 
+      status.includes('PTO ON') || status.includes('ENGINE ON') 
         ? "bg-green-50 border-green-200" 
-        : status.includes('No Signal')
-        ? "bg-red-50 border-red-200"
         : "bg-gray-200 border-gray-300",
       className
     )}>
@@ -103,19 +107,6 @@ export function FuelGauge({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        
-        {/* Display Notes - Always show notes section with "---" for empty notes */}
-        <div className={cn(
-          "mt-2 px-3 py-2 text-sm rounded-md max-h-16 overflow-y-auto text-left",
-          status.includes('ON') || status.includes('on') 
-            ? "bg-green-50 text-green-700 border border-green-100" 
-            : status.includes('No Signal')
-            ? "bg-red-50 text-red-700 border border-red-100"
-            : "bg-blue-50 text-blue-700 border border-blue-100"
-        )}>
-          <span className="block mb-1 text-xs font-medium">Note:</span>
-          {notes || "---"}
-        </div>
       </div>
 
       {/* Fuel Gauge */}
@@ -164,58 +155,46 @@ export function FuelGauge({
       <div className="space-y-2">
         <div className={cn(
           "flex justify-between items-center p-2 rounded-lg",
-          status.includes('ON') || status.includes('on') 
+          status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
-            : status.includes('No Signal')
-            ? "bg-red-100"
             : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-blue-500" />
             <span className={cn(
               "font-medium text-sm",
-              status.includes('ON') || status.includes('on') 
+              status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
-                : status.includes('No Signal')
-                ? "text-red-800"
                 : "text-gray-700"
             )}>{temperature}°C</span>
           </div>
           <span className={cn(
             "text-xs",
-            status.includes('ON') || status.includes('on') 
+            status.includes('PTO ON') || status.includes('ENGINE ON') 
               ? "text-green-600" 
-              : status.includes('No Signal')
-              ? "text-red-600"
               : "text-gray-500"
           )}>Temperature</span>
         </div>
 
         <div className={cn(
           "p-2 rounded-lg",
-          status.includes('ON') || status.includes('on') 
+          status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
-            : status.includes('No Signal')
-            ? "bg-red-100"
             : "bg-blue-50"
         )}>
           <div className="text-center mb-1">
             <span className={cn(
               "font-medium text-sm",
-              status.includes('ON') || status.includes('on') 
+              status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
-                : status.includes('No Signal')
-                ? "text-red-800"
                 : "text-blue-900"
             )}>Remaining</span>
           </div>
           <div className="text-center">
             <span className={cn(
               "font-bold text-sm",
-              status.includes('ON') || status.includes('on') 
+              status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
-                : status.includes('No Signal')
-                ? "text-red-800"
                 : "text-blue-900"
             )}>{remaining}</span>
           </div>
@@ -223,21 +202,17 @@ export function FuelGauge({
 
         <div className={cn(
           "flex items-center gap-2 p-2 rounded-lg",
-          status.includes('ON') || status.includes('on') 
+          status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
-            : status.includes('No Signal')
-            ? "bg-red-100"
             : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400" />
           <span className={cn(
             "text-xs",
-            status.includes('ON') || status.includes('on') 
+            status.includes('PTO ON') || status.includes('ENGINE ON') 
               ? "text-green-700" 
-              : status.includes('No Signal')
-              ? "text-red-700"
               : "text-gray-600"
-          )}>{formatForDisplay(lastUpdated)}</span>
+          )}>{formatForDisplay(updated_at || lastUpdated)}</span>
         </div>
 
         {/* Last Fuel Fill Information */}
@@ -255,20 +230,6 @@ export function FuelGauge({
             </div>
           </div>
         )}
-        
-        {/* Note Button */}
-        <div className="mt-2">
-          {/* Add Note Button */}
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 w-full"
-            onClick={() => onAddNote ? onAddNote(location, id) : alert(`Add note for ${location}`)}
-          >
-            <NotebookPen className="w-4 h-4 mr-1" />
-            Add Note
-          </Button>
-        </div>
       </div>
     </div>
   );

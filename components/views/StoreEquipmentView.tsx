@@ -76,6 +76,7 @@ interface VehicleEquipment {
   fuel_anomaly_note: string | null;
   last_anomaly_time: string | null;
   created_at: string;
+  notes?: string | null;
 }
 
 export function StoreEquipmentView() {
@@ -324,7 +325,8 @@ export function StoreEquipmentView() {
         branch: editedEquipment.branch,
         company: editedEquipment.company,
         cost_code: editedEquipment.cost_code,
-        ip_address: editedEquipment.ip_address
+        ip_address: editedEquipment.ip_address,
+        notes: editedEquipment.notes
       };
       
       // Use the correct API URL as shown in the curl examples
@@ -352,7 +354,8 @@ export function StoreEquipmentView() {
             branch: editedEquipment.branch,
             company: editedEquipment.company,
             cost_code: editedEquipment.cost_code,
-            ip_address: editedEquipment.ip_address
+            ip_address: editedEquipment.ip_address,
+            notes: editedEquipment.notes
           } : item
         )
       );
@@ -610,6 +613,7 @@ export function StoreEquipmentView() {
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">NOTES</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">ACTIONS</th>
                           </tr>
                         </thead>
@@ -662,6 +666,26 @@ export function StoreEquipmentView() {
                                   <div className="flex items-center gap-2">
                                     <Wifi className="w-4 h-4 text-gray-400" />
                                     {equipment.ip_address}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm">
+                                {editingRowId === equipment.id ? (
+                                  <Textarea 
+                                    className="min-h-[60px] w-full py-1 px-2 text-xs"
+                                    value={editedEquipment?.notes || ''}
+                                    onChange={(e) => handleInputChange(e, 'notes')}
+                                    placeholder="Add notes..."
+                                  />
+                                ) : (
+                                  <div className="max-w-xs">
+                                    {equipment.notes ? (
+                                      <div className="text-xs text-gray-600 truncate" title={equipment.notes}>
+                                        {equipment.notes}
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">No notes</span>
+                                    )}
                                   </div>
                                 )}
                               </td>

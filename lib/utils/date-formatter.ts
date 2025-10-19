@@ -154,17 +154,31 @@ function getRelativeTime(date: Date): string {
 }
 
 /**
- * Formats a timestamp for display in UI components
+ * Converts timestamp to South African time and formats for display
  * @param timestamp - ISO 8601 timestamp string
- * @returns Formatted string suitable for UI display
+ * @returns Formatted string in South African time
  */
 export function formatForDisplay(timestamp: string): string {
-  return formatTimestamp(timestamp, {
-    includeTime: true,
-    includeSeconds: false,
-    includeMilliseconds: false,
-    format: 'short'
-  });
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    // Convert to South African time (SAST - UTC+2)
+    return date.toLocaleString('en-ZA', {
+      timeZone: 'Africa/Johannesburg',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return 'Invalid Date';
+  }
 }
 
 /**
@@ -202,4 +216,32 @@ export function formatDateOnly(timestamp: string): string {
     includeTime: false,
     format: 'short'
   });
+}
+
+/**
+ * Formats timestamp to South African time with seconds
+ * @param timestamp - ISO 8601 timestamp string
+ * @returns Formatted string in South African time with seconds
+ */
+export function formatSouthAfricanTime(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    return date.toLocaleString('en-ZA', {
+      timeZone: 'Africa/Johannesburg',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.error('Error formatting South African time:', error);
+    return 'Invalid Date';
+  }
 }
