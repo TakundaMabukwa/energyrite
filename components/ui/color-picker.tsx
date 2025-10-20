@@ -37,45 +37,18 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
   };
 
   const handleSave = async () => {
-    try {
-      setLoading(true);
-      
-      // Call the API to update all vehicles' color codes
-      const response = await fetch('http://localhost:9000/api/energy-rite-vehicles/color-codes-all', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          color_codes: {
-            fuel: colorCodes
-          }
-        })
-      });
+    setLoading(true);
+    
+    // Notify parent component of color change immediately
+    onColorChange?.(colorCodes);
 
-      if (!response.ok) {
-        throw new Error(`Failed to update colors: ${response.status}`);
-      }
+    toast({
+      title: 'Colors Updated',
+      description: 'Fuel gauge colors have been updated.',
+    });
 
-      // Notify parent component of color change
-      onColorChange?.(colorCodes);
-
-      toast({
-        title: 'Colors Updated',
-        description: 'Fuel gauge colors have been updated for all vehicles.',
-      });
-
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error updating colors:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to update colors: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    setIsOpen(false);
+    setLoading(false);
   };
 
   const getLevelLabel = (level: string) => {

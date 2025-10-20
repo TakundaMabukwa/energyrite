@@ -60,10 +60,18 @@ export function FuelGauge({
   };
 
   const getFuelColor = (level: number) => {
+    if (!colorCodes) {
+      // Default fuel gauge colors
+      if (level < 25) return '#ef4444'; // red
+      if (level < 50) return '#f97316'; // orange
+      if (level < 75) return '#eab308'; // yellow
+      return '#22c55e'; // green
+    }
+    
     const colors = {
-      low: colorCodes?.low || '#FF0000', // red
-      medium: colorCodes?.medium || '#FFFF00', // yellow
-      high: colorCodes?.high || '#00FF00', // green
+      low: colorCodes.low || '#FF0000',
+      medium: colorCodes.medium || '#FFFF00',
+      high: colorCodes.high || '#00FF00',
     };
     
     if (level < 33) return colors.low;
