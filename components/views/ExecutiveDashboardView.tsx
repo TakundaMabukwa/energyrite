@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { RefreshCw } from 'lucide-react';
@@ -69,42 +69,28 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [dashboardData, setDashboardData] = useState<ExecutiveDashboardData | null>(null);
 
   const getCostCenterName = () => {
-    if (isAdmin) {
-      return 'Executive Dashboard (All Cost Centers)';
-    }
-    if (userCostCode) {
-      return `Executive Dashboard (${userCostCode})`;
-    }
-    return 'Executive Dashboard';
+    return 'Executive Dashboard (Overall - Last 24 Hours)';
   };
 
   const getBreadcrumbPath = () => {
-    if (isAdmin) {
-      return 'Energyrite => All Cost Centers - (ADMIN VIEW)';
-    }
-    if (userCostCode) {
-      return `Energyrite => User Cost Center - (COST CODE: ${userCostCode})`;
-    }
-    return 'Energyrite => Executive Dashboard';
+    return 'Energyrite => Overall Dashboard - Last 24 Hours';
   };
 
   // Fetch data from Energy Rite server using new executive dashboard endpoint
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       console.log('📊 Fetching executive dashboard data from new endpoint...');
       
-      // Build query parameters for month/year and cost center filtering
+      // Build query parameters for last 24 hours and cost center filtering
       const queryParams = new URLSearchParams();
       const now = new Date();
-      queryParams.append('month', String(now.getMonth() + 1));
-      queryParams.append('year', String(now.getFullYear()));
-      // Only add cost_code filter if user is not admin
-      if (!isAdmin && userCostCode) {
-        queryParams.append('cost_code', userCostCode);
-      }
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      queryParams.append('start_date', yesterday.toISOString().split('T')[0]);
+      queryParams.append('end_date', now.toISOString().split('T')[0]);
+      // Show overall data for all users (remove cost_code filtering)
       
       const queryString = queryParams.toString();
       const executiveUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/executive-dashboard${queryString ? `?${queryString}` : ''}`;
@@ -133,16 +119,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Update score cards using the new API structure
       setScoreCardData([
-        {
-          value: Number(executiveData?.score_card?.active_sites ?? 0),
-          label: 'On-Today',
-          barColor: 'bg-green-500'
-        },
-        {
-          value: Number(parseFloat(executiveData?.score_card?.total_operational_hours ?? '0') || 0),
-          label: 'Operating Hours',
-          barColor: 'bg-blue-500'
-        },
         {
           value: Number(parseFloat(executiveData?.score_card?.total_litres_filled ?? '0') || 0),
           label: 'Litres Filled',
@@ -282,8 +258,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       // Default chart data with explicit no-data states
       setScoreCardData([
-        { value: 0, label: 'On-Today', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Hours Running', barColor: 'bg-gray-400' },
         { value: 0, label: 'Litres Filled', barColor: 'bg-gray-400' },
         { value: 0, label: 'Litres Used', barColor: 'bg-gray-400' }
       ]);
@@ -304,14 +278,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         });
       }
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    // Auto-fetch data on load for user's cost code (or all data for admin)
-    if (userCostCode || isAdmin) {
-      fetchDashboardData();
-    }
-  }, [userCostCode, isAdmin]);
+    // Auto-fetch overall data on load
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   if (loading) {
     return (

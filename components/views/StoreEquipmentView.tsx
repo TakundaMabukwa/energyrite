@@ -613,6 +613,7 @@ export function StoreEquipmentView() {
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
+                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">TANK VOLUME</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">NOTES</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">ACTIONS</th>
                           </tr>
@@ -668,6 +669,12 @@ export function StoreEquipmentView() {
                                     {equipment.ip_address}
                                   </div>
                                 )}
+                              </td>
+                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <Fuel className="w-4 h-4 text-blue-500" />
+                                  {equipment.volume ? `${parseFloat(equipment.volume).toFixed(1)}L` : 'N/A'}
+                                </div>
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm">
                                 {editingRowId === equipment.id ? (
