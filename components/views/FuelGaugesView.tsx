@@ -45,12 +45,30 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   
 
   const [fuelGaugeColors, setFuelGaugeColors] = useState({
-    25: '#ef4444', // red
-    50: '#f97316', // orange
-    75: '#eab308', // yellow
+    high: '#00FF00', // green
+    medium: '#FFFF00', // yellow
+    low: '#FF0000', // red
   });
   
 
+
+  // Fetch color codes from first vehicle with color_codes
+  const fetchColorCodes = async () => {
+    try {
+      const costCode = (selectedRoute as any)?.costCode;
+      const url = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles?limit=1${costCode ? `&costCode=${costCode}` : ''}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.[0]?.color_codes?.fuel) {
+          setFuelGaugeColors(data.data[0].color_codes.fuel);
+        }
+      }
+    } catch (error) {
+      console.warn('Could not fetch color codes:', error);
+    }
+  };
 
   // Build fuel data from global vehicles in context (initial + realtime)
   const fetchFuelData = async () => {
@@ -249,6 +267,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   };
 
   useEffect(() => {
+    fetchColorCodes();
     fetchFuelData();
   }, [selectedRoute, vehicles]);
 

@@ -14,7 +14,7 @@ import { Palette, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ColorPickerProps {
-  onColorChange?: (colorCodes: { 25: string; 50: string; 75: string }) => void;
+  onColorChange?: (colorCodes: { high: string; medium: string; low: string }) => void;
 }
 
 
@@ -24,12 +24,12 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [colorCodes, setColorCodes] = useState({
-    25: '#ef4444', // red
-    50: '#f97316', // orange
-    75: '#eab308', // yellow
+    high: '#00FF00', // green
+    medium: '#FFFF00', // yellow
+    low: '#FF0000', // red
   });
 
-  const handleColorSelect = (level: 25 | 50 | 75, color: string) => {
+  const handleColorSelect = (level: 'high' | 'medium' | 'low', color: string) => {
     setColorCodes(prev => ({
       ...prev,
       [level]: color
@@ -41,13 +41,15 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
       setLoading(true);
       
       // Call the API to update all vehicles' color codes
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite-vehicles/color-codes-all`, {
+      const response = await fetch('http://localhost:9000/api/energy-rite-vehicles/color-codes-all', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          color_codes: colorCodes
+          color_codes: {
+            fuel: colorCodes
+          }
         })
       });
 
@@ -76,11 +78,11 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
     }
   };
 
-  const getLevelLabel = (level: number) => {
+  const getLevelLabel = (level: string) => {
     switch (level) {
-      case 25: return 'Low (0-25%)';
-      case 50: return 'Medium (25-50%)';
-      case 75: return 'High (50-75%)';
+      case 'low': return 'Low (0-33%)';
+      case 'medium': return 'Medium (33-66%)';
+      case 'high': return 'High (66-100%)';
       default: return '';
     }
   };
@@ -110,12 +112,12 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
             {Object.entries(colorCodes).map(([level, currentColor]) => (
               <div key={level} className="flex items-center justify-between">
                 <label className="text-sm font-medium min-w-[100px]">
-                  {getLevelLabel(Number(level))}
+                  {getLevelLabel(level)}
                 </label>
                 <input
                   type="color"
                   value={currentColor}
-                  onChange={(e) => handleColorSelect(Number(level) as 25 | 50 | 75, e.target.value)}
+                  onChange={(e) => handleColorSelect(level as 'high' | 'medium' | 'low', e.target.value)}
                   className="w-12 h-8 rounded border border-gray-300 cursor-pointer"
                 />
               </div>

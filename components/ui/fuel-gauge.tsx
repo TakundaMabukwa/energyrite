@@ -24,9 +24,9 @@ interface FuelGaugeProps {
   };
   className?: string;
   colorCodes?: {
-    25?: string;
-    50?: string;
-    75?: string;
+    high?: string;
+    medium?: string;
+    low?: string;
   };
   id?: string | number;
 }
@@ -61,16 +61,14 @@ export function FuelGauge({
 
   const getFuelColor = (level: number) => {
     const colors = {
-      25: colorCodes?.['25'] || '#ef4444', // red
-      50: colorCodes?.['50'] || '#f97316', // orange  
-      75: colorCodes?.['75'] || '#eab308', // yellow
-      100: '#22c55e' // green
+      low: colorCodes?.low || '#FF0000', // red
+      medium: colorCodes?.medium || '#FFFF00', // yellow
+      high: colorCodes?.high || '#00FF00', // green
     };
     
-    if (level < 25) return colors[25];
-    if (level < 50) return colors[50];
-    if (level < 75) return colors[75];
-    return colors[100];
+    if (level < 33) return colors.low;
+    if (level < 66) return colors.medium;
+    return colors.high;
   };
 
   return (
