@@ -225,8 +225,13 @@ export function StoreEquipmentView() {
   const fetchEquipmentData = async () => {
     try {
       setEquipmentLoading(true);
-      // Use the correct API URL as shown in the curl examples
-      const resp = await fetch(`http://64.227.138.235:3000/api/energy-rite/vehicles?limit=500`);
+      // Filter by selected cost center if available
+      const costCode = selectedRoute?.costCode;
+      const url = costCode 
+        ? `http://64.227.138.235:3000/api/energy-rite/vehicles?limit=500&cost_code=${costCode}`
+        : `http://64.227.138.235:3000/api/energy-rite/vehicles?limit=500`;
+      
+      const resp = await fetch(url);
       
       if (!resp.ok) {
         throw new Error(`Failed to fetch equipment data: ${resp.status}`);
@@ -513,7 +518,7 @@ export function StoreEquipmentView() {
     };
 
     initializeData();
-  }, []);
+  }, [selectedRoute]);
   
   // Get unique cost codes from equipment data for the dropdown
   const getUniqueCostCodes = () => {

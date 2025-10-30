@@ -3,7 +3,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
-import { BarChart3, FileText, Activity, TrendingUp } from 'lucide-react';
+import { BarChart3, FileText, Activity, TrendingUp, ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const topNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -13,12 +14,13 @@ const topNavItems = [
 ];
 
 export function TopNavigation() {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, costCenters, selectedRoute, setSelectedRoute } = useApp();
 
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="px-6 py-4">
-        <div className="flex items-center space-x-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-8">
           {topNavItems.map((item) => (
             <button
               key={item.id}
@@ -34,6 +36,8 @@ export function TopNavigation() {
               <span>{item.label}</span>
             </button>
           ))}
+          </div>
+
         </div>
       </div>
     </div>

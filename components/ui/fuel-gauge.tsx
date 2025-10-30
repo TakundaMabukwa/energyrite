@@ -62,9 +62,8 @@ export function FuelGauge({
   const getFuelColor = (level: number) => {
     if (!colorCodes) {
       // Default fuel gauge colors
-      if (level < 25) return '#ef4444'; // red
-      if (level < 50) return '#f97316'; // orange
-      if (level < 75) return '#eab308'; // yellow
+      if (level <= 40) return '#ef4444'; // red
+      if (level <= 60) return '#eab308'; // yellow
       return '#22c55e'; // green
     }
     
@@ -74,8 +73,8 @@ export function FuelGauge({
       high: colorCodes.high || '#00FF00',
     };
     
-    if (level < 33) return colors.low;
-    if (level < 66) return colors.medium;
+    if (level <= 40) return colors.low;
+    if (level <= 60) return colors.medium;
     return colors.high;
   };
 
@@ -88,8 +87,8 @@ export function FuelGauge({
       className
     )}>
       {/* Header */}
-      <div className="mb-3 text-center">
-        <h3 className="mb-2 font-semibold text-gray-900 text-base">{location}</h3>
+      <div className="mb-1 text-center">
+        <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -116,7 +115,7 @@ export function FuelGauge({
       </div>
 
       {/* Fuel Gauge */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center mb-1">
         <div className="relative">
           <svg
             height={radius * 2}
@@ -149,18 +148,18 @@ export function FuelGauge({
           
           {/* Center Content */}
           <div className="absolute inset-0 flex flex-col justify-center items-center">
-            <Gauge className="mb-1 w-5 h-5 text-gray-400" />
+            <Gauge className="mb-0.5 w-5 h-5 text-gray-400" />
             <span className="font-medium text-gray-500 text-sm">Fuel</span>
-            <span className="mt-1 font-bold text-gray-900 text-2xl">{fuelLevel}</span>
+            <span className="font-bold text-gray-900 text-2xl">{fuelLevel}</span>
             <span className="text-gray-500 text-xs">%</span>
           </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         <div className={cn(
-          "flex justify-between items-center p-2 rounded-lg",
+          "flex justify-center items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
             : "bg-gray-50"
@@ -172,42 +171,26 @@ export function FuelGauge({
               status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
                 : "text-gray-700"
-            )}>{temperature}°C</span>
+            )}>Temperature {temperature}C</span>
           </div>
-          <span className={cn(
-            "text-xs",
-            status.includes('PTO ON') || status.includes('ENGINE ON') 
-              ? "text-green-600" 
-              : "text-gray-500"
-          )}>Temperature</span>
         </div>
 
         <div className={cn(
-          "p-2 rounded-lg",
+          "flex justify-center items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
             : "bg-blue-50"
         )}>
-          <div className="text-center mb-1">
-            <span className={cn(
-              "font-medium text-sm",
-              status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-800" 
-                : "text-blue-900"
-            )}>Remaining</span>
-          </div>
-          <div className="text-center">
-            <span className={cn(
-              "font-bold text-sm",
-              status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-800" 
-                : "text-blue-900"
-            )}>{remaining}</span>
-          </div>
+          <span className={cn(
+            "font-medium text-sm",
+            status.includes('PTO ON') || status.includes('ENGINE ON') 
+              ? "text-green-800" 
+              : "text-blue-900"
+          )}>Rem: {remaining}</span>
         </div>
 
         <div className={cn(
-          "flex items-center gap-2 p-2 rounded-lg",
+          "flex items-center gap-2 px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
             : "bg-gray-50"

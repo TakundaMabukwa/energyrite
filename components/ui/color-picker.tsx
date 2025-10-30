@@ -53,9 +53,9 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
 
   const getLevelLabel = (level: string) => {
     switch (level) {
-      case 'low': return 'Low (0-33%)';
-      case 'medium': return 'Medium (33-66%)';
-      case 'high': return 'High (66-100%)';
+      case 'low': return 'Low (0-40%)';
+      case 'medium': return 'Medium (41-60%)';
+      case 'high': return 'High (61-100%)';
       default: return '';
     }
   };

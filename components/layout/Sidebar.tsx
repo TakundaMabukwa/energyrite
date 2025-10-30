@@ -7,7 +7,8 @@ import {
   Store, 
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
@@ -29,6 +30,12 @@ export function Sidebar() {
       id: 'store-equipment',
       label: 'Equipment',
       icon: Store,
+      active: false
+    },
+    {
+      id: 'activity-snapshots',
+      label: 'Activity Snapshots',
+      icon: Clock,
       active: false
     },
     {

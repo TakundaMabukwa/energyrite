@@ -95,138 +95,14 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   const [availableReports, setAvailableReports] = useState<FuelReport[]>([]);
   const [reportDocuments, setReportDocuments] = useState<ReportDocument[]>([]);
 
-  // Fetch engine sessions reports filtered by cost code
-  const fetchTheftData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // No need to fetch pre-made reports - we generate them on demand
       
-      // For admin users, don't filter by cost code. For regular users, use their cost code
-      const costCode = isAdmin ? null : userCostCode;
-      
-      if (!isAdmin && !userCostCode) {
-        console.log('⚠️ No cost code available for user, cannot fetch reports');
-        setReportDocuments([]);
-        setAvailableReports([]);
-        return;
-      }
-      
-      console.log('🔍 Fetching engine sessions reports:', isAdmin ? 'for all cost codes (admin)' : `for user cost code: ${userCostCode}`);
-      
-      // Fetch engine sessions for different time periods
-      const today = new Date().toISOString().split('T')[0];
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/engine-sessions`;
-      
-      // Build URLs with conditional cost_code parameter
-      const dailyParams = new URLSearchParams({ date: today });
-      if (costCode) dailyParams.append('cost_code', costCode);
-      const dailyUrl = `${baseUrl}?${dailyParams.toString()}`;
-      console.log('📅 Fetching daily report:', dailyUrl);
-      
-      const weeklyParams = new URLSearchParams({ start_date: oneWeekAgo, end_date: today });
-      if (costCode) weeklyParams.append('cost_code', costCode);
-      const weeklyUrl = `${baseUrl}?${weeklyParams.toString()}`;
-      console.log('📅 Fetching weekly report:', weeklyUrl);
-      
-      const monthlyParams = new URLSearchParams({ start_date: oneMonthAgo, end_date: today });
-      if (costCode) monthlyParams.append('cost_code', costCode);
-      const monthlyUrl = `${baseUrl}?${monthlyParams.toString()}`;
-      console.log('📅 Fetching monthly report:', monthlyUrl);
-      
-      // Fetch all reports in parallel
-      const [dailyResponse, weeklyResponse, monthlyResponse] = await Promise.all([
-        fetch(dailyUrl),
-        fetch(weeklyUrl),
-        fetch(monthlyUrl)
-      ]);
-      
-      const reports: FuelReport[] = [];
-      
-      // Process daily report
-      if (dailyResponse.ok) {
-        const dailyData = await dailyResponse.json();
-        if (dailyData.success && dailyData.data?.sessions?.length > 0) {
-          reports.push({
-            id: 'daily-' + today,
-            type: 'daily',
-            date: today,
-            isLatest: true,
-            downloadUrl: '#', // Engine sessions don't have direct download URLs
-            size: `${dailyData.data.sessions.length} sessions`,
-            sessions: dailyData.data.sessions,
-            summary: dailyData.data.summary
-          });
-          console.log('✅ Daily report loaded:', dailyData.data.sessions.length, 'sessions');
-        }
-      }
-      
-      // Process weekly report
-      if (weeklyResponse.ok) {
-        const weeklyData = await weeklyResponse.json();
-        if (weeklyData.success && weeklyData.data?.sessions?.length > 0) {
-          reports.push({
-            id: 'weekly-' + oneWeekAgo + '-' + today,
-            type: 'weekly',
-            date: `${oneWeekAgo} to ${today}`,
-            isLatest: true,
-            downloadUrl: '#',
-            size: `${weeklyData.data.sessions.length} sessions`,
-            sessions: weeklyData.data.sessions,
-            summary: weeklyData.data.summary
-          });
-          console.log('✅ Weekly report loaded:', weeklyData.data.sessions.length, 'sessions');
-        }
-      }
-      
-      // Process monthly report
-      if (monthlyResponse.ok) {
-        const monthlyData = await monthlyResponse.json();
-        if (monthlyData.success && monthlyData.data?.sessions?.length > 0) {
-          reports.push({
-            id: 'monthly-' + oneMonthAgo + '-' + today,
-            type: 'monthly',
-            date: `${oneMonthAgo} to ${today}`,
-            isLatest: true,
-            downloadUrl: '#',
-            size: `${monthlyData.data.sessions.length} sessions`,
-            sessions: monthlyData.data.sessions,
-            summary: monthlyData.data.summary
-          });
-          console.log('✅ Monthly report loaded:', monthlyData.data.sessions.length, 'sessions');
-        }
-      }
-      
-      setAvailableReports(reports);
-      console.log('📊 Generated engine sessions reports:', reports.length, 'types available');
-      
-    } catch (err) {
-      console.error('Error fetching engine sessions reports:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch engine sessions reports');
-      toast({
-        title: 'Failed to load reports',
-        description: err instanceof Error ? err.message : 'Unknown error',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-      if (!error) {
-        toast({
-          title: 'Engine sessions reports loaded',
-          description: 'Daily, weekly, and monthly engine sessions have been fetched.'
-        });
-      }
-    }
-  };
+
 
 
   useEffect(() => {
-    if (userCostCode || isAdmin) {
-      fetchTheftData();
-    }
-  }, [userCostCode, isAdmin]);
+    setLoading(false);
+  }, []);
 
 
   const getReportsByType = (type: 'daily' | 'weekly' | 'monthly') => {
@@ -239,117 +115,60 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   };
 
 
-  // Handle report view/download - show engine sessions data
-  const handleDownloadReport = async (report: FuelReport) => {
-    try {
-      console.log('📊 Viewing engine sessions report:', report.type, report.date);
-      
-      if (report.sessions && report.sessions.length > 0) {
-        // Create a summary of the engine sessions
-        const summary = report.summary || {};
-        const totalSessions = report.sessions.length;
-        const totalHours = report.sessions.reduce((sum: number, session: any) => sum + (session.operating_hours || 0), 0);
-        const totalFuelUsed = report.sessions.reduce((sum: number, session: any) => sum + (session.total_usage || 0), 0);
-        
-        // Show summary in a toast
-        toast({
-          title: `${report.type.charAt(0).toUpperCase() + report.type.slice(1)} Engine Sessions Report`,
-          description: `${totalSessions} sessions, ${totalHours.toFixed(1)} hours, ${totalFuelUsed.toFixed(1)}L fuel used`
-        });
-        
-        // Log detailed data to console for debugging
-        console.log('📊 Engine Sessions Summary:', {
-          type: report.type,
-          date: report.date,
-          totalSessions,
-          totalHours: totalHours.toFixed(1),
-          totalFuelUsed: totalFuelUsed.toFixed(1),
-          sessions: report.sessions
-        });
-        
-        // You could also open a modal or navigate to a detailed view here
-        // For now, we'll just show the summary
-        
-      } else {
-        toast({
-          title: 'No Data Available',
-          description: `No engine sessions found for ${report.type} report`,
-          variant: 'destructive'
-        });
-      }
-      
-    } catch (error) {
-      console.error('Error viewing report:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to view report data',
-        variant: 'destructive'
-      });
-    }
-  };
 
-  // Generate Excel report using the endpoints and handling the JSON response
+
+  // Generate Excel report using new endpoints
   const handleGenerateReport = async (reportType: 'daily' | 'weekly' | 'monthly') => {
     try {
       setLoading(true);
       
-      const costCode = isAdmin ? null : userCostCode;
+      console.log('🔍 Debug values:', {
+        isAdmin,
+        selectedRoute,
+        userCostCode,
+        'selectedRoute?.costCode': selectedRoute?.costCode
+      });
       
-      if (!isAdmin && !userCostCode) {
-        toast({
-          title: 'Error',
-          description: 'No cost code available for report generation',
-          variant: 'destructive'
-        });
-        return;
-      }
+      // Use selectedRoute.costCode if available, regardless of admin status
+      // Admin can still filter by specific cost center when one is selected
+      let costCode = selectedRoute?.costCode || userCostCode || null;
       
-      console.log(`📊 Requesting ${reportType} Excel report:`, isAdmin ? 'for all cost codes (admin)' : `for cost code: ${userCostCode}`);
+      console.log('📊 Excel Report - Final cost code:', costCode);
+      console.log('📊 Excel Report - Report type:', reportType);
       
-      // Define the API URLs based on report type
-      let apiUrl = '';
+      const requestBody = {
+        report_type: reportType,
+        ...(costCode && { cost_code: costCode })
+      };
       
-      switch (reportType) {
-        case 'daily':
-          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/daily`;
-          break;
-        case 'weekly':
-          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/weekly`;
-          break;
-        case 'monthly':
-          apiUrl = `http://64.227.138.235:3000/api/energy-rite/excel-reports/monthly`;
-          break;
-      }
+      console.log('📊 Request body:', requestBody);
       
-      // Add cost code parameter if not admin
-      if (costCode) {
-        apiUrl += `?cost_code=${encodeURIComponent(costCode)}`;
-      }
+      const response = await fetch('http://localhost:4000/api/energy-rite/excel-reports/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
       
-      // Fetch the API response first
-      const response = await fetch(apiUrl);
+      console.log('📡 Excel response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`Failed to generate report: ${response.status}`);
       }
       
-      // Parse the JSON response
       const data = await response.json();
       
       if (!data.success || !data.data?.download_url) {
-        throw new Error(data.message || 'Failed to generate report: No download URL');
+        throw new Error(data.message || 'Failed to generate Excel report');
       }
       
-      // Extract the download URL from the response
-      const downloadUrl = data.data.download_url;
-      console.log(`📥 Downloaded report info:`, data.data);
-      
-      // Open the download URL in a new tab/window
-      window.open(downloadUrl, '_blank');
+      // Open the download URL
+      window.open(data.data.download_url, '_blank');
       
       toast({
-        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report Ready`,
-        description: `Excel report "${data.data.file_name}" is downloading`
+        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Excel Report Ready`,
+        description: `File: ${data.data.file_name} - Click to download`
       });
       
     } catch (error) {
@@ -403,10 +222,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               <Fuel className="w-6 h-6 text-gray-700" />
               <h2 className="font-semibold text-gray-900 text-2xl">Engine Sessions Reports</h2>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchTheftData}>
-              <RefreshCw className="mr-2 w-4 h-4" />
-              Refresh
-            </Button>
+
           </div>
               <p className="text-gray-600 text-sm">
                 Engine sessions {isAdmin ? 'across all cost codes (admin view)' : `filtered by cost code: ${userCostCode}`}
@@ -426,44 +242,19 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {getLatestReportByType('daily') ? (
-                <div className="flex justify-between items-center gap-3 hover:bg-gray-50 p-3 border border-gray-100 rounded cursor-pointer" onClick={() => handleDownloadReport(getLatestReportByType('daily')!)}>
-                  <div className="flex items-center gap-3">
-                    <Download className="w-5 h-5 text-blue-500" />
-                    <div>
-                      <span className="font-medium text-gray-700 text-sm">
-                        {getLatestReportByType('daily')!.date}
-                  </span>
-                      {getLatestReportByType('daily')!.size && (
-                        <span className="ml-2 text-gray-500 text-xs">({getLatestReportByType('daily')!.size})</span>
-                      )}
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="hover:bg-blue-50 border-blue-200 text-blue-600">
-                    View
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex justify-center items-center p-6 text-gray-500">
-                  <div className="text-center">
-                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                  </div>
-                </div>
-              )}
-              
-              {/* Generate Report Button */}
-              <div className="mt-4 pt-3 border-t">
+              <div className="text-center py-6">
+                <Download className="mx-auto mb-4 w-12 h-12 text-blue-500" />
+                <p className="mb-4 text-gray-600 text-sm">Generate daily Excel report</p>
                 <Button 
                   onClick={() => handleGenerateReport('daily')}
                   disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  size="sm"
                 >
                   <Download className="mr-2 w-4 h-4" />
-                  Download Report
+                  Generate Daily Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Download Excel report for today's data
+                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>
@@ -477,44 +268,19 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {getLatestReportByType('weekly') ? (
-                <div className="flex justify-between items-center gap-3 hover:bg-gray-50 p-3 border border-gray-100 rounded cursor-pointer" onClick={() => handleDownloadReport(getLatestReportByType('weekly')!)}>
-                  <div className="flex items-center gap-3">
-                    <Download className="w-5 h-5 text-green-500" />
-                    <div>
-                      <span className="font-medium text-gray-700 text-sm">
-                        {getLatestReportByType('weekly')!.date}
-                  </span>
-                      {getLatestReportByType('weekly')!.size && (
-                        <span className="ml-2 text-gray-500 text-xs">({getLatestReportByType('weekly')!.size})</span>
-                      )}
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="hover:bg-green-50 border-green-200 text-green-600">
-                    View
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex justify-center items-center p-6 text-gray-500">
-                  <div className="text-center">
-                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                  </div>
-                </div>
-              )}
-              
-              {/* Generate Report Button */}
-              <div className="mt-4 pt-3 border-t">
+              <div className="text-center py-6">
+                <Download className="mx-auto mb-4 w-12 h-12 text-green-500" />
+                <p className="mb-4 text-gray-600 text-sm">Generate weekly Excel report</p>
                 <Button 
                   onClick={() => handleGenerateReport('weekly')}
                   disabled={loading}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  size="sm"
                 >
                   <Download className="mr-2 w-4 h-4" />
-                  Download Report
+                  Generate Weekly Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Download Excel report for last 7 days
+                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>
@@ -528,44 +294,19 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {getLatestReportByType('monthly') ? (
-                <div className="flex justify-between items-center gap-3 hover:bg-gray-50 p-3 border border-gray-100 rounded cursor-pointer" onClick={() => handleDownloadReport(getLatestReportByType('monthly')!)}>
-                  <div className="flex items-center gap-3">
-                    <Download className="w-5 h-5 text-purple-500" />
-                    <div>
-                      <span className="font-medium text-gray-700 text-sm">
-                        {getLatestReportByType('monthly')!.date}
-                  </span>
-                      {getLatestReportByType('monthly')!.size && (
-                        <span className="ml-2 text-gray-500 text-xs">({getLatestReportByType('monthly')!.size})</span>
-                      )}
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="hover:bg-purple-50 border-purple-200 text-purple-600">
-                    View
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex justify-center items-center p-6 text-gray-500">
-                  <div className="text-center">
-                    <Download className="mx-auto mb-2 w-8 h-8 text-gray-400" />
-                  </div>
-                </div>
-              )}
-              
-              {/* Generate Report Button */}
-              <div className="mt-4 pt-3 border-t">
+              <div className="text-center py-6">
+                <Download className="mx-auto mb-4 w-12 h-12 text-purple-500" />
+                <p className="mb-4 text-gray-600 text-sm">Generate monthly Excel report</p>
                 <Button 
                   onClick={() => handleGenerateReport('monthly')}
                   disabled={loading}
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                  size="sm"
                 >
                   <Download className="mr-2 w-4 h-4" />
-                  Download Report
+                  Generate Monthly Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  Download Excel report for current month
+                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>

@@ -37,28 +37,32 @@ export class CostCenterService {
       console.log('   NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing');
       console.log('   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY ? '✅ Set' : '❌ Missing');
 
-      // Always try to fetch from Supabase first
-      const [costCenters, level3, level4, level5] = await Promise.all([
-        this.fetchCostCenters(),
+      // Fetch from the new cost center tables
+      const [level3, level4, level5] = await Promise.all([
         this.fetchLevel3CostCenters(),
         this.fetchLevel4CostCenters(),
         this.fetchLevel5CostCenters()
       ]);
 
-      // Combine all data
+      // Combine all level data
       const allCostCenters = [
-        ...costCenters.map(item => ({ ...item, level: 1 })),
         ...level3.map(item => ({ ...item, level: 3 })),
         ...level4.map(item => ({ ...item, level: 4 })),
         ...level5.map(item => ({ ...item, level: 5 }))
       ];
 
+      console.log('📊 All cost centers from new tables:', allCostCenters);
+
       console.log('🔄 Combined all cost centers data:', allCostCenters);
       console.log('📈 Total cost centers fetched from Supabase:', allCostCenters.length);
+      console.log('📊 Level 3 data:', level3);
+      console.log('📊 Level 4 data:', level4);
+      console.log('📊 Level 5 data:', level5);
 
       // Build hierarchical structure
       const hierarchicalData = this.buildHierarchy(allCostCenters);
       console.log('🌳 Final hierarchical structure from Supabase:', hierarchicalData);
+      console.log('🌳 Energyrite children:', hierarchicalData[0]?.children);
 
       return hierarchicalData;
     } catch (error) {
@@ -139,9 +143,22 @@ export class CostCenterService {
   }
 
   private buildHierarchy(allCostCenters: (CostCenterData & { level: number })[]): HierarchicalCostCenter[] {
+    // Create main Energyrite parent
+    const energyriteParent: HierarchicalCostCenter = {
+      id: 'energyrite-main',
+      name: 'Energyrite',
+      costCode: 'ENERGYRITE',
+      company: 'Energyrite',
+      branch: 'Main',
+      level: 0,
+      path: 'Energyrite',
+      hasChildren: true,
+      children: []
+    };
+
     // Create a map for quick lookup
     const costCenterMap = new Map<string, HierarchicalCostCenter>();
-    const rootCostCenters: HierarchicalCostCenter[] = [];
+    costCenterMap.set('ENERGYRITE', energyriteParent);
 
     // First pass: create all cost center objects
     allCostCenters.forEach(item => {
@@ -152,7 +169,7 @@ export class CostCenterService {
         company: item.company,
         branch: item.branch,
         subBranch: item.sub_branch,
-        parentId: item.parent_cost_code,
+        parentId: item.parent_cost_code || 'ENERGYRITE', // Default to Energyrite parent
         level: item.level,
         path: this.generatePath(item),
         hasChildren: false,
@@ -163,28 +180,23 @@ export class CostCenterService {
       costCenterMap.set(item.cost_code, hierarchicalItem);
     });
 
-    // Second pass: build parent-child relationships
-    costCenterMap.forEach(costCenter => {
-      if (costCenter.parentId && costCenterMap.has(costCenter.parentId)) {
-        const parent = costCenterMap.get(costCenter.parentId)!;
-        parent.children = parent.children || [];
-        parent.children.push(costCenter);
-        parent.hasChildren = true;
-      } else {
-        // This is a root level cost center
-        rootCostCenters.push(costCenter);
-      }
+    // Second pass: link all cost centers to Energyrite parent
+    allCostCenters.forEach(item => {
+      const costCenter = costCenterMap.get(item.cost_code)!;
+      
+      // Link all cost centers to Energyrite parent
+      const energyriteParent = costCenterMap.get('ENERGYRITE')!;
+      energyriteParent.children!.push(costCenter);
     });
 
-    // Sort children and root items
-    this.sortCostCenters(rootCostCenters);
+    // Sort children
     costCenterMap.forEach(costCenter => {
       if (costCenter.children) {
         this.sortCostCenters(costCenter.children);
       }
     });
 
-    return rootCostCenters;
+    return [energyriteParent];
   }
 
   private generateName(item: CostCenterData): string {

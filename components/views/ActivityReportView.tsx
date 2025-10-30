@@ -1,220 +1,250 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TopNavigation } from '@/components/layout/TopNavigation';
-import { RefreshCw, Activity, Clock, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Calendar, Clock, Download } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface ActivityReportViewProps {
   onBack?: () => void;
 }
 
-interface ActivityStatistics {
-  // Summary fields from /reports/operating-sessions
-  total_sessions?: number;
-  completed_sessions?: number;
-  ongoing_sessions?: number;
-  total_operating_hours?: number;
-  total_fuel_usage?: number;
-  total_fuel_filled?: number;
-  average_efficiency?: number;
+interface SiteReport {
+  generator: string;
+  cost_code: string;
+  company: string;
+  morning_to_afternoon_usage: number;
+  afternoon_to_evening_usage: number;
+  morning_to_evening_usage: number;
+  peak_time_slot: string;
+  peak_fuel_usage: number;
+  total_fuel_usage: number;
+  total_sessions: number;
+  total_operating_hours: number;
+  period_breakdown: {
+    morning_to_afternoon: number;
+    afternoon_to_evening: number;
+    full_day_total: number;
+  };
 }
 
-interface SiteDayRow {
-  id: string;
-  branch: string;
-  company: string;
-  cost_code: string;
-  session_date: string;
-  session_start_time: string;
-  session_end_time: string | null;
-  operating_hours: number;
-  opening_percentage: number;
-  opening_fuel: number;
-  midday_percentage: number;
-  midday_fuel: number;
-  closing_percentage: number;
-  closing_fuel: number;
-  total_usage: number;
-  total_fill: number;
-  liter_usage_per_hour: number;
-  cost_for_usage: number;
-  session_status: string;
+interface ActivityReportData {
+  period: {
+    start_date: string;
+    end_date: string;
+  };
+  total_sites: number;
+  overall_peak_time_slot: string;
+  overall_peak_usage: number;
+  time_slot_totals: {
+    morning_to_afternoon: number;
+    afternoon_to_evening: number;
+    morning_to_evening: number;
+  };
+  site_reports: SiteReport[];
+  summary: {
+    total_morning_to_afternoon_usage: number;
+    total_afternoon_to_evening_usage: number;
+    total_full_day_usage: number;
+    period_comparison: {
+      morning_period: number;
+      afternoon_period: number;
+      peak_period: string;
+      peak_usage: number;
+    };
+    total_sessions: number;
+    total_operating_hours: number;
+  };
 }
 
 export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   const { selectedRoute } = useApp();
   const { userCostCode, isAdmin } = useUser();
   const { toast } = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dateInput, setDateInput] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sessionFilter, setSessionFilter] = useState<'all' | 'completed' | 'ongoing'>('all');
-  const [itemsPerPage, setItemsPerPage] = useState(50);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activityStats, setActivityStats] = useState<ActivityStatistics | null>(null);
-  const [siteRows, setSiteRows] = useState<SiteDayRow[]>([]);
-  const [vehiclesOver24h, setVehiclesOver24h] = useState<never[]>([]);
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    return date.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [reportData, setReportData] = useState<ActivityReportData | null>(null);
+  const [selectedCostCode, setSelectedCostCode] = useState('');
+  const [generatingExcel, setGeneratingExcel] = useState(false);
 
   const getCostCenterName = () => {
-    if (isAdmin) {
-      return 'All Cost Centers';
-    }
-    if (userCostCode) {
-      return `Cost Centre (${userCostCode})`;
-    }
     return 'Activity Reports';
   };
 
   const getBreadcrumbPath = () => {
-    if (isAdmin) {
-      return 'Energyrite => All Cost Centers - (ADMIN VIEW)';
-    }
-    if (userCostCode) {
-      return `Energyrite => User Cost Center - (COST CODE: ${userCostCode})`;
-    }
-    return 'Energyrite => Activity Reports';
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    const formattedStart = startDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const formattedEnd = endDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `Energyrite => Activity Reports - ${formattedStart} to ${formattedEnd}`;
   };
 
-  // Filter sessions based on selected filter
-  const getFilteredSessions = () => {
-    if (sessionFilter === 'all') {
-      return siteRows;
-    }
-    return siteRows.filter(row => {
-      if (sessionFilter === 'completed') {
-        return row.session_status === 'NORMAL' || row.session_status === 'COMPLETED';
-      }
-      if (sessionFilter === 'ongoing') {
-        return row.session_status === 'IRREGULAR'; // Show irregular snapshots as "ongoing"
-      }
-      return true;
-    });
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextDate = e.target.value;
-    setDateInput(nextDate);
-    setSelectedDate(nextDate);
-    // Fetch when date is selected (no month dependency)
-    setTimeout(() => {
-      if ((nextDate || '').length > 0) {
-        fetchActivityData(nextDate);
-      }
-    }, 0);
-  };
-
-
-  // Fetch engine sessions data from Energy Rite server
-  const fetchActivityData = async (forDate?: string) => {
-    const targetDate = forDate || selectedDate || '';
-    
+  // Fetch activity reports data
+  const fetchActivityData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Build URL for engine sessions endpoint
+      console.log('📊 Fetching activity reports data...');
+      
+      // Add cost_code filter - use selected route for both admin and non-admin
+      const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
+      
+      // Fetch from activity reports endpoint on port 4000
+      const baseUrl = 'http://localhost:4000';
       const params = new URLSearchParams();
-      
-      if (targetDate) params.append('date', targetDate);
-      
-      // Only add cost_code filter if user is not admin
-      if (!isAdmin && userCostCode) {
-        params.append('cost_code', userCostCode);
+      params.append('startDate', startDate);
+      params.append('endDate', endDate);
+      if (costCodeFilter) {
+        params.append('costCode', costCodeFilter);
       }
-      const sessionsUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report${params.toString() ? `?${params.toString()}` : ''}`;
-      const sessionsResponse = await fetch(sessionsUrl);
       
-      if (sessionsResponse.ok) {
-        const sessionsResult = await sessionsResponse.json();
-        if (sessionsResult.success) {
-          const data = sessionsResult.data || {};
-          const summary = data.summary || {};
-          
-          // Map sites to rows for table display, filtering out empty cost codes
-          const sites: any[] = Array.isArray(data.sites) ? data.sites : [];
-          const filteredSites = sites
-            .filter((site: any) => site.cost_code && site.cost_code.trim() !== '') // Only show rows with non-empty cost codes
-            .filter((site: any) => site.company && site.company.trim() !== ''); // Only show rows with non-empty company
-          
-          // Calculate statistics from filtered sites
-          const totalSites = filteredSites.length;
-          const totalFuelUsed = filteredSites.reduce((sum, site) => sum + Number(site.total_fuel_used || 0), 0);
-          const totalFuelFilled = filteredSites.reduce((sum, site) => sum + Number(site.total_fuel_filled || 0), 0);
-          const avgEfficiency = totalSites > 0 ? (totalFuelUsed / totalSites) : 0;
-          
-          // Set activity statistics from calculated data
-          setActivityStats({
-            total_sessions: totalSites,
-            completed_sessions: totalSites, // All sites have snapshots
-            ongoing_sessions: 0, // Snapshots don't track ongoing sessions
-            total_operating_hours: 0, // Not available in snapshots
-            total_fuel_usage: totalFuelUsed,
-            total_fuel_filled: totalFuelFilled,
-            average_efficiency: avgEfficiency,
-          });
-
-          const rows: SiteDayRow[] = filteredSites.map((site: any, idx: number) => ({
-            id: site.branch || idx + 1,
-            branch: site.branch || '',
-            company: site.company || '',
-            cost_code: site.cost_code || '',
-            session_date: data.date || '',
-            session_start_time: site.first_snapshot || '',
-            session_end_time: site.last_snapshot || null,
-            operating_hours: 0, // Not available in snapshots
-            opening_percentage: Number(site.fuel_level_morning || 0),
-            opening_fuel: Number(site.fuel_level_morning || 0),
-            midday_percentage: Number(site.fuel_level_midday || 0),
-            midday_fuel: Number(site.fuel_level_midday || 0),
-            closing_percentage: Number(site.fuel_level_evening || 0),
-            closing_fuel: Number(site.fuel_level_evening || 0),
-            total_usage: Number(site.total_fuel_used || 0),
-            total_fill: Number(site.total_fuel_filled || 0),
-            liter_usage_per_hour: 0, // Not available in snapshots
-            cost_for_usage: 0, // Not available in snapshots
-            session_status: site.irregularities_count > 0 ? 'IRREGULAR' : 'NORMAL',
-          }));
-          
-          setSiteRows(rows);
-        }
+      console.log('🔍 API call params:', params.toString(), 'costCodeFilter:', costCodeFilter);
+      
+      const reportsRes = await fetch(`${baseUrl}/api/energy-rite/activity-reports?${params.toString()}`);
+      
+      if (!reportsRes.ok) {
+        throw new Error('Failed to fetch activity reports data');
       }
+      
+      const reportsData = await reportsRes.json();
+      
+      console.log('✅ Activity reports data received:', reportsData);
+      
+      if (reportsData.success && reportsData.data) {
+        setReportData(reportsData.data);
+      } else {
+        setReportData(null);
+      }
+      
     } catch (err) {
-      console.error('Error fetching snapshots data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch snapshots data');
+      console.error('❌ Error fetching activity data:', err);
+      
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
       toast({
-        title: 'Failed to load snapshots',
+        title: 'Failed to load activity data',
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive'
       });
+      
+      setReportData(null);
     } finally {
       setLoading(false);
-      if (!error && targetDate) {
-        const dateDescription = `Snapshots for ${targetDate} fetched successfully.`;
+      if (!error) {
         toast({
-          title: 'Snapshots loaded',
-          description: dateDescription
+          title: 'Activity data loaded',
+          description: 'Latest reports fetched successfully.'
         });
       }
     }
-  };
+  }, [toast, isAdmin, selectedRoute, userCostCode, startDate, endDate]);
 
   useEffect(() => {
-    // Auto-fetch data on load for user's cost code (or all data for admin)
-    if (userCostCode || isAdmin) {
-      const today = new Date().toISOString().split('T')[0];
-      setSelectedDate(today);
-      setDateInput(today);
-      fetchActivityData(today);
+    fetchActivityData();
+  }, [fetchActivityData]);
+
+  // Generate Activity Excel Report
+  const generateActivityExcelReport = async () => {
+    try {
+      setGeneratingExcel(true);
+      
+      const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
+      const params = new URLSearchParams();
+      if (costCodeFilter) params.append('costCode', costCodeFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const response = await fetch(`http://localhost:4000/api/energy-rite/activity-excel-reports/generate?${params.toString()}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        window.open(result.data.download_url, '_blank');
+        toast({
+          title: 'Excel Report Generated',
+          description: `Activity report for ${result.data.total_sites} sites downloaded successfully.`
+        });
+      } else {
+        throw new Error(result.message || 'Failed to generate report');
+      }
+    } catch (error) {
+      console.error('❌ Error generating Excel report:', error);
+      toast({
+        title: 'Failed to generate Excel report',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setGeneratingExcel(false);
     }
-  }, [userCostCode, isAdmin]);
+  };
+
+  const getTimeSlotCards = () => {
+    if (!reportData) return [];
+    
+    const { time_slot_totals } = reportData;
+    
+    return [
+      {
+        title: 'Morning → Afternoon',
+        timeRange: '6AM - 12PM Usage',
+        totalFuel: time_slot_totals.morning_to_afternoon,
+        isOverallPeak: reportData.overall_peak_time_slot === 'morning_to_afternoon'
+      },
+      {
+        title: 'Afternoon → Evening', 
+        timeRange: '12PM - 6PM Usage',
+        totalFuel: time_slot_totals.afternoon_to_evening,
+        isOverallPeak: reportData.overall_peak_time_slot === 'afternoon_to_evening'
+      },
+      {
+        title: 'Full Day Total',
+        timeRange: '6AM - 6PM Usage',
+        totalFuel: time_slot_totals.morning_to_evening,
+        isOverallPeak: reportData.overall_peak_time_slot === 'morning_to_evening'
+      }
+    ];
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center bg-gray-50 h-full">
+        <div className="text-center">
+          <div className="mx-auto mb-4 border-b-2 border-blue-600 rounded-full w-12 h-12 animate-spin"></div>
+          <p className="text-gray-600">Loading activity reports...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center bg-gray-50 h-full">
+        <div className="text-center">
+          <div className="mx-auto mb-4 text-gray-400 text-6xl">📊</div>
+          <p className="mb-4 font-medium text-gray-600 text-lg">No Data Available</p>
+          <p className="mb-4 text-gray-500 text-sm">Unable to load activity data at this time</p>
+          <Button onClick={fetchActivityData} variant="outline">
+            <RefreshCw className="mr-2 w-4 h-4" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const timeSlotCards = getTimeSlotCards();
 
   return (
     <div className="bg-gray-50 h-full">
@@ -222,228 +252,129 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
       {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Snapshots Statistics Cards */}
-        {activityStats && (
-          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Activity className="w-8 h-8 text-blue-500" />
-                  <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_sessions ?? 0}</p>
-                    <p className="text-gray-600 text-sm">Total Sites</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-8 h-8 text-green-500" />
-                  <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_usage?.toFixed(1) ?? '0.0'}</p>
-                    <p className="text-gray-600 text-sm">Fuel Usage (L)</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-8 h-8 text-purple-500" />
-                  <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.total_fuel_filled?.toFixed(1) ?? '0.0'}</p>
-                    <p className="text-gray-600 text-sm">Fuel Filled (L)</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-8 h-8 text-orange-500" />
-                  <div>
-                    <p className="font-bold text-gray-900 text-2xl">{activityStats.average_efficiency?.toFixed(2) ?? '0.00'}</p>
-                    <p className="text-gray-600 text-sm">Avg Efficiency</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-
-        {/* Daily Snapshots Table */}
-        <Card className="shadow-sm border border-gray-200">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="font-semibold text-gray-900 text-xl">{getCostCenterName()} Daily Snapshots</CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Date:</label>
-                  <Input
-                    type="date"
-                    value={dateInput}
-                    onChange={handleDateChange}
-                    className="h-9"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Sessions:</label>
-                  <select
-                    value={sessionFilter}
-                    onChange={(e) => setSessionFilter(e.target.value as 'all' | 'completed' | 'ongoing')}
-                    className="h-9 px-3 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="all">All Sites</option>
-                    <option value="completed">Normal Sites</option>
-                    <option value="ongoing">Irregular Sites</option>
-                  </select>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => fetchActivityData()} 
-                  disabled={!selectedDate}
-                >
-                  <RefreshCw className="mr-2 w-4 h-4" />
-                  Refresh
-                </Button>
-              </div>
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b px-6 py-6">
+          <div className="max-w-7xl mx-auto">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">{getCostCenterName()}</h1>
+              <p className="text-gray-600">{getBreadcrumbPath()}</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            {/* Session Filter Summary */}
-            {siteRows.length > 0 && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-blue-900">
-                      Showing {getFilteredSessions().length} of {siteRows.length} sites
-                    </span>
-                    {sessionFilter !== 'all' && (
-                      <span className="text-xs text-blue-700">
-                        ({sessionFilter === 'completed' ? 'Normal' : 'Irregular'} sites only)
+          </div>
+        </div>
+
+        {/* Time Slot Cards */}
+        <div>
+          <h2 className="mb-4 font-semibold text-gray-900 text-xl">TIME SLOT OVERVIEW</h2>
+          <div className="gap-4 grid grid-cols-1 md:grid-cols-3">
+            {timeSlotCards.map((card, index) => (
+              <div key={index} className={`bg-white rounded-lg border shadow-sm p-6 ${
+                card.isOverallPeak ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 text-lg">{card.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-gray-400" />
+                    {card.isOverallPeak && (
+                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                        Peak
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-blue-700">
-                    <span>Normal: {siteRows.filter(r => r.session_status === 'NORMAL').length}</span>
-                    <span>•</span>
-                    <span>Irregular: {siteRows.filter(r => r.session_status === 'IRREGULAR').length}</span>
+                </div>
+                <p className="mb-3 text-gray-600 text-sm">{card.timeRange}</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">Total Fuel Usage:</span>
+                    <span className="font-medium text-blue-600">{card.totalFuel.toFixed(1)}L</span>
                   </div>
                 </div>
               </div>
-            )}
-            {loading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 border-b-2 border-blue-600 rounded-full w-8 h-8 animate-spin"></div>
-                  <p className="text-gray-600">Loading snapshots...</p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 text-red-500 text-4xl">⚠️</div>
-                  <p className="mb-4 text-red-600">Error loading data</p>
-                  <p className="mb-4 text-gray-600">{error}</p>
-                  <Button onClick={fetchActivityData} variant="outline">
-                    <RefreshCw className="mr-2 w-4 h-4" />
-                    Retry
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-[#1e3a5f] text-white">
-                    <tr>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Branch</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Company</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Morning Fuel</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Midday Fuel</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Evening Fuel</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Total Usage</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Total Fill</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {getFilteredSessions().length > 0 ? (
-                      getFilteredSessions().map((row) => (
-                        <tr key={row.branch}>
-                          <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.branch}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.company}</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.opening_percentage.toFixed(1)}%</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.midday_percentage.toFixed(1)}%</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.closing_percentage.toFixed(1)}%</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.total_usage.toFixed(1)}L</td>
-                          <td className="px-6 py-4 text-gray-900 text-sm">{row.total_fill.toFixed(1)}L</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center">
-                          <div className="text-gray-500">
-                            <p className="text-lg">
-                              {sessionFilter === 'all' ? 'No snapshots data' :
-                               sessionFilter === 'completed' ? 'No normal sites found' :
-                               'No irregular sites found'}
-                            </p>
-                            {sessionFilter !== 'all' && (
-                              <p className="text-sm mt-2">
-                                Try selecting "All Sites" to see all available data
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
 
-        {/* Vehicles Over 24 Hours (not provided by new activity report; keep hidden unless populated elsewhere) */}
-        {vehiclesOver24h.length > 0 && (
-          <Card className="shadow-sm border border-gray-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-semibold text-gray-900 text-xl">
-                <AlertTriangle className="w-5 h-5 text-orange-500" />
-                Vehicles Running Over 24 Hours
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-orange-50 text-orange-800">
-                    <tr>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Plate</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Branch</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Duration</th>
-                      <th className="px-6 py-4 font-medium text-sm text-left">Started</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {vehiclesOver24h.map(() => (
-                      <tr key={0}></tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* Site Reports Table */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold text-gray-900 text-xl">SITE FUEL USAGE BY TIME SLOT</h2>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="right-4 bottom-4 absolute text-gray-400 text-xs">
-        0.10.
+              <Button onClick={fetchActivityData} size="sm">
+                <RefreshCw className="mr-2 w-4 h-4" />
+                Update
+              </Button>
+              <Button 
+                onClick={generateActivityExcelReport} 
+                size="sm" 
+                variant="outline"
+                disabled={generatingExcel}
+              >
+                <Download className="mr-2 w-4 h-4" />
+                {generatingExcel ? 'Generating...' : 'Excel Report'}
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-medium">Site</TableHead>
+                  <TableHead className="font-medium text-right">Morning → Afternoon</TableHead>
+                  <TableHead className="font-medium text-right">Afternoon → Evening</TableHead>
+                  <TableHead className="font-medium text-right">Full Day Total</TableHead>
+                  <TableHead className="font-medium text-center">Peak Period</TableHead>
+                  <TableHead className="font-medium text-right">Peak Usage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportData?.site_reports && reportData.site_reports.length > 0 ? (
+                  reportData.site_reports
+                    .filter(site => !selectedCostCode || site.cost_code === selectedCostCode)
+                    .map((site, index) => (
+                    <TableRow key={index} className="h-10">
+                      <TableCell className="font-medium py-2">{site.generator}</TableCell>
+                      <TableCell className="text-right py-2">{site.morning_to_afternoon_usage.toFixed(1)}L</TableCell>
+                      <TableCell className="text-right py-2">{site.afternoon_to_evening_usage.toFixed(1)}L</TableCell>
+                      <TableCell className="text-right font-medium py-2">{site.morning_to_evening_usage.toFixed(1)}L</TableCell>
+                      <TableCell className="text-center py-2">
+                        <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+                          site.peak_time_slot === 'morning_to_afternoon' ? 'bg-yellow-100 text-yellow-800' :
+                          site.peak_time_slot === 'afternoon_to_evening' ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {site.peak_time_slot === 'morning_to_afternoon' ? 'Morning' : 
+                           site.peak_time_slot === 'afternoon_to_evening' ? 'Afternoon' : 'Full Day'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-blue-600 py-2">{site.peak_fuel_usage.toFixed(1)}L</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      No activity data available for the selected date range
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     </div>
   );

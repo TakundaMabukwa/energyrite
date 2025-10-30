@@ -76,9 +76,11 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       setLoading(true);
       setError(null);
       
-      const costCode = (selectedRoute as any)?.costCode;
+      const costCode = selectedRoute?.costCode;
       const source = Array.isArray(vehicles) ? vehicles : [];
-      const filtered = costCode ? source.filter((v: any) => v.cost_code === costCode) : source;
+      const filtered = costCode 
+        ? source.filter((v: any) => v.cost_code === costCode) 
+        : source.filter((v: any) => v.cost_code); // Only show vehicles with cost_code
 
       if (!filtered.length) {
         console.log('⚠️ No vehicles available from SSE/context; using dummy data');

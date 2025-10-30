@@ -84,7 +84,7 @@
   "editor.suggest.showOther": false,
   "files.associations": {
     "*.ts": "plaintext",
-    "*.tsx": "plaintext",
+    "*.tsx": "typescript",
     "*.js": "plaintext",
     "*.jsx": "plaintext"
   }

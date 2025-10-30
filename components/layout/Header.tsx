@@ -6,9 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LogoutButton } from '@/components/logout-button';
 import { useUser } from '@/contexts/UserContext';
+import { useApp } from '@/contexts/AppContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function Header() {
   const { user, signOut } = useUser();
+  const { costCenters, selectedRoute, setSelectedRoute } = useApp();
+  const { isAdmin, userCostCode } = useUser();
+  
+  // Memoize cost centers to prevent re-computation on every render
+  const energyriteCostCenters = React.useMemo(() => {
+    if (isAdmin) {
+      // Admin sees all cost centers
+      return costCenters.flatMap(cc => cc.children ? cc.children : [cc]);
+    } else if (userCostCode) {
+      // Non-admin users only see their cost center
+      return costCenters.flatMap(cc => cc.children ? cc.children : [cc])
+        .filter(cc => cc.costCode === userCostCode);
+    }
+    return [];
+  }, [costCenters, isAdmin, userCostCode]);
 
   const getUserDisplayName = () => {
     if (!user) return 'User';
@@ -32,6 +49,42 @@ export function Header() {
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
+        {typeof window !== 'undefined' && (
+          <Select
+            value={selectedRoute?.costCode || 'all'}
+            onValueChange={(value) => {
+              if (value === 'all') {
+                setSelectedRoute(null);
+              } else {
+                const costCenter = energyriteCostCenters.find(cc => cc.costCode === value);
+                if (costCenter) {
+                  setSelectedRoute({
+                    id: costCenter.id,
+                    route: costCenter.name || 'Unknown',
+                    locationCode: costCenter.costCode || 'N/A',
+                    costCode: costCenter.costCode || undefined
+                  });
+                }
+              }
+            }}
+          >
+          <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+            <SelectValue placeholder={energyriteCostCenters.length === 0 ? "Loading..." : "Select Cost Center"} />
+          </SelectTrigger>
+          <SelectContent>
+            {isAdmin && <SelectItem value="all">All Energyrite Centers</SelectItem>}
+            {energyriteCostCenters.length === 0 ? (
+              <SelectItem value="loading" disabled>Loading cost centers...</SelectItem>
+            ) : (
+              energyriteCostCenters.map((costCenter) => (
+                <SelectItem key={costCenter.id} value={costCenter.costCode || costCenter.id}>
+                  {costCenter.name} ({costCenter.costCode})
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+          </Select>
+        )}
         <span className="hidden md:block text-white/80 text-sm">
           Good evening, {getUserDisplayName()}
         </span>

@@ -7,6 +7,7 @@ import { DashboardView } from '@/components/views/DashboardView';
 import { FuelGaugesView } from '@/components/views/FuelGaugesView';
 import { StoreEquipmentView } from '@/components/views/StoreEquipmentView';
 import { UsersView } from '@/components/views/UsersView';
+import { ActivitySnapshotsView } from '@/components/views/ActivitySnapshotsView';
 import { UrlIndicator } from '@/components/ui/url-indicator';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
@@ -22,6 +23,8 @@ export function MainLayout() {
         return <FuelGaugesView />;
       case 'store-equipment':
         return <StoreEquipmentView />;
+      case 'activity-snapshots':
+        return <ActivitySnapshotsView />;
       case 'add-user':
         return <UsersView onBack={() => {}} />;
       case 'dashboard':

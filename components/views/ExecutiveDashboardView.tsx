@@ -67,182 +67,148 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [activityData, setActivityData] = useState<ChartData[]>([]);
   const [longRunningData, setLongRunningData] = useState<ChartData[]>([]);
   const [dashboardData, setDashboardData] = useState<ExecutiveDashboardData | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedCostCode, setSelectedCostCode] = useState('');
 
-  const getCostCenterName = () => {
-    return 'Executive Dashboard (Overall - Last 24 Hours)';
+  const getCostCenterDisplayName = (costCode: string) => {
+    const costCenterNames: Record<string, string> = {
+      'KFC-0001-0001-0002-0004': 'KFC Main Branch',
+      'KFC-0001-0001-0003': 'KFC Secondary Branch'
+    };
+    return costCenterNames[costCode] || costCode;
+  };
+
+  const getDashboardTitle = () => {
+    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return `Executive Dashboard (${monthName})`;
   };
 
   const getBreadcrumbPath = () => {
-    return 'Energyrite => Overall Dashboard - Last 24 Hours';
+    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return `Energyrite => Executive Dashboard - ${monthName}`;
   };
 
-  // Fetch data from Energy Rite server using new executive dashboard endpoint
+  // Fetch data from new monitoring endpoints
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('📊 Fetching executive dashboard data from new endpoint...');
+      console.log('📊 Fetching monitoring dashboard data...');
       
-      // Build query parameters for last 24 hours and cost center filtering
-      const queryParams = new URLSearchParams();
-      const now = new Date();
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      queryParams.append('start_date', yesterday.toISOString().split('T')[0]);
-      queryParams.append('end_date', now.toISOString().split('T')[0]);
-      // Show overall data for all users (remove cost_code filtering)
+      // Add cost_code filter - use selected route for both admin and non-admin
+      const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
+      console.log('🔍 Final costCodeFilter result:', costCodeFilter);
+      console.log('🔍 Cost code filter being used:', costCodeFilter);
+      console.log('🔍 isAdmin:', isAdmin, 'selectedCostCode:', selectedCostCode);
+      console.log('🔍 selectedRoute:', selectedRoute);
+      console.log('🔍 userCostCode:', userCostCode);
       
-      const queryString = queryParams.toString();
-      const executiveUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/executive-dashboard${queryString ? `?${queryString}` : ''}`;
+      // Fetch from new executive dashboard endpoint on port 4000
+      const baseUrl = 'http://localhost:4000';
+      const monthParam = selectedMonth ? `month=${selectedMonth}` : '';
+      const params = [monthParam, costCodeFilter ? `costCode=${costCodeFilter}` : ''].filter(Boolean).join('&');
+      const queryString = params ? `?${params}` : '';
       
-      console.log('🔍 Fetching from executive dashboard endpoint:', executiveUrl);
+      console.log('🔍 API URL will be:', `${baseUrl}/api/energy-rite/executive-dashboard${queryString}`);
+      const costCodeParam = costCodeFilter ? `?cost_code=${costCodeFilter}` : '';
       
-      const response = await fetch(executiveUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const dashboardRes = await fetch(`${baseUrl}/api/energy-rite/executive-dashboard${queryString}`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch executive dashboard: ${response.status}`);
+      if (!dashboardRes.ok) {
+        throw new Error('Failed to fetch executive dashboard data');
       }
       
-      const result = await response.json();
+      const dashboardData = await dashboardRes.json();
       
-      if (!result.success || !result.data) {
-        throw new Error('Invalid response from executive dashboard endpoint');
-      }
+      console.log('✅ Executive dashboard data received:', dashboardData);
+      setDashboardData(dashboardData.data);
       
-      const executiveData = result.data;
+      // Update score cards using executive dashboard data
+      const executiveData = dashboardData.data;
+      console.log('Executive data for score cards:', executiveData);
       
-      console.log('✅ Executive dashboard data received:', executiveData);
-      setDashboardData(executiveData);
-      
-      // Update score cards using the new API structure
       setScoreCardData([
         {
-          value: Number(parseFloat(executiveData?.score_card?.total_litres_filled ?? '0') || 0),
-          label: 'Litres Filled',
+          value: Number(executiveData?.fleet_overview?.active_vehicles || 0),
+          label: 'Active Sites',
+          barColor: 'bg-green-500'
+        },
+        {
+          value: Number(executiveData?.fleet_overview?.total_vehicles || 0),
+          label: 'Total Sites',
+          barColor: 'bg-blue-500'
+        },
+        {
+          value: Number(executiveData?.operational_metrics?.total_operating_hours?.toFixed(1) || 0),
+          label: 'Operating Hours',
+          barColor: 'bg-orange-500'
+        },
+        {
+          value: Number(executiveData?.operational_metrics?.total_sessions || 0),
+          label: 'Total Sessions',
           barColor: 'bg-purple-500'
         },
         {
-          value: Number(parseFloat(executiveData?.score_card?.total_litres_used ?? '0') || 0),
-          label: 'Litres Used',
+          value: `R${Number(executiveData?.operational_metrics?.total_operating_cost || 0).toFixed(0)}`,
+          label: 'Total Cost',
           barColor: 'bg-red-500'
-        },
-        // Additional cards from current_status if available
-        ...(executiveData?.current_status ? [
-          {
-            value: Number(executiveData.current_status.active_last_24h ?? 0),
-            label: 'Active Last 24h',
-            barColor: 'bg-teal-500'
-          },
-          {
-            value: Number(parseFloat(executiveData.current_status.average_fuel_level ?? '0') || 0),
-            label: 'Avg Fuel Level %',
-            barColor: 'bg-cyan-500'
-          }
-        ] : [])
+        }
       ]);
 
-      // Log additional data sections for debugging
-      console.log('📊 Current Status:', executiveData?.current_status);
-      console.log('📊 Activity Patterns:', executiveData?.activity_patterns);
-
-      // Update top sites data from top_10_sites_by_fuel_usage
-      if (executiveData?.top_10_sites_by_fuel_usage?.length) {
-        const topSites = executiveData.top_10_sites_by_fuel_usage
-          .slice(0, 10)
+      // Update top sites data from executive dashboard
+      if (executiveData?.top_performing_sites?.length > 0) {
+        const topSites = executiveData.top_performing_sites
           .map((site: any, index: number) => ({
-            label: site.branch ? (site.branch.length > 12 ? `${site.branch.substring(0, 12)}...` : site.branch) : `Site ${index + 1}`,
-            value: Math.round(parseFloat(site.total_fuel_usage || '0')),
-            color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index]
-          }));
+            label: site.site || `Site ${index + 1}`,
+            value: Math.max(0, Math.round(site.fuel_usage || 0)),
+            color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index % 10]
+          }))
+          .filter(site => site.value > 0)
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10);
         
-        // If all values are 0, distribute equally
-        const totalValue = topSites.reduce((sum, site) => sum + site.value, 0);
-        if (totalValue === 0) {
-          const equalValue = 100 / topSites.length;
-          topSites.forEach(site => site.value = equalValue);
-        }
-        
-        console.log('📊 Top sites data for pie chart:', topSites);
         setTopSitesData(topSites);
       } else {
-        // No data available → single red slice
-        console.log('📊 No top sites data available, showing red pie chart');
-        setTopSitesData([{
-          label: 'No Data Available',
-          value: 100,
-          color: '#EF4444'
-        }]);
+        setTopSitesData([]);
       }
 
-      // Update activity data using session metrics and activity patterns
-      const completedSessions = Number(executiveData?.score_card?.completed_sessions ?? 0);
-      const ongoingSessions = Number(executiveData?.score_card?.ongoing_sessions ?? 0);
-      const totalSessions = completedSessions + ongoingSessions;
+      // Update activity data using executive dashboard
+      const activeVehicles = Number(executiveData?.fleet_overview?.active_vehicles ?? 0) || 0;
+      const totalSessions = Number(executiveData?.operational_metrics?.total_sessions ?? 0) || 0;
+      const operatingHours = Number(executiveData?.operational_metrics?.total_operating_hours ?? 0) || 0;
       
-      // Use activity patterns if available, otherwise fall back to session metrics
-      if (executiveData?.activity_patterns?.daily_breakdown?.length) {
-        const dailyData = executiveData.activity_patterns.daily_breakdown[0]; // Most recent day
+      // Check if we have any real data
+      const hasActivityData = activeVehicles > 0 || totalSessions > 0 || operatingHours > 0;
+      
+      if (hasActivityData) {
         setActivityData([
-          { label: 'Sessions Started', value: Number(dailyData?.sessions_started ?? 0), color: '#10B981' },
-          { label: 'Sessions Completed', value: Number(dailyData?.sessions_completed ?? 0), color: '#3B82F6' },
-          { label: 'Daily Operating Hours', value: Number(parseFloat(dailyData?.daily_operating_hours ?? '0') || 0), color: '#D97706' }
+          { label: 'Active Sites', value: Math.max(1, activeVehicles), color: '#10B981' },
+          { label: 'Total Sessions', value: Math.max(1, totalSessions), color: '#3B82F6' },
+          { label: 'Operating Hours', value: Math.max(1, Math.round(operatingHours)), color: '#D97706' }
         ]);
       } else {
-        setActivityData([
-          { label: 'Completed Sessions', value: completedSessions, color: '#10B981' },
-          { label: 'Ongoing Sessions', value: ongoingSessions, color: '#D97706' },
-          { label: 'Total Sessions', value: totalSessions, color: '#3B82F6' }
-        ]);
+        setActivityData([]);
       }
 
-      // Update long running data based on sites_running_over_24h or running_time_distribution
-      if (executiveData?.activity_patterns?.running_time_distribution?.length) {
-        // Use running time distribution from activity patterns
-        const longRunningData = executiveData.activity_patterns.running_time_distribution
+      // Update cost center breakdown for long running chart (only > 24 hours)
+      if (executiveData?.cost_center_performance?.length > 0) {
+        const costCenterData = executiveData.cost_center_performance
+          .filter((center: any) => center.operating_hours > 24)
           .slice(0, 3)
-          .map((dist: any, index: number) => ({
-            label: dist.duration_category || `Category ${index + 1}`,
-            value: Number(dist.session_count || 0),
+          .map((center: any, index: number) => ({
+            label: getCostCenterDisplayName(center.cost_code) || `Center ${index + 1}`,
+            value: Math.max(1, Math.round(center.operating_hours || 0)),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
-          }));
+          }))
+          .filter(center => center.value > 0);
         
-        // If all values are 0, distribute equally
-        const totalValue = longRunningData.reduce((sum, item) => sum + item.value, 0);
-        if (totalValue === 0) {
-          const equalValue = 100 / longRunningData.length;
-          longRunningData.forEach(item => item.value = equalValue);
-        }
-        
-        setLongRunningData(longRunningData);
-      } else if (executiveData?.sites_running_over_24h?.length) {
-        // Fallback to sites running over 24h
-        const longRunningData = executiveData.sites_running_over_24h
-          .slice(0, 3)
-          .map((site: any, index: number) => ({
-            label: site.branch ? (site.branch.length > 15 ? `${site.branch.substring(0, 15)}...` : site.branch) : `Site ${index + 1}`,
-            value: Math.round(parseFloat(site.total_operating_hours || '0')),
-            color: ['#D97706', '#3B82F6', '#10B981'][index]
-          }));
-        
-        // If all values are 0, distribute equally
-        const totalValue = longRunningData.reduce((sum, item) => sum + item.value, 0);
-        if (totalValue === 0) {
-          const equalValue = 100 / longRunningData.length;
-          longRunningData.forEach(item => item.value = equalValue);
-        }
-        
-        setLongRunningData(longRunningData);
+        setLongRunningData(costCenterData);
       } else {
-        // No data available → single red slice
-        console.log('📊 No long running data available, showing red pie chart');
-        setLongRunningData([{
-          label: 'No Data Available',
-          value: 100,
-          color: '#EF4444'
-        }]);
+        setLongRunningData([]);
       }
       
     } catch (err) {
@@ -264,7 +230,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       setTopSitesData([{ label: 'No Data Available', value: 0, color: '#8B4513' }]);
       setActivityData([
-        { label: 'Active Vehicles', value: 2200, color: '#8B4513' },
+        { label: 'Active Sites', value: 2200, color: '#8B4513' },
         { label: 'Over 24h', value: 600, color: '#A0522D' },
         { label: 'Total', value: 5200, color: '#CD853F' }
       ]);
@@ -278,7 +244,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         });
       }
     }
-  }, [toast]);
+  }, [toast, isAdmin, selectedRoute, userCostCode, selectedMonth]);
 
   useEffect(() => {
     // Auto-fetch overall data on load
@@ -318,22 +284,13 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
 
       {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Header with refresh button */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="font-semibold text-blue-600 text-2xl">{getCostCenterName()}</h1>
-            <p className="mt-1 text-gray-600 text-sm">{getBreadcrumbPath()}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={fetchDashboardData}>
-              <RefreshCw className="mr-2 w-4 h-4" />
-              Refresh
-            </Button>
-            {dashboardData && (
-              <div className="text-gray-500 text-sm">
-                Last updated: {formatForDisplay(new Date().toISOString())}
-              </div>
-            )}
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b px-6 py-6">
+          <div className="max-w-7xl mx-auto">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
+              <p className="text-gray-600">{getBreadcrumbPath()}</p>
+            </div>
           </div>
         </div>
         {/* Score Card Section */}
@@ -356,37 +313,55 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         <div className="gap-6 grid grid-cols-1 lg:grid-cols-3">
           {/* Top 10 Sites by Usage */}
           <ChartCard title="Top 10 sites by usage">
-            <PieChart
-              height={200}
-              series={[{
-                data: topSitesData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
-                innerRadius: 15,
-                outerRadius: 80,
-              }]}
-              slotProps={{ legend: { hidden: false } }}
-            />
+            {topSitesData.length > 0 ? (
+              <PieChart
+                height={180}
+                series={[{
+                  data: topSitesData.map((d, index) => ({ id: `top-site-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
+                  innerRadius: 15,
+                  outerRadius: 65
+                }]}
+                slotProps={{ legend: { hidden: false } }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-gray-500">
+                No data yet
+              </div>
+            )}
           </ChartCard>
 
           {/* Activity Running Time */}
           <ChartCard title="Activity running time (minutes)">
-            <BarChart
-              height={200}
-              xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
-              series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
-            />
+            {activityData.length > 0 ? (
+              <BarChart
+                height={180}
+                xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
+                series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-gray-500">
+                No data yet
+              </div>
+            )}
           </ChartCard>
 
           {/* Ran Longer Than 24 Hours */}
           <ChartCard title="Ran longer than 24 hours">
-            <PieChart
-              height={200}
-              series={[{
-                data: longRunningData.map((d) => ({ id: d.label, label: d.label, value: d.value, color: d.color })),
-                innerRadius: 15,
-                outerRadius: 80,
-              }]}
-              slotProps={{ legend: { hidden: false } }}
-            />
+            {longRunningData.length > 0 ? (
+              <PieChart
+                height={160}
+                series={[{
+                  data: longRunningData.map((d, index) => ({ id: `long-running-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
+                  innerRadius: 15,
+                  outerRadius: 55,
+                }]}
+                slotProps={{ legend: { hidden: false } }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-40 text-gray-500">
+                No data yet
+              </div>
+            )}
           </ChartCard>
         </div>
       </div>
