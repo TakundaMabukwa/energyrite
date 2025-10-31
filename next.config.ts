@@ -9,13 +9,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Optimize for production
-  swcMinify: true,
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    // Ensure server can import native Node packages like 'pg'
-    serverComponentsExternalPackages: ['pg'],
   },
   // Explicitly mark server externals for Node.js runtime
   serverExternalPackages: ['pg'],
