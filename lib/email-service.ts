@@ -1,23 +1,20 @@
 /**
  * Energy Rite Email Service
- * Handles sending report emails and user credentials to configured recipients
+ * Uses NotificationAPI to bypass SMTP port blocking
  */
-const nodemailer = require('nodemailer');
+const notificationapi = require('notificationapi-node-server-sdk').default;
 
 export async function sendWelcomeEmail(options: any) {
   const { email, password, role, company, cost_code, site_id } = options;
 
   try {
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT),
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
+    console.log('Sending email via NotificationAPI...');
+    
+    // Initialize NotificationAPI
+    notificationapi.init(
+      process.env.NOTIFICATIONAPI_CLIENT_ID,
+      process.env.NOTIFICATIONAPI_CLIENT_SECRET
+    );
 
     // HTML email template
     const emailHTML = `
@@ -52,23 +49,28 @@ export async function sendWelcomeEmail(options: any) {
       </div>
     `;
 
-    // Configure email
-    const mailOptions = {
-      from: `"Energy Rite System" <${process.env.EMAIL_FROM}>`,
-      to: email,
-      subject: `Welcome to EnergyRite - Your Account Credentials`,
-      html: emailHTML
-    };
+    // Send via NotificationAPI
+    const result = await notificationapi.send({
+      type: 'welcome_notification',
+      to: {
+        id: email,
+        email: email
+      },
+      email: {
+        subject: 'Welcome to EnergyRite - Your Account Credentials',
+        html: emailHTML
+      }
+    });
 
-    // Send email
-    const result = await transporter.sendMail(mailOptions);
-    
+    console.log('✅ Email sent successfully via NotificationAPI');
     return { 
       success: true, 
-      messageId: result.messageId 
+      messageId: result.data?.id || 'notificationapi',
+      provider: 'notificationapi'
     };
     
   } catch (error: any) {
+    console.error('❌ NotificationAPI failed:', error.message);
     return { 
       success: false, 
       error: error.message 

@@ -265,45 +265,11 @@ export function UsersView({ onBack }: UsersViewProps) {
 
       const result = await response.json();
       
-      // Send welcome email with password
-      try {
-        const roleDisplayName = newUserForm.role === 'energyrite_admin' ? 'EnergyRite Administrator' : 'EnergyRite User';
-        const selectedSite = availableSites.find(s => s.id.toString() === newUserForm.site);
-        const accessLevel = newUserForm.role === 'energyrite_admin' 
-          ? 'Full system access' 
-          : newUserForm.site 
-            ? selectedSite?.branch || 'Selected site'
-            : selectedCostCenter.cost_code;
-        
-        const emailResponse = await fetch('/api/admin/send-welcome-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: newUserForm.email,
-            role: roleDisplayName,
-            company: selectedCostCenter?.company || 'EnergyRite',
-            accessLevel,
-            site_id: selectedSite?.branch || null,
-            password: result.password
-          })
-        });
-        
-        if (emailResponse.ok) {
-          toast({
-            title: 'Success',
-            description: 'User created and login credentials sent via email',
-          });
-        } else {
-          throw new Error('Email API failed');
-        }
-      } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
-        toast({
-          title: 'User Created',
-          description: 'User created successfully, but welcome email failed to send',
-          variant: 'default'
-        });
-      }
+      // Email is being sent asynchronously by the server
+      toast({
+        title: 'Success',
+        description: 'User created successfully. Welcome email is being sent.',
+      });
 
       // Reset form and close modal
       setNewUserForm({ email: '', role: '', costCenter: '', site: '', generators: [] });

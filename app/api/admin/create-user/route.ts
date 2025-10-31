@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Auth user created:', authUser.user?.id);
 
-    // Step 2: Wait for user to be created in users table (with retry logic)
+    // Step 2: Wait for user to be created in users table (optimized retry logic)
     const userId = authUser.user?.id;
     if (!userId) {
       return NextResponse.json(
@@ -75,11 +75,13 @@ export async function POST(request: NextRequest) {
 
     let userRecord = null;
     let attempts = 0;
-    const maxAttempts = 10;
-    const delay = 1000; // 1 second
+    const maxAttempts = 5;
+    const delay = 300; // 300ms
 
     while (attempts < maxAttempts && !userRecord) {
-      await new Promise(resolve => setTimeout(resolve, delay));
+      if (attempts > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
       
       const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
@@ -136,6 +138,36 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ User record updated successfully:', updatedUser.id);
 
+    // Send welcome email asynchronously (don't wait for it)
+    setImmediate(async () => {
+      try {
+        const { sendWelcomeEmail } = await import('@/lib/email-service');
+        const roleDisplayName = role === 'energyrite_admin' ? 'EnergyRite Administrator' : 'EnergyRite User';
+        
+        const emailResult = await Promise.race([
+          sendWelcomeEmail({
+            email: updatedUser.email,
+            role: roleDisplayName,
+            company: updatedUser.company,
+            cost_code: updatedUser.cost_code,
+            site_id: updatedUser.site_id,
+            password: generatedPassword
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Email timeout after 15 seconds')), 15000)
+          )
+        ]);
+        
+        if (emailResult.success) {
+          console.log('✅ Welcome email sent successfully to:', updatedUser.email);
+        } else {
+          console.error('❌ Email service returned error:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send welcome email (timeout or connection error):', emailError.message);
+      }
+    });
+
     return NextResponse.json({
       success: true,
       user: {
@@ -147,7 +179,8 @@ export async function POST(request: NextRequest) {
         energyrite: updatedUser.energyrite,
         first_login: updatedUser.first_login
       },
-      password: generatedPassword // Include the generated password in response
+      password: generatedPassword,
+      emailSent: 'async' // Indicate email is being sent asynchronously
     });
 
   } catch (error) {
