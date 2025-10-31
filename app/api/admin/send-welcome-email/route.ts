@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await emailService.sendWelcomeEmail({
+    const result = await emailService.sendWelcomeEmail({
       email,
       role,
       company,
@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
       site_id,
       password
     });
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
