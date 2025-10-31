@@ -7,6 +7,7 @@ import { FuelReportsView } from '@/components/views/FuelReportsView';
 import { ActivityReportView } from '@/components/views/ActivityReportView';
 import { ExecutiveDashboardView } from '@/components/views/ExecutiveDashboardView';
 import { StoreEquipmentView } from '@/components/views/StoreEquipmentView';
+import { UsersView } from '@/components/views/UsersView';
 import { useApp } from '@/contexts/AppContext';
 
 export function DashboardView() {
@@ -22,6 +23,8 @@ export function DashboardView() {
       return <ExecutiveDashboardView onBack={() => {}} />;
     case 'store':
       return <StoreEquipmentView />;
+    case 'add-user':
+      return <UsersView onBack={() => {}} />;
     default:
       // Show Fuel Gauges as the default dashboard view
       return <FuelGaugesView onBack={() => {}} />;

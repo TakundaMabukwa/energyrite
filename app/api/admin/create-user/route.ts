@@ -16,7 +16,7 @@ const supabaseAdmin = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, role, cost_code, company, branch, energyrite, first_login } = body;
+    const { email, role, cost_code, company, branch, site_id, energyrite, first_login } = body;
 
     // Validate required fields
     if (!email || !role || !cost_code || !company) {
@@ -26,12 +26,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🚀 Creating user with admin API:', { email, role, cost_code, company, branch });
+    // Generate random password
+    const generatePassword = () => {
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      let password = '';
+      for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    };
+    const generatedPassword = generatePassword();
+
+    console.log('🚀 Creating user with admin API:', { email, role, cost_code, company, branch, site_id });
 
     // Step 1: Create user in Supabase Auth using admin API
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
-      password: "12345678", // Set default password
+      password: generatedPassword,
       email_confirm: true,
       user_metadata: {
         role: role,
@@ -105,6 +116,7 @@ export async function POST(request: NextRequest) {
         role: role,
         cost_code: cost_code,
         company: company,
+        site_id: site_id || null,
         energyrite: energyrite || true,
         first_login: first_login || true,
         tech_admin: false,
@@ -135,7 +147,7 @@ export async function POST(request: NextRequest) {
         energyrite: updatedUser.energyrite,
         first_login: updatedUser.first_login
       },
-      password: "12345678" // Include the default password in response
+      password: generatedPassword // Include the generated password in response
     });
 
   } catch (error) {

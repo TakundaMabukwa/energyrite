@@ -11,6 +11,7 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { getLastFuelFill, FuelFill } from '@/lib/fuel-fill-detector';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/contexts/UserContext';
 
 interface FuelGaugesViewProps {
   onBack: () => void;
@@ -38,6 +39,7 @@ interface FuelConsumptionData {
 
 export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   const { fuelData, selectedRoute, vehicles } = useApp();
+  const { userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,9 +80,16 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       
       const costCode = selectedRoute?.costCode;
       const source = Array.isArray(vehicles) ? vehicles : [];
-      const filtered = costCode 
-        ? source.filter((v: any) => v.cost_code === costCode) 
+      let filtered = costCode 
+        ? source.filter((v: any) => v.cost_code === costCode || v.cost_code?.startsWith(costCode + '-')) 
         : source.filter((v: any) => v.cost_code); // Only show vehicles with cost_code
+      
+      // Apply single site filtering if user has site_id and is not admin
+      if (userSiteId && !isAdmin) {
+        filtered = filtered.filter((v: any) => 
+          v.branch === userSiteId
+        );
+      }
 
       if (!filtered.length) {
         console.log('⚠️ No vehicles available from SSE/context; using dummy data');
@@ -96,8 +105,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           ? (capacity * (percentage / 100))
           : 0;
 
-        // Use drivername field for engine status
-        const engineStatus = vehicle.drivername || 'Unknown';
+        // Use drivername field for engine status, hide if null/unknown
+        const engineStatus = vehicle.drivername && vehicle.drivername.toLowerCase() !== 'unknown' ? vehicle.drivername : null;
 
         // Use original time without shift
         const lastMessageDate = vehicle.last_message_date || vehicle.updated_at || new Date().toISOString();
@@ -138,7 +147,9 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       if (costCode) {
         try {
           const today = new Date().toISOString().split('T')[0];
-          const activityUrl = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/reports/activity-report?date=${today}&cost_code=${costCode}`;
+          const activityUrl = userSiteId 
+            ? `http://localhost:4000/api/energy-rite/reports/activity?date=${today}&site_id=${userSiteId}`
+            : `http://localhost:4000/api/energy-rite/reports/activity?date=${today}&cost_code=${costCode}`;
           
           console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
           const activityResponse = await fetch(activityUrl);
@@ -289,7 +300,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         temperature: parseFloat(vehicle.fuel_probe_1_temperature) || 25,
         volume: capacity,
         remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
-        status: vehicle.current_status || 'active',
+        status: vehicle.current_status || '',
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
         updated_at: vehicle.updated_at,
         anomaly: !!vehicle.fuel_anomaly,

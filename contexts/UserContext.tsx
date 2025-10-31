@@ -11,6 +11,7 @@ interface User {
   company: string | null;
   tech_admin: boolean | null;
   first_login: boolean | null;
+  site_id: string | null;
 }
 
 interface UserContextType {
@@ -18,6 +19,7 @@ interface UserContextType {
   loading: boolean;
   isAdmin: boolean;
   userCostCode: string | null;
+  userSiteId: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -65,7 +67,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               cost_code: metaData.cost_code || null,
               company: metaData.company || null,
               tech_admin: metaData.tech_admin || false,
-              first_login: metaData.first_login || false
+              first_login: metaData.first_login || false,
+              site_id: metaData.site_id || null
             });
           } else {
             console.log('⚠️ No user metadata found, creating basic user object');
@@ -77,7 +80,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               cost_code: null,
               company: null,
               tech_admin: false,
-              first_login: false
+              first_login: false,
+              site_id: null
             });
           }
         } else {
@@ -89,7 +93,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             cost_code: userData.cost_code,
             company: userData.company,
             tech_admin: userData.tech_admin,
-            first_login: userData.first_login
+            first_login: userData.first_login,
+            site_id: userData.site_id
           });
         }
 
@@ -115,7 +120,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                   cost_code: userData.cost_code,
                   company: userData.company,
                   tech_admin: userData.tech_admin,
-                  first_login: userData.first_login
+                  first_login: userData.first_login,
+                  site_id: userData.site_id
                 });
               } else {
                 // Fallback: Get data from auth user's metadata
@@ -129,7 +135,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     cost_code: metaData.cost_code || null,
                     company: metaData.company || null,
                     tech_admin: metaData.tech_admin || false,
-                    first_login: metaData.first_login || false
+                    first_login: metaData.first_login || false,
+                    site_id: metaData.site_id || null
                   });
                 }
               }
@@ -155,8 +162,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       
       const supabase = createClient();
       
-      // Sign out from Supabase with scope: 'local' to clear local session
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      // Sign out from Supabase with scope: 'global' to clear all sessions
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       
       if (error) {
         console.error('❌ Supabase signOut error:', error);
@@ -187,6 +194,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'energyrite_admin';
   const userCostCode = user?.cost_code || null;
+  const userSiteId = user?.site_id || null;
 
   return (
     <UserContext.Provider
@@ -195,6 +203,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdmin,
         userCostCode,
+        userSiteId,
         signOut
       }}
     >

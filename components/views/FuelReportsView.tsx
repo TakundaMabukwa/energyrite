@@ -85,7 +85,7 @@ interface VehicleWithTheft {
 
 export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   const { selectedRoute } = useApp();
-  const { userCostCode, isAdmin } = useUser();
+  const { userCostCode, userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,21 +129,26 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         'selectedRoute?.costCode': selectedRoute?.costCode
       });
       
-      // Use selectedRoute.costCode if available, regardless of admin status
-      // Admin can still filter by specific cost center when one is selected
+      // Priority: site_id > selectedRoute.costCode > userCostCode
       let costCode = selectedRoute?.costCode || userCostCode || null;
+      let siteId = userSiteId || null;
       
       console.log('📊 Excel Report - Final cost code:', costCode);
+      console.log('📊 Excel Report - Site ID:', siteId);
       console.log('📊 Excel Report - Report type:', reportType);
       
       const requestBody = {
         report_type: reportType,
-        ...(costCode && { cost_code: costCode })
+        ...(siteId && { site_id: siteId }),
+        ...(costCode && !siteId && { cost_code: costCode })
       };
       
       console.log('📊 Request body:', requestBody);
       
-      const response = await fetch('http://localhost:4000/api/energy-rite/excel-reports/generate', {
+      const apiUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`;
+      console.log('🌐 API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -173,9 +178,19 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       
     } catch (error) {
       console.error(`Error generating or downloading ${reportType} report:`, error);
+      
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+          errorMessage = `API server not accessible at ${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}. Please check if the server is running.`;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: 'Report Request Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -254,7 +269,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Generate Daily Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
+                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>
@@ -280,7 +295,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Generate Weekly Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
+                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>
@@ -306,7 +321,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   Generate Monthly Report
                 </Button>
                 <p className="mt-2 text-center text-gray-500 text-xs">
-                  {(selectedRoute?.costCode || userCostCode) ? `Filtered by: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
+                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
                 </p>
               </div>
             </CardContent>

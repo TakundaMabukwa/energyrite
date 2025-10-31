@@ -7,60 +7,36 @@ import { ButtonProps } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
 import { useApp } from "@/contexts/AppContext";
 
+let isLoggingOut = false;
+
 export function LogoutButton({ children, ...props }: ButtonProps) {
-  const router = useRouter();
-  const { signOut } = useUser();
   const { clearAllData } = useApp();
 
   const logout = async () => {
-    try {
-      console.log('🚪 Starting logout process...');
-      
-      // Clear AppContext data first
-      clearAllData();
-      
-      // Use the signOut function from UserContext which handles state cleanup
-      await signOut();
-      
-      console.log('✅ Logout successful, clearing cookies and redirecting...');
-      
-      // Clear all cookies to ensure clean logout
-      document.cookie.split(";").forEach(function(c) { 
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-      });
-      
-      // Add a small delay to ensure cookies are cleared
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Force a hard redirect to ensure the page reloads and middleware sees no user
-      window.location.href = "/auth/login";
-      
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      
-      // Clear AppContext data even if logout fails
-      clearAllData();
-      
-      // Clear cookies even if logout fails
-      document.cookie.split(";").forEach(function(c) { 
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-      });
-      
-      // Fallback: try direct Supabase logout
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+    
+    console.log('🚪 Redirecting to login first...');
+    window.location.href = '/auth/login';
+    
+    // Clear sessions after redirect
+    setTimeout(async () => {
       try {
         const supabase = createClient();
-        await supabase.auth.signOut();
+        clearAllData();
+        await supabase.auth.signOut({ scope: 'global' });
         
-        // Add delay before redirect
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const cookiesToClear = ['sb-access-token', 'sb-refresh-token', 'supabase-auth-token', 'supabase.auth.token'];
+        cookiesToClear.forEach(cookieName => {
+          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        });
         
-        window.location.href = "/auth/login";
-      } catch (fallbackError) {
-        console.error('❌ Fallback logout also failed:', fallbackError);
-        // Force redirect even if logout fails
-        window.location.href = "/auth/login";
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (error) {
+        console.error('❌ Session cleanup error:', error);
       }
-    }
+    }, 100);
   };
 
   return <Button onClick={logout} {...props}>{children || "Logout"}</Button>;

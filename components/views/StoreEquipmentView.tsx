@@ -7,7 +7,7 @@ import { useApp } from '@/contexts/AppContext';
 import { Badge } from '@/components/ui/badge';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Activity, Fuel, AlertTriangle, Clock, Wifi, Building2, PenSquare, Save, X, PlusCircle, Trash2 } from 'lucide-react';
+import { RefreshCw, Activity, Fuel, AlertTriangle, Clock, Wifi, Building2, PenSquare, Save, X, PlusCircle, Trash2, Filter } from 'lucide-react';
 import { HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,6 +94,7 @@ export function StoreEquipmentView() {
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [editedEquipment, setEditedEquipment] = useState<VehicleEquipment | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedCostCode, setSelectedCostCode] = useState<string>('all');
   
   // Add generator dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -221,35 +222,73 @@ export function StoreEquipmentView() {
     }
   };
 
-  // Load equipment data once from the API endpoint
+  // Build equipment data from global vehicles in context (same as fuel gauges)
   const fetchEquipmentData = async () => {
     try {
       setEquipmentLoading(true);
-      // Filter by selected cost center if available
-      const costCode = selectedRoute?.costCode;
-      const url = costCode 
-        ? `http://64.227.138.235:3000/api/energy-rite/vehicles?limit=500&cost_code=${costCode}`
-        : `http://64.227.138.235:3000/api/energy-rite/vehicles?limit=500`;
+      setError(null);
       
-      const resp = await fetch(url);
-      
-      if (!resp.ok) {
-        throw new Error(`Failed to fetch equipment data: ${resp.status}`);
+      const source = Array.isArray(vehicles) ? vehicles : [];
+      const filtered = source.filter((v: any) => v.cost_code); // Only show vehicles with cost_code
+
+      if (!filtered.length) {
+        console.log('⚠️ No vehicles available from context');
       }
       
-      const json = await resp.json();
-      const rows = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
-
-      const equipment: VehicleEquipment[] = rows.map((row: any) => row as VehicleEquipment);
-      console.log('Fetched equipment data:', equipment.length, 'items');
+      const equipment: VehicleEquipment[] = filtered.map((vehicle: any) => ({
+        id: vehicle.id,
+        branch: vehicle.branch || 'Unknown Branch',
+        company: vehicle.company || 'Unknown Company',
+        plate: vehicle.plate,
+        ip_address: vehicle.ip_address || '',
+        cost_code: vehicle.cost_code || '',
+        speed: vehicle.speed || '0',
+        latitude: vehicle.latitude || '0',
+        longitude: vehicle.longitude || '0',
+        loctime: vehicle.loctime || '',
+        quality: vehicle.quality || '',
+        mileage: vehicle.mileage || '0',
+        pocsagstr: vehicle.pocsagstr,
+        head: vehicle.head,
+        geozone: vehicle.geozone || '',
+        drivername: vehicle.drivername,
+        nameevent: vehicle.nameevent,
+        temperature: vehicle.temperature || '0',
+        address: vehicle.address || '',
+        fuel_probe_1_level: vehicle.fuel_probe_1_level || '0',
+        fuel_probe_1_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank || '0',
+        fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature || '0',
+        fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage || '0',
+        fuel_probe_2_level: vehicle.fuel_probe_2_level,
+        fuel_probe_2_volume_in_tank: vehicle.fuel_probe_2_volume_in_tank,
+        fuel_probe_2_temperature: vehicle.fuel_probe_2_temperature,
+        fuel_probe_2_level_percentage: vehicle.fuel_probe_2_level_percentage,
+        status: vehicle.status,
+        last_message_date: vehicle.last_message_date || new Date().toISOString(),
+        updated_at: vehicle.updated_at || new Date().toISOString(),
+        volume: vehicle.volume || '0',
+        theft: vehicle.theft || false,
+        theft_time: vehicle.theft_time,
+        previous_fuel_level: vehicle.previous_fuel_level,
+        previous_fuel_time: vehicle.previous_fuel_time,
+        activity_start_time: vehicle.activity_start_time,
+        activity_duration_hours: vehicle.activity_duration_hours,
+        total_usage_hours: vehicle.total_usage_hours || '0',
+        daily_usage_hours: vehicle.daily_usage_hours || '0',
+        is_active: vehicle.is_active !== false,
+        last_activity_time: vehicle.last_activity_time,
+        fuel_anomaly: vehicle.fuel_anomaly,
+        fuel_anomaly_note: vehicle.fuel_anomaly_note,
+        last_anomaly_time: vehicle.last_anomaly_time,
+        created_at: vehicle.created_at || new Date().toISOString(),
+        notes: vehicle.notes
+      }));
+      
+      console.log('✅ Equipment data built from context vehicles:', equipment.length);
       setEquipmentData(equipment);
     } catch (error) {
-      console.error('❌ Error fetching equipment data:', error);
-      toast({
-        title: "Error fetching equipment data",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive"
-      });
+      console.error('❌ Error building equipment data:', error);
+      setError('Failed to load equipment data');
       setEquipmentData([]);
     } finally {
       setEquipmentLoading(false);
@@ -282,7 +321,7 @@ export function StoreEquipmentView() {
     
     if (confirm(`Are you sure you want to delete ${equipment.branch}?`)) {
       try {
-        const response = await fetch(`http://64.227.138.235:3000/api/energy-rite/vehicles/${equipment.id}?confirm=true`, {
+        const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${equipment.id}?confirm=true`, {
           method: 'DELETE',
         });
         
@@ -331,11 +370,12 @@ export function StoreEquipmentView() {
         company: editedEquipment.company,
         cost_code: editedEquipment.cost_code,
         ip_address: editedEquipment.ip_address,
+        volume: editedEquipment.volume,
         notes: editedEquipment.notes
       };
       
       // Use the correct API URL as shown in the curl examples
-      const response = await fetch(`http://64.227.138.235:3000/api/energy-rite/vehicles/${editedEquipment.id}`, {
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -360,6 +400,7 @@ export function StoreEquipmentView() {
             company: editedEquipment.company,
             cost_code: editedEquipment.cost_code,
             ip_address: editedEquipment.ip_address,
+            volume: editedEquipment.volume,
             notes: editedEquipment.notes
           } : item
         )
@@ -422,7 +463,7 @@ export function StoreEquipmentView() {
       };
       
       // Send the request to create a new generator
-      const response = await fetch('http://64.227.138.235:3000/api/energy-rite/vehicles', {
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -481,10 +522,13 @@ export function StoreEquipmentView() {
       costCode: costCenter.costCode || undefined
     });
     
+    // Update the cost code filter to match the selected cost center
+    if (costCenter.costCode) {
+      setSelectedCostCode(costCenter.costCode);
+    }
+    
     // Fetch real-time data for this cost center
     await fetchRealtimeData(costCenter);
-    
-    // Equipment data is loaded once globally; do not filter per cost center
     
     // Show vehicles view
     setShowVehicles(true);
@@ -518,7 +562,7 @@ export function StoreEquipmentView() {
     };
 
     initializeData();
-  }, [selectedRoute]);
+  }, [selectedRoute, vehicles]); // Add vehicles dependency
   
   // Get unique cost codes from equipment data for the dropdown
   const getUniqueCostCodes = () => {
@@ -533,7 +577,41 @@ export function StoreEquipmentView() {
     return Array.from(costCodes).sort();
   };
   
+  // Get count of equipment for a cost code including descendants
+  const getEquipmentCountForCostCode = (costCode: string) => {
+    if (costCode === 'all') return equipmentData.length;
+    return equipmentData.filter(equipment => 
+      equipment.cost_code === costCode || 
+      equipment.cost_code?.startsWith(costCode + '-')
+    ).length;
+  };
+  
   const uniqueCostCodes = getUniqueCostCodes();
+  
+  // Filter equipment data based on selected cost code pattern (includes descendants)
+  const getFilteredEquipmentData = () => {
+    let filtered = equipmentData;
+    
+    // First filter by selected route (cost center) if available - include descendants
+    if (selectedRoute?.costCode) {
+      filtered = filtered.filter(equipment => 
+        equipment.cost_code === selectedRoute.costCode || 
+        equipment.cost_code?.startsWith(selectedRoute.costCode + '-')
+      );
+    }
+    
+    // Then filter by dropdown selection if not 'all' - include descendants
+    if (selectedCostCode !== 'all') {
+      filtered = filtered.filter(equipment => 
+        equipment.cost_code === selectedCostCode || 
+        equipment.cost_code?.startsWith(selectedCostCode + '-')
+      );
+    }
+    
+    return filtered;
+  };
+  
+  const filteredEquipmentData = getFilteredEquipmentData();
 
   // Handle URL parameters (same as dashboard)
   useEffect(() => {
@@ -572,6 +650,29 @@ export function StoreEquipmentView() {
                   Equipment Details
                 </CardTitle>
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Filter by Cost Code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Cost Codes</SelectItem>
+                        {uniqueCostCodes.map((code) => {
+                          const relatedEquipment = equipmentData.find(eq => eq.cost_code === code);
+                          const branchInfo = relatedEquipment ? ` (${relatedEquipment.branch})` : '';
+                          return (
+                            <SelectItem key={code} value={code}>
+                              <div className="flex items-center">
+                                <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded mr-1.5 text-blue-800 text-xs">{code}</span>
+                                {branchInfo && <span className="text-gray-600 text-xs">{branchInfo}</span>}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Button 
                     variant="default" 
                     size="sm"
@@ -581,7 +682,7 @@ export function StoreEquipmentView() {
                     <PlusCircle className="w-4 h-4" /> Add Generator
                   </Button>
                   <Badge variant="outline" className="text-gray-600">
-                    All Generators
+                    {selectedCostCode === 'all' ? `All Generators (${filteredEquipmentData.length})` : `${selectedCostCode}+ (${filteredEquipmentData.length})`}
                   </Badge>
                 </div>
               </div>
@@ -593,11 +694,11 @@ export function StoreEquipmentView() {
                   <p className="font-medium text-lg">Loading Equipment...</p>
                   <p className="text-sm">Fetching vehicles for {selectedRoute?.name}</p>
                 </div>
-              ) : equipmentData.length === 0 ? (
+              ) : filteredEquipmentData.length === 0 ? (
                 <div className="py-12 text-gray-500 text-center">
                   <Building2 className="mx-auto mb-4 w-12 h-12 text-gray-400" />
                   <p className="font-medium text-lg">No Data Available</p>
-                  <p className="text-sm">No equipment data found for {selectedRoute?.name}</p>
+                  <p className="text-sm">No equipment data found{selectedCostCode !== 'all' ? ` for cost code: ${selectedCostCode}` : ''}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -624,7 +725,7 @@ export function StoreEquipmentView() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {equipmentData.map((equipment) => (
+                          {filteredEquipmentData.map((equipment) => (
                             <tr key={equipment.id} className={`hover:bg-gray-50 ${editingRowId === equipment.id ? 'bg-blue-50' : ''}`}>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
                                 {editingRowId === equipment.id ? (
@@ -634,7 +735,14 @@ export function StoreEquipmentView() {
                                     onChange={(e) => handleInputChange(e, 'branch')}
                                   />
                                 ) : (
-                                  equipment.branch
+                                  <div>
+                                    {equipment.branch}
+                                    {equipment.plate && (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        Site: {equipment.plate}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
@@ -676,10 +784,25 @@ export function StoreEquipmentView() {
                                 )}
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <Fuel className="w-4 h-4 text-blue-500" />
-                                  {equipment.volume ? `${parseFloat(equipment.volume).toFixed(1)}L` : 'N/A'}
-                                </div>
+                                {editingRowId === equipment.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <Fuel className="w-4 h-4 text-blue-500" />
+                                    <Input 
+                                      className="h-8 w-20 py-1 px-2"
+                                      type="number"
+                                      step="0.1"
+                                      value={editedEquipment?.volume || ''}
+                                      onChange={(e) => handleInputChange(e, 'volume')}
+                                      placeholder="0.0"
+                                    />
+                                    <span className="text-xs text-gray-500">L</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <Fuel className="w-4 h-4 text-blue-500" />
+                                    {equipment.volume ? `${parseFloat(equipment.volume).toFixed(1)}L` : 'N/A'}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm">
                                 {editingRowId === equipment.id ? (
@@ -920,14 +1043,53 @@ export function StoreEquipmentView() {
       <div className="flex-1 space-y-6 p-6">
         {/* Removed Dashboard Statistics */}
 
+        {/* Cost Code Filter for Main View */}
+        <Card className="shadow-sm border border-gray-200">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="font-semibold text-gray-900 text-lg">Equipment</CardTitle>
+                <p className="mt-1 text-gray-600 text-sm">Vehicle and equipment management by cost center</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Cost Code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Cost Codes</SelectItem>
+                    {uniqueCostCodes.map((code) => {
+                      const relatedEquipment = equipmentData.find(eq => eq.cost_code === code);
+                      const branchInfo = relatedEquipment ? ` (${relatedEquipment.branch})` : '';
+                      return (
+                        <SelectItem key={code} value={code}>
+                          <div className="flex items-center">
+                            <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded mr-1.5 text-blue-800 text-xs">{code}</span>
+                            {branchInfo && <span className="text-gray-600 text-xs">{branchInfo}</span>}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className="text-gray-600">
+                  {selectedCostCode === 'all' ? 'All Cost Centers' : `Filtered by: ${selectedCostCode}`}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
         {/* Main Hierarchical Table */}
         <HierarchicalTable
           data={costCenters}
           onRowClick={handleCostCenterClick}
-          title="Equipment"
-          subtitle="Vehicle and equipment management by cost center"
+          title="Cost Centers"
+          subtitle="Click on a cost center to view equipment details"
           showSearch={true}
           showFilters={true}
+          costCodeFilter={selectedCostCode}
         />
         
         {/* Add Generator Dialog */}

@@ -11,6 +11,7 @@ interface HierarchicalTableProps {
   subtitle: string;
   showSearch?: boolean;
   showFilters?: boolean;
+  costCodeFilter?: string;
 }
 
 export function HierarchicalTable({ 
@@ -19,7 +20,8 @@ export function HierarchicalTable({
   title, 
   subtitle, 
   showSearch = true, 
-  showFilters = true 
+  showFilters = true,
+  costCodeFilter = 'all'
 }: HierarchicalTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState<string>('all');
@@ -57,7 +59,12 @@ export function HierarchicalTable({
     
     const matchesLevel = filterLevel === 'all' || item.level.toString() === filterLevel;
     
-    return matchesSearch && matchesLevel;
+    // Add cost code filter - include descendants
+    const matchesCostCode = costCodeFilter === 'all' || 
+                           item.costCode === costCodeFilter || 
+                           item.costCode?.startsWith(costCodeFilter + '-');
+    
+    return matchesSearch && matchesLevel && matchesCostCode;
   });
 
   const renderRow = (item: HierarchicalCostCenter) => {

@@ -58,7 +58,7 @@ interface ExecutiveDashboardData {
 
 export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) {
   const { selectedRoute } = useApp();
-  const { userCostCode, isAdmin } = useUser();
+  const { userCostCode, userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,19 +99,26 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       console.log('📊 Fetching monitoring dashboard data...');
       
-      // Add cost_code filter - use selected route for both admin and non-admin
+      // Priority: site_id > selectedRoute.costCode > userCostCode
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
+      const siteIdFilter = userSiteId || null;
       console.log('🔍 Final costCodeFilter result:', costCodeFilter);
+      console.log('🔍 Site ID filter:', siteIdFilter);
       console.log('🔍 Cost code filter being used:', costCodeFilter);
       console.log('🔍 isAdmin:', isAdmin, 'selectedCostCode:', selectedCostCode);
       console.log('🔍 selectedRoute:', selectedRoute);
       console.log('🔍 userCostCode:', userCostCode);
       
-      // Fetch from new executive dashboard endpoint on port 4000
-      const baseUrl = 'http://localhost:4000';
-      const monthParam = selectedMonth ? `month=${selectedMonth}` : '';
-      const params = [monthParam, costCodeFilter ? `costCode=${costCodeFilter}` : ''].filter(Boolean).join('&');
-      const queryString = params ? `?${params}` : '';
+      // Fetch from new executive dashboard endpoint
+      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const params = new URLSearchParams();
+      if (selectedMonth) params.append('month', selectedMonth);
+      if (siteIdFilter) {
+        params.append('site_id', siteIdFilter);
+      } else if (costCodeFilter) {
+        params.append('costCode', costCodeFilter);
+      }
+      const queryString = params.toString() ? `?${params.toString()}` : '';
       
       console.log('🔍 API URL will be:', `${baseUrl}/api/energy-rite/executive-dashboard${queryString}`);
       const costCodeParam = costCodeFilter ? `?cost_code=${costCodeFilter}` : '';
@@ -130,30 +137,33 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       // Update score cards using executive dashboard data
       const executiveData = dashboardData.data;
       console.log('Executive data for score cards:', executiveData);
+      console.log('Average fuel percentage:', executiveData?.average_fuel_percentage);
+      console.log('Fleet utilization percentage:', executiveData?.fleet_utilization_percentage);
+      
+      // Only show data if it exists and is not null/undefined
+      const avgFuel = executiveData?.fleet_overview?.average_fuel_percentage;
+      const fleetUtil = executiveData?.fleet_overview?.fleet_utilization_percentage;
+      const opHours = executiveData?.operational_metrics?.total_operating_hours;
+      const totalCost = executiveData?.operational_metrics?.total_operating_cost;
       
       setScoreCardData([
         {
-          value: Number(executiveData?.fleet_overview?.active_vehicles || 0),
-          label: 'Active Sites',
+          value: (avgFuel !== null && avgFuel !== undefined) ? `${Number(avgFuel).toFixed(1)}%` : '0.0%',
+          label: 'Average Fuel %',
           barColor: 'bg-green-500'
         },
         {
-          value: Number(executiveData?.fleet_overview?.total_vehicles || 0),
-          label: 'Total Sites',
+          value: (fleetUtil !== null && fleetUtil !== undefined) ? `${Number(fleetUtil).toFixed(1)}%` : '0.0%',
+          label: 'Fleet Utilization %',
           barColor: 'bg-blue-500'
         },
         {
-          value: Number(executiveData?.operational_metrics?.total_operating_hours?.toFixed(1) || 0),
+          value: (opHours !== null && opHours !== undefined) ? `${Number(opHours).toFixed(1)}h` : '0.0h',
           label: 'Operating Hours',
           barColor: 'bg-orange-500'
         },
         {
-          value: Number(executiveData?.operational_metrics?.total_sessions || 0),
-          label: 'Total Sessions',
-          barColor: 'bg-purple-500'
-        },
-        {
-          value: `R${Number(executiveData?.operational_metrics?.total_operating_cost || 0).toFixed(0)}`,
+          value: (totalCost !== null && totalCost !== undefined) ? `R${Number(totalCost).toFixed(0)}` : 'R0',
           label: 'Total Cost',
           barColor: 'bg-red-500'
         }
@@ -186,7 +196,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       if (hasActivityData) {
         setActivityData([
-          { label: 'Active Sites', value: Math.max(1, activeVehicles), color: '#10B981' },
           { label: 'Total Sessions', value: Math.max(1, totalSessions), color: '#3B82F6' },
           { label: 'Operating Hours', value: Math.max(1, Math.round(operatingHours)), color: '#D97706' }
         ]);
@@ -200,7 +209,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           .filter((center: any) => center.operating_hours > 24)
           .slice(0, 3)
           .map((center: any, index: number) => ({
-            label: getCostCenterDisplayName(center.cost_code) || `Center ${index + 1}`,
+            label: center.sites?.[0] || `Site ${index + 1}`,
             value: Math.max(1, Math.round(center.operating_hours || 0)),
             color: ['#D97706', '#3B82F6', '#10B981'][index]
           }))
@@ -222,10 +231,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         variant: 'destructive'
       });
       
-      // Default chart data with explicit no-data states
+      // Default score card data showing 0 when no data available
       setScoreCardData([
-        { value: 0, label: 'Litres Filled', barColor: 'bg-gray-400' },
-        { value: 0, label: 'Litres Used', barColor: 'bg-gray-400' }
+        { value: '0.0%', label: 'Average Fuel %', barColor: 'bg-green-500' },
+        { value: '0.0%', label: 'Fleet Utilization %', barColor: 'bg-blue-500' },
+        { value: '0.0L/h', label: 'Avg Fuel/Hour', barColor: 'bg-orange-500' },
+        { value: '0/h', label: 'Avg Cost/Hour', barColor: 'bg-red-500' }
       ]);
       
       setTopSitesData([{ label: 'No Data Available', value: 0, color: '#8B4513' }]);
@@ -250,6 +261,11 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     // Auto-fetch overall data on load
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Auto-fetch data when month changes
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedMonth]);
 
   if (loading) {
     return (
@@ -287,16 +303,30 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         {/* Header */}
         <div className="bg-white shadow-sm border-b px-6 py-6">
           <div className="max-w-7xl mx-auto">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
-              <p className="text-gray-600">{getBreadcrumbPath()}</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
+                <p className="text-gray-600">{getBreadcrumbPath()}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <Button onClick={fetchDashboardData} size="sm">
+                  <RefreshCw className="mr-2 w-4 h-4" />
+                  Update
+                </Button>
+              </div>
             </div>
           </div>
         </div>
         {/* Score Card Section */}
         <div>
           <h2 className="mb-4 font-semibold text-gray-900 text-xl">SCORE CARD</h2>
-          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
+          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             {scoreCardData.map((card, index) => (
               <ScoreCard
                 key={index}

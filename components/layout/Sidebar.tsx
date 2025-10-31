@@ -30,14 +30,14 @@ export function Sidebar() {
       id: 'store-equipment',
       label: 'Equipment',
       icon: Store,
-      active: false
+      active: true
     },
-    {
-      id: 'activity-snapshots',
-      label: 'Activity Snapshots',
-      icon: Clock,
-      active: false
-    },
+    // {
+    //   id: 'activity-snapshots',
+    //   label: 'Activity Snapshots',
+    //   icon: Clock,
+    //   active: false
+    // },
     {
       id: 'add-user',
       label: 'Add User',

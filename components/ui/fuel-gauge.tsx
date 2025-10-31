@@ -83,35 +83,37 @@ export function FuelGauge({
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
       status.includes('PTO ON') || status.includes('ENGINE ON') 
         ? "bg-green-50 border-green-200" 
-        : "bg-gray-200 border-gray-300",
+        : "bg-white border-gray-300",
       className
     )}>
       {/* Header */}
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
+        {status && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
+                >
+                  {status}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent 
+                className="bg-white border border-gray-200 shadow-lg max-w-xs"
+                side="bottom"
+                align="center"
+                sideOffset={5}
               >
-                {status}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent 
-              className="bg-white border border-gray-200 shadow-lg max-w-xs"
-              side="bottom"
-              align="center"
-              sideOffset={5}
-            >
-              <div className="flex flex-col items-center py-1 px-2">
-                <p className="text-sm text-black font-medium">Last updated</p>
-                <p className="text-xs text-gray-700">{formatForDisplay(updated_at || lastUpdated)}</p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                <div className="flex flex-col items-center py-1 px-2">
+                  <p className="text-sm text-black font-medium">Last updated</p>
+                  <p className="text-xs text-gray-700">{formatForDisplay(updated_at || lastUpdated)}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Fuel Gauge */}
@@ -179,13 +181,13 @@ export function FuelGauge({
           "flex justify-center items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
-            : "bg-blue-50"
+            : "bg-gray-50"
         )}>
           <span className={cn(
-            "font-medium text-sm",
+            "font-medium text-xs truncate whitespace-nowrap",
             status.includes('PTO ON') || status.includes('ENGINE ON') 
               ? "text-green-800" 
-              : "text-blue-900"
+              : "text-gray-700"
           )}>Rem: {remaining}</span>
         </div>
 

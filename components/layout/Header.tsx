@@ -13,6 +13,11 @@ export function Header() {
   const { user, signOut } = useUser();
   const { costCenters, selectedRoute, setSelectedRoute } = useApp();
   const { isAdmin, userCostCode } = useUser();
+  const [isMounted, setIsMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Memoize cost centers to prevent re-computation on every render
   const energyriteCostCenters = React.useMemo(() => {
@@ -49,42 +54,48 @@ export function Header() {
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
-        {typeof window !== 'undefined' && (
-          <Select
-            value={selectedRoute?.costCode || 'all'}
-            onValueChange={(value) => {
-              if (value === 'all') {
-                setSelectedRoute(null);
-              } else {
-                const costCenter = energyriteCostCenters.find(cc => cc.costCode === value);
-                if (costCenter) {
-                  setSelectedRoute({
-                    id: costCenter.id,
-                    route: costCenter.name || 'Unknown',
-                    locationCode: costCenter.costCode || 'N/A',
-                    costCode: costCenter.costCode || undefined
-                  });
+        <div className="w-48">
+          {!isMounted ? (
+            <div className="w-48 bg-white/10 border-white/20 text-white border rounded-md px-3 py-2 text-sm">
+              Loading...
+            </div>
+          ) : (
+            <Select
+              value={selectedRoute?.costCode || 'all'}
+              onValueChange={(value) => {
+                if (value === 'all') {
+                  setSelectedRoute(null);
+                } else {
+                  const costCenter = energyriteCostCenters.find(cc => cc.costCode === value);
+                  if (costCenter) {
+                    setSelectedRoute({
+                      id: costCenter.id,
+                      route: costCenter.name || 'Unknown',
+                      locationCode: costCenter.costCode || 'N/A',
+                      costCode: costCenter.costCode || undefined
+                    });
+                  }
                 }
-              }
-            }}
-          >
-          <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
-            <SelectValue placeholder={energyriteCostCenters.length === 0 ? "Loading..." : "Select Cost Center"} />
-          </SelectTrigger>
-          <SelectContent>
-            {isAdmin && <SelectItem value="all">All Energyrite Centers</SelectItem>}
-            {energyriteCostCenters.length === 0 ? (
-              <SelectItem value="loading" disabled>Loading cost centers...</SelectItem>
-            ) : (
-              energyriteCostCenters.map((costCenter) => (
-                <SelectItem key={costCenter.id} value={costCenter.costCode || costCenter.id}>
-                  {costCenter.name} ({costCenter.costCode})
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-          </Select>
-        )}
+              }}
+            >
+            <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+              <SelectValue placeholder={energyriteCostCenters.length === 0 ? "Loading..." : "Select Cost Center"} />
+            </SelectTrigger>
+            <SelectContent>
+              {isAdmin && <SelectItem value="all">All Energyrite Centers</SelectItem>}
+              {energyriteCostCenters.length === 0 ? (
+                <SelectItem value="loading" disabled>Loading cost centers...</SelectItem>
+              ) : (
+                energyriteCostCenters.map((costCenter) => (
+                  <SelectItem key={costCenter.id} value={costCenter.costCode || costCenter.id}>
+                    {costCenter.name} ({costCenter.costCode})
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+            </Select>
+          )}
+        </div>
         <span className="hidden md:block text-white/80 text-sm">
           Good evening, {getUserDisplayName()}
         </span>
