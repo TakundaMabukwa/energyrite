@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { emailService } from '@/lib/email-service';
+import { sendWelcomeEmail } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await emailService.sendWelcomeEmail({
+    const result = await sendWelcomeEmail({
       email,
       role,
       company,
