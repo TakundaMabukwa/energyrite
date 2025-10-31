@@ -340,21 +340,23 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         </div>
 
         {/* Charts Section */}
-        <div className="gap-6 grid grid-cols-1 lg:grid-cols-3">
+        <div className="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {/* Top 10 Sites by Usage */}
           <ChartCard title="Top 10 sites by usage">
             {topSitesData.length > 0 ? (
-              <PieChart
-                height={180}
-                series={[{
-                  data: topSitesData.map((d, index) => ({ id: `top-site-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
-                  innerRadius: 15,
-                  outerRadius: 65
-                }]}
-                slotProps={{ legend: { hidden: false } }}
-              />
+              <div className="w-full overflow-hidden">
+                <PieChart
+                  height={280}
+                  series={[{
+                    data: topSitesData.map((d, index) => ({ id: `top-site-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
+                    innerRadius: 15,
+                    outerRadius: 65
+                  }]}
+                  slotProps={{ legend: { hidden: false } }}
+                />
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-48 text-gray-500">
+              <div className="flex items-center justify-center h-72 text-gray-500">
                 No data yet
               </div>
             )}
@@ -363,13 +365,15 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           {/* Activity Running Time */}
           <ChartCard title="Activity running time (minutes)">
             {activityData.length > 0 ? (
-              <BarChart
-                height={180}
-                xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
-                series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
-              />
+              <div className="w-full overflow-hidden">
+                <BarChart
+                  height={280}
+                  xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
+                  series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
+                />
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-48 text-gray-500">
+              <div className="flex items-center justify-center h-72 text-gray-500">
                 No data yet
               </div>
             )}
@@ -378,17 +382,19 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           {/* Ran Longer Than 24 Hours */}
           <ChartCard title="Ran longer than 24 hours">
             {longRunningData.length > 0 ? (
-              <PieChart
-                height={160}
-                series={[{
-                  data: longRunningData.map((d, index) => ({ id: `long-running-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
-                  innerRadius: 15,
-                  outerRadius: 55,
-                }]}
-                slotProps={{ legend: { hidden: false } }}
-              />
+              <div className="w-full overflow-hidden">
+                <PieChart
+                  height={280}
+                  series={[{
+                    data: longRunningData.map((d, index) => ({ id: `long-running-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
+                    innerRadius: 15,
+                    outerRadius: 65,
+                  }]}
+                  slotProps={{ legend: { hidden: false } }}
+                />
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-40 text-gray-500">
+              <div className="flex items-center justify-center h-72 text-gray-500">
                 No data yet
               </div>
             )}

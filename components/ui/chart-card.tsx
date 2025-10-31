@@ -11,12 +11,12 @@ interface ChartCardProps {
 
 export function ChartCard({ title, children, className = '' }: ChartCardProps) {
   return (
-    <Card className={`shadow-sm border border-gray-200 h-80 ${className}`}>
-      <CardHeader className="pb-3">
+    <Card className={`shadow-sm border border-gray-200 h-96 ${className}`}>
+      <CardHeader className="pb-2">
         <CardTitle className="font-semibold text-gray-900 text-lg">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="h-full overflow-hidden">
-        <div className="w-full h-full">
+      <CardContent className="flex-1 p-4 overflow-hidden">
+        <div className="w-full h-full flex items-center justify-center">
           {children}
         </div>
       </CardContent>
