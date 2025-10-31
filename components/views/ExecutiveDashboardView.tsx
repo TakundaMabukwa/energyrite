@@ -67,6 +67,9 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [activityData, setActivityData] = useState<ChartData[]>([]);
   const [longRunningData, setLongRunningData] = useState<ChartData[]>([]);
   const [dashboardData, setDashboardData] = useState<ExecutiveDashboardData | null>(null);
+  const [activityReportData, setActivityReportData] = useState<any>(null);
+  const [morningAfternoonData, setMorningAfternoonData] = useState<ChartData[]>([]);
+  const [siteUsageData, setSiteUsageData] = useState<ChartData[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -219,6 +222,46 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       } else {
         setLongRunningData([]);
       }
+
+      // Fetch activity report data
+      const activityParams = new URLSearchParams();
+      const today = new Date().toISOString().split('T')[0];
+      activityParams.append('date', today);
+      if (siteIdFilter) {
+        activityParams.append('site_id', siteIdFilter);
+      } else if (costCodeFilter) {
+        activityParams.append('cost_code', costCodeFilter);
+      }
+      
+      const activityRes = await fetch(`${baseUrl}/api/energy-rite/reports/activity?${activityParams.toString()}`);
+      if (activityRes.ok) {
+        const activityData = await activityRes.json();
+        if (activityData.success && activityData.data) {
+          setActivityReportData(activityData.data);
+          
+          // Morning vs Afternoon usage chart
+          const morningUsage = parseFloat(activityData.data.fuel_analysis?.period_breakdown?.morning || 0);
+          const afternoonUsage = parseFloat(activityData.data.fuel_analysis?.period_breakdown?.afternoon || 0);
+          
+          setMorningAfternoonData([
+            { label: 'Morning (6AM-12PM)', value: morningUsage, color: '#3B82F6' },
+            { label: 'Afternoon (12PM-6PM)', value: afternoonUsage, color: '#F59E0B' }
+          ]);
+          
+          // Top sites by fuel usage
+          const sitesWithUsage = (activityData.data.sites || [])
+            .filter((site: any) => site.total_fuel_usage > 0)
+            .sort((a: any, b: any) => b.total_fuel_usage - a.total_fuel_usage)
+            .slice(0, 8)
+            .map((site: any, index: number) => ({
+              label: site.branch || site.generator,
+              value: parseFloat(site.total_fuel_usage || 0),
+              color: ['#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'][index]
+            }));
+          
+          setSiteUsageData(sitesWithUsage);
+        }
+      }
       
     } catch (err) {
       console.error('❌ Error fetching executive dashboard data:', err);
@@ -298,9 +341,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     <div className="bg-gray-50 h-full">
       <TopNavigation />
 
-      {/* Main Content */}
       <div className="space-y-6 p-6">
-        {/* Header */}
         <div className="bg-white shadow-sm border-b px-6 py-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
@@ -323,7 +364,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             </div>
           </div>
         </div>
-        {/* Score Card Section */}
+
         <div>
           <h2 className="mb-4 font-semibold text-gray-900 text-xl">SCORE CARD</h2>
           <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
@@ -339,9 +380,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           </div>
         </div>
 
-        {/* Charts Section */}
         <div className="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {/* Top 10 Sites by Usage */}
           <ChartCard title="Top 10 sites by usage">
             {topSitesData.length > 0 ? (
               <div className="w-full overflow-hidden">
@@ -362,7 +401,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          {/* Activity Running Time */}
           <ChartCard title="Activity running time (minutes)">
             {activityData.length > 0 ? (
               <div className="w-full overflow-hidden">
@@ -379,7 +417,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          {/* Ran Longer Than 24 Hours */}
           <ChartCard title="Ran longer than 24 hours">
             {longRunningData.length > 0 ? (
               <div className="w-full overflow-hidden">
@@ -399,6 +436,58 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
               </div>
             )}
           </ChartCard>
+        </div>
+
+        <div>
+          <h2 className="mb-4 font-semibold text-gray-900 text-xl">ACTIVITY REPORTS</h2>
+          <div className="gap-6 grid grid-cols-1 md:grid-cols-2">
+            <ChartCard title="Morning vs Afternoon Usage">
+              {morningAfternoonData.length > 0 ? (
+                <div className="w-full overflow-hidden">
+                  <PieChart
+                    height={280}
+                    series={[{
+                      data: morningAfternoonData.map((d, index) => ({ 
+                        id: `period-${Date.now()}-${index}`, 
+                        label: d.label, 
+                        value: d.value, 
+                        color: d.color 
+                      })),
+                      innerRadius: 30,
+                      outerRadius: 80
+                    }]}
+                    slotProps={{ legend: { hidden: false } }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-72 text-gray-500">
+                  No activity data available
+                </div>
+              )}
+            </ChartCard>
+
+            <ChartCard title="Top Sites by Fuel Usage (Today)">
+              {siteUsageData.length > 0 ? (
+                <div className="w-full overflow-hidden">
+                  <BarChart
+                    height={280}
+                    xAxis={[{ 
+                      scaleType: 'band', 
+                      data: siteUsageData.map((d) => d.label.length > 10 ? d.label.substring(0, 10) + '...' : d.label)
+                    }]}
+                    series={[{ 
+                      data: siteUsageData.map((d) => d.value), 
+                      color: '#10B981' 
+                    }]}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-72 text-gray-500">
+                  No site usage data available
+                </div>
+              )}
+            </ChartCard>
+          </div>
         </div>
       </div>
     </div>

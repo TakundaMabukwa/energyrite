@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { RefreshCw, Calendar, Clock, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartCard } from '@/components/ui/chart-card';
+import { PieChart } from '@mui/x-charts/PieChart';
+import { BarChart } from '@mui/x-charts/BarChart';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -124,19 +128,51 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       const reportsData = await reportsRes.json();
       
       console.log('✅ Activity reports data received:', reportsData);
+      console.log('🔍 API Data structure:', reportsData.data);
+      console.log('🔍 Fuel analysis:', reportsData.data?.fuel_analysis);
+      console.log('🔍 Sites data:', reportsData.data?.sites);
       
       if (reportsData.success && reportsData.data) {
         // Transform the API response to match expected structure
-        const transformedData = {
-          ...reportsData.data,
-          site_reports: reportsData.data.sites || [],
-          time_slot_totals: {
-            morning_to_afternoon: 0,
-            afternoon_to_evening: 0, 
-            morning_to_evening: 0
-          }
-        };
-        setReportData(transformedData);
+        const apiData = reportsData.data;
+        
+        // Check if new API structure exists
+        if (apiData.fuel_analysis && apiData.sites) {
+          console.log('🆕 Using new API structure');
+          const transformedData = {
+            summary: apiData.summary,
+            fuel_analysis: apiData.fuel_analysis,
+            site_reports: (apiData.sites || []).map(site => ({
+              ...site,
+              generator: site.branch,
+              morning_to_afternoon_usage: parseFloat(apiData.fuel_analysis?.period_breakdown?.morning || 0),
+              afternoon_to_evening_usage: parseFloat(apiData.fuel_analysis?.period_breakdown?.afternoon || 0),
+              peak_time_slot: apiData.fuel_analysis?.peak_usage_period?.period === 'morning' ? 'morning_to_afternoon' : 'afternoon_to_evening',
+              peak_fuel_usage: site.peak_usage_amount || 0,
+              total_fuel_usage: site.total_fuel_usage || 0,
+              total_operating_hours: site.total_operating_hours || 0
+            })),
+            time_slot_totals: {
+              morning_to_afternoon: parseFloat(apiData.fuel_analysis?.period_breakdown?.morning || 0),
+              afternoon_to_evening: parseFloat(apiData.fuel_analysis?.period_breakdown?.afternoon || 0),
+              morning_to_evening: parseFloat(apiData.fuel_analysis?.daily_total_consumption || 0)
+            }
+          };
+          setReportData(transformedData);
+        } else {
+          console.log('⚠️ Using fallback/old API structure');
+          // Fallback to old structure
+          const transformedData = {
+            ...apiData,
+            site_reports: apiData.sites || [],
+            time_slot_totals: {
+              morning_to_afternoon: 0,
+              afternoon_to_evening: 0, 
+              morning_to_evening: 0
+            }
+          };
+          setReportData(transformedData);
+        }
       } else {
         // If site_id was used and no data found, show specific error
         if (siteIdFilter) {
@@ -276,10 +312,55 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </div>
         </div>
 
+        {/* Time Period Analysis Summary */}
+        {reportData?.site_reports && (
+          <div className="gap-4 grid grid-cols-1 md:grid-cols-3 mb-6">
+            {(() => {
+              const sitesWithUsage = reportData.site_reports.filter(site => site.total_fuel_usage > 0);
+              const totalMorning = parseFloat(reportData.fuel_analysis?.period_breakdown?.morning || 0);
+              const totalAfternoon = parseFloat(reportData.fuel_analysis?.period_breakdown?.afternoon || 0);
+              const peakPeriod = totalMorning > totalAfternoon ? 'Morning' : 'Afternoon';
+              const peakUsage = Math.max(totalMorning, totalAfternoon);
+              
+              return (
+                <>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{totalMorning.toFixed(1)}L</div>
+                        <div className="text-sm text-gray-600">Morning Period (6AM-12PM)</div>
+                        <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">{totalAfternoon.toFixed(1)}L</div>
+                        <div className="text-sm text-gray-600">Afternoon Period (12PM-6PM)</div>
+                        <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{peakPeriod}</div>
+                        <div className="text-sm text-gray-600">Peak Period</div>
+                        <div className="text-xs text-gray-500 mt-1">{peakUsage.toFixed(1)}L highest</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()} 
+          </div>
+        )}
+
         {/* Site Reports Table */}
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold text-gray-900 text-xl">SITE FUEL USAGE BY TIME SLOT</h2>
+            <h2 className="font-semibold text-gray-900 text-xl">ALL SITES ({reportData?.site_reports?.length || 0})</h2>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
@@ -310,10 +391,11 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-medium">Site</TableHead>
+                  <TableHead className="font-medium text-center">Morning (6AM-12PM)</TableHead>
+                  <TableHead className="font-medium text-center">Afternoon (12PM-6PM)</TableHead>
                   <TableHead className="font-medium text-center">Peak Period</TableHead>
                   <TableHead className="font-medium text-right">Peak Usage</TableHead>
-                  <TableHead className="font-medium text-right">Total Fuel</TableHead>
-                  <TableHead className="font-medium text-right">Est. Cost</TableHead>
+                  <TableHead className="font-medium text-right">Total Usage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -334,31 +416,31 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                             </div>
                           </TableCell>
                           <TableCell className="text-center py-2">
-                            <div>
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                site.peak_time_slot === 'morning_to_afternoon' ? 'bg-blue-100 text-blue-800' :
-                                'bg-orange-100 text-orange-800'
-                              }`}>
-                                {peakPeriodName}
-                              </span>
-                              <div className="text-xs text-gray-500 mt-1">{peakPeriodTime}</div>
-                            </div>
+                            <span className="font-medium text-blue-600">{(site.morning_to_afternoon_usage || 0).toFixed(1)}L</span>
+                          </TableCell>
+                          <TableCell className="text-center py-2">
+                            <span className="font-medium text-orange-600">{(site.afternoon_to_evening_usage || 0).toFixed(1)}L</span>
+                          </TableCell>
+                          <TableCell className="text-center py-2">
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                              site.peak_time_slot === 'morning_to_afternoon' ? 'bg-blue-100 text-blue-800' :
+                              'bg-orange-100 text-orange-800'
+                            }`}>
+                              {peakPeriodName}
+                            </span>
                           </TableCell>
                           <TableCell className="text-right py-2">
-                            <span className="font-medium text-orange-600">{(site.peak_fuel_usage || 0).toFixed(1)}L</span>
+                            <span className="font-medium text-red-600">{(site.peak_fuel_usage || 0).toFixed(1)}L</span>
                           </TableCell>
                           <TableCell className="text-right font-medium py-2">
-                            <span className="text-blue-600">{(site.total_fuel_usage || 0).toFixed(1)}L</span>
-                          </TableCell>
-                          <TableCell className="text-right py-2">
-                            <span className="font-medium text-green-600">R{estimatedCost.toFixed(0)}</span>
+                            <span className="text-gray-900">{(site.total_fuel_usage || 0).toFixed(1)}L</span>
                           </TableCell>
                         </TableRow>
                       );
                     })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       No activity data available for the selected date range
                     </TableCell>
                   </TableRow>
