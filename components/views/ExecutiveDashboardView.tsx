@@ -199,7 +199,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       
       if (hasActivityData) {
         setActivityData([
-          { label: 'Total Sessions', value: Math.max(1, totalSessions), color: '#3B82F6' },
+          { label: 'Active Sites', value: Math.max(1, totalSessions), color: '#3B82F6' },
           { label: 'Operating Hours', value: Math.max(1, Math.round(operatingHours)), color: '#D97706' }
         ]);
       } else {

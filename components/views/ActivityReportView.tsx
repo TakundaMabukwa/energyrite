@@ -317,9 +317,25 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           <div className="gap-4 grid grid-cols-1 md:grid-cols-3 mb-6">
             {(() => {
               const sitesWithUsage = reportData.site_reports.filter(site => site.total_fuel_usage > 0);
-              const totalMorning = parseFloat(reportData.fuel_analysis?.period_breakdown?.morning || 0);
-              const totalAfternoon = parseFloat(reportData.fuel_analysis?.period_breakdown?.afternoon || 0);
-              const peakPeriod = totalMorning > totalAfternoon ? 'Morning' : 'Afternoon';
+              
+              // Calculate totals from actual site data
+              let totalMorning = 0;
+              let totalAfternoon = 0;
+              let morningPeakCount = 0;
+              let afternoonPeakCount = 0;
+              
+              sitesWithUsage.forEach(site => {
+                totalMorning += parseFloat(site.morning_to_afternoon_usage || '0') || 0;
+                totalAfternoon += parseFloat(site.afternoon_to_evening_usage || '0') || 0;
+                
+                if (site.peak_time_slot === 'morning_to_afternoon') {
+                  morningPeakCount++;
+                } else {
+                  afternoonPeakCount++;
+                }
+              });
+              
+              const peakPeriod = morningPeakCount > afternoonPeakCount ? 'Morning' : 'Afternoon';
               const peakUsage = Math.max(totalMorning, totalAfternoon);
               
               return (
@@ -327,7 +343,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{totalMorning.toFixed(1)}L</div>
+                        <div className="text-2xl font-bold text-blue-600">{(totalMorning || 0).toFixed(1)}L</div>
                         <div className="text-sm text-gray-600">Morning Period (6AM-12PM)</div>
                         <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
                       </div>
@@ -336,7 +352,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">{totalAfternoon.toFixed(1)}L</div>
+                        <div className="text-2xl font-bold text-orange-600">{(totalAfternoon || 0).toFixed(1)}L</div>
                         <div className="text-sm text-gray-600">Afternoon Period (12PM-6PM)</div>
                         <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
                       </div>
@@ -347,7 +363,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">{peakPeriod}</div>
                         <div className="text-sm text-gray-600">Peak Period</div>
-                        <div className="text-xs text-gray-500 mt-1">{peakUsage.toFixed(1)}L highest</div>
+                        <div className="text-xs text-gray-500 mt-1">{morningPeakCount > afternoonPeakCount ? morningPeakCount : afternoonPeakCount} sites peak</div>
                       </div>
                     </CardContent>
                   </Card>
