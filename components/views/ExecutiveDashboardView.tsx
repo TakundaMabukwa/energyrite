@@ -143,32 +143,32 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('Average fuel percentage:', executiveData?.average_fuel_percentage);
       console.log('Fleet utilization percentage:', executiveData?.fleet_utilization_percentage);
       
-      // Only show data if it exists and is not null/undefined
-      const avgFuel = executiveData?.fleet_overview?.average_fuel_percentage;
-      const fleetUtil = executiveData?.fleet_overview?.fleet_utilization_percentage;
+      // Extract key metrics for score cards
+      const totalSites = executiveData?.fleet_overview?.total_sites || 0;
+      const totalFuelUsage = executiveData?.operational_metrics?.total_fuel_usage_liters || 0;
       const opHours = executiveData?.operational_metrics?.total_operating_hours;
-      const totalCost = executiveData?.operational_metrics?.total_operating_cost;
+      const totalSessions = executiveData?.operational_metrics?.total_sessions || 0;
       
       setScoreCardData([
         {
-          value: (avgFuel !== null && avgFuel !== undefined) ? `${Number(avgFuel).toFixed(1)}%` : '0.0%',
-          label: 'Average Fuel %',
-          barColor: 'bg-green-500'
-        },
-        {
-          value: (fleetUtil !== null && fleetUtil !== undefined) ? `${Number(fleetUtil).toFixed(1)}%` : '0.0%',
-          label: 'Fleet Utilization %',
+          value: totalSites,
+          label: 'Total Sites',
           barColor: 'bg-blue-500'
         },
         {
+          value: `${Number(totalFuelUsage).toFixed(1)}L`,
+          label: 'Litres Used',
+          barColor: 'bg-green-500'
+        },
+        {
           value: (opHours !== null && opHours !== undefined) ? `${Number(opHours).toFixed(1)}h` : '0.0h',
-          label: 'Operating Hours',
+          label: 'Total Op Hours',
           barColor: 'bg-orange-500'
         },
         {
-          value: (totalCost !== null && totalCost !== undefined) ? `R${Number(totalCost).toFixed(0)}` : 'R0',
-          label: 'Total Cost',
-          barColor: 'bg-red-500'
+          value: totalSessions,
+          label: 'Total Sessions',
+          barColor: 'bg-purple-500'
         }
       ]);
 
@@ -191,15 +191,15 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
 
       // Update activity data using executive dashboard
       const activeVehicles = Number(executiveData?.fleet_overview?.active_vehicles ?? 0) || 0;
-      const totalSessions = Number(executiveData?.operational_metrics?.total_sessions ?? 0) || 0;
+      const activitySessions = Number(executiveData?.operational_metrics?.total_sessions ?? 0) || 0;
       const operatingHours = Number(executiveData?.operational_metrics?.total_operating_hours ?? 0) || 0;
       
       // Check if we have any real data
-      const hasActivityData = activeVehicles > 0 || totalSessions > 0 || operatingHours > 0;
+      const hasActivityData = activeVehicles > 0 || activitySessions > 0 || operatingHours > 0;
       
       if (hasActivityData) {
         setActivityData([
-          { label: 'Active Sites', value: Math.max(1, totalSessions), color: '#3B82F6' },
+          { label: 'Active Sites', value: Math.max(1, activitySessions), color: '#3B82F6' },
           { label: 'Operating Hours', value: Math.max(1, Math.round(operatingHours)), color: '#D97706' }
         ]);
       } else {
@@ -436,58 +436,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
               </div>
             )}
           </ChartCard>
-        </div>
-
-        <div>
-          <h2 className="mb-4 font-semibold text-gray-900 text-xl">ACTIVITY REPORTS</h2>
-          <div className="gap-6 grid grid-cols-1 md:grid-cols-2">
-            <ChartCard title="Morning vs Afternoon Usage">
-              {morningAfternoonData.length > 0 ? (
-                <div className="w-full overflow-hidden">
-                  <PieChart
-                    height={280}
-                    series={[{
-                      data: morningAfternoonData.map((d, index) => ({ 
-                        id: `period-${Date.now()}-${index}`, 
-                        label: d.label, 
-                        value: d.value, 
-                        color: d.color 
-                      })),
-                      innerRadius: 30,
-                      outerRadius: 80
-                    }]}
-                    slotProps={{ legend: { hidden: false } }}
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-72 text-gray-500">
-                  No activity data available
-                </div>
-              )}
-            </ChartCard>
-
-            <ChartCard title="Top Sites by Fuel Usage (Today)">
-              {siteUsageData.length > 0 ? (
-                <div className="w-full overflow-hidden">
-                  <BarChart
-                    height={280}
-                    xAxis={[{ 
-                      scaleType: 'band', 
-                      data: siteUsageData.map((d) => d.label.length > 10 ? d.label.substring(0, 10) + '...' : d.label)
-                    }]}
-                    series={[{ 
-                      data: siteUsageData.map((d) => d.value), 
-                      color: '#10B981' 
-                    }]}
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-72 text-gray-500">
-                  No site usage data available
-                </div>
-              )}
-            </ChartCard>
-          </div>
         </div>
       </div>
     </div>

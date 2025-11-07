@@ -31,6 +31,7 @@ interface FuelConsumptionData {
   updated_at?: string;
   fuel_anomaly?: string;
   fuel_anomaly_note?: string;
+  notes?: string | null;
   lastFuelFill?: FuelFill;
 
 }
@@ -138,6 +139,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           updated_at: vehicle.updated_at,
           fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
           fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
+          notes: vehicle.notes,
 
           lastFuelFill: undefined // Will be populated below
         };
@@ -203,7 +205,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           current_status: 'Active',
           last_message_date: new Date().toISOString(),
           fuel_anomaly: false,
-          fuel_anomaly_note: ''
+          fuel_anomaly_note: '',
+          notes: 'Regular maintenance completed last week'
         },
         {
           plate: 'KFC WEST',
@@ -216,7 +219,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           current_status: 'Active',
           last_message_date: new Date().toISOString(),
           fuel_anomaly: false,
-          fuel_anomaly_note: ''
+          fuel_anomaly_note: '',
+          notes: 'Generator scheduled for fuel delivery tomorrow'
         },
         {
           plate: 'MUSHROOM',
@@ -268,7 +272,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           current_status: 'Active',
           last_message_date: new Date().toISOString(),
           fuel_anomaly: true,
-          fuel_anomaly_note: 'Possible fuel theft: 15.2L in 12 minutes'
+          fuel_anomaly_note: 'Possible fuel theft: 15.2L in 12 minutes',
+          notes: null
         }
       ];
       
@@ -304,7 +309,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
         updated_at: vehicle.updated_at,
         anomaly: !!vehicle.fuel_anomaly,
-        anomalyNote: vehicle.fuel_anomaly_note || '',
+        anomalyNote: vehicle.notes || vehicle.fuel_anomaly_note || '',
         lastFuelFill: vehicle.lastFuelFill,
 
       });
@@ -367,6 +372,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 status={data.status}
                 lastUpdated={data.lastUpdated}
                 updated_at={data.updated_at}
+                anomalyNote={data.anomalyNote}
+                anomaly={data.anomaly}
                 lastFuelFill={data.lastFuelFill}
 
                 colorCodes={fuelGaugeColors}

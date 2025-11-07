@@ -725,7 +725,7 @@ export function StoreEquipmentView() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredEquipmentData.map((equipment) => (
+                          {filteredEquipmentData.sort((a, b) => a.branch.localeCompare(b.branch)).map((equipment) => (
                             <tr key={equipment.id} className={`hover:bg-gray-50 ${editingRowId === equipment.id ? 'bg-blue-50' : ''}`}>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
                                 {editingRowId === equipment.id ? (

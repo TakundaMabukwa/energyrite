@@ -269,9 +269,9 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center bg-gray-50 h-full">
-        <div className="text-center">
-          <div className="mx-auto mb-4 border-b-2 border-blue-600 rounded-full w-12 h-12 animate-spin"></div>
+      <div className="flex justify-start items-start bg-gray-50 h-full p-6">
+        <div className="text-left">
+          <div className="mb-4 border-b-2 border-blue-600 rounded-full w-12 h-12 animate-spin"></div>
           <p className="text-gray-600">Loading activity reports...</p>
         </div>
       </div>
@@ -280,9 +280,9 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center bg-gray-50 h-full">
-        <div className="text-center">
-          <div className="mx-auto mb-4 text-gray-400 text-6xl">📊</div>
+      <div className="flex justify-start items-start bg-gray-50 h-full p-6">
+        <div className="text-left">
+          <div className="mb-4 text-gray-400 text-6xl">📊</div>
           <p className="mb-4 font-medium text-gray-600 text-lg">No Data Available</p>
           <p className="mb-4 text-gray-500 text-sm">Unable to load activity data at this time</p>
           <Button onClick={fetchActivityData} variant="outline">
@@ -295,6 +295,12 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
   }
 
   const timeSlotCards = getTimeSlotCards();
+
+  // Aggregate top-level totals for summary cards
+  const totalFuelUsage = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_usage || 0), 0) ?? 0;
+  const totalOperatingHours = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_operating_hours || 0), 0) ?? 0;
+  const totalSessions = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_sessions || 0), 0) ?? 0;
+  const avgOperatingHours = reportData && reportData.site_reports && reportData.site_reports.length > 0 ? (totalOperatingHours / reportData.site_reports.length) : 0;
 
   return (
     <div className="bg-gray-50 h-full">
@@ -313,65 +319,59 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
         </div>
 
         {/* Time Period Analysis Summary */}
-        {reportData?.site_reports && (
-          <div className="gap-4 grid grid-cols-1 md:grid-cols-3 mb-6">
-            {(() => {
-              const sitesWithUsage = reportData.site_reports.filter(site => site.total_fuel_usage > 0);
-              
-              // Calculate totals from actual site data
-              let totalMorning = 0;
-              let totalAfternoon = 0;
-              let morningPeakCount = 0;
-              let afternoonPeakCount = 0;
-              
-              sitesWithUsage.forEach(site => {
-                totalMorning += parseFloat(site.morning_to_afternoon_usage || '0') || 0;
-                totalAfternoon += parseFloat(site.afternoon_to_evening_usage || '0') || 0;
-                
-                if (site.peak_time_slot === 'morning_to_afternoon') {
-                  morningPeakCount++;
-                } else {
-                  afternoonPeakCount++;
-                }
-              });
-              
-              const peakPeriod = morningPeakCount > afternoonPeakCount ? 'Morning' : 'Afternoon';
-              const peakUsage = Math.max(totalMorning, totalAfternoon);
-              
-              return (
-                <>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{(totalMorning || 0).toFixed(1)}L</div>
-                        <div className="text-sm text-gray-600">Morning Period (6AM-12PM)</div>
-                        <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">{(totalAfternoon || 0).toFixed(1)}L</div>
-                        <div className="text-sm text-gray-600">Afternoon Period (12PM-6PM)</div>
-                        <div className="text-xs text-gray-500 mt-1">Peak usage identification</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{peakPeriod}</div>
-                        <div className="text-sm text-gray-600">Peak Period</div>
-                        <div className="text-xs text-gray-500 mt-1">{morningPeakCount > afternoonPeakCount ? morningPeakCount : afternoonPeakCount} sites peak</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              );
-            })()} 
+        {/* Summary Cards: totals for the day */}
+        {reportData && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Total Fuel Usage */}
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-blue-500" />
+              <CardContent className="p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-3xl font-extrabold text-gray-900">{(totalFuelUsage || 0).toFixed(1)}L</div>
+                  <div className="text-sm text-gray-500 mt-1">Total fuel consumed (day)</div>
+                  <div className="text-xs text-gray-400 mt-2">Aggregated across all sites</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Operational Hours */}
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-sky-600" />
+              <CardContent className="p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-3xl font-extrabold text-sky-700">{(totalOperatingHours || 0).toFixed(1)}h</div>
+                  <div className="text-sm text-gray-500 mt-1">Sum of operating hours (day)</div>
+                  <div className="text-xs text-gray-400 mt-2">Includes all recorded sessions</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Sessions */}
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-emerald-500" />
+              <CardContent className="p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-3xl font-extrabold text-emerald-700">{totalSessions || 0}</div>
+                  <div className="text-sm text-gray-500 mt-1">Total sessions recorded (day)</div>
+                  <div className="text-xs text-gray-400 mt-2">Number of activity sessions</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Avg Operating Hours / Site */}
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-amber-500" />
+              <CardContent className="p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-3xl font-extrabold text-amber-700">{(avgOperatingHours || 0).toFixed(1)}h</div>
+                  <div className="text-sm text-gray-500 mt-1">Average operating hours per site</div>
+                  <div className="text-xs text-gray-400 mt-2">Computed as total hours / # sites</div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
+        
 
         {/* Site Reports Table */}
         <div>
@@ -406,12 +406,10 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="font-medium">Site</TableHead>
-                  <TableHead className="font-medium text-center">Morning (6AM-12PM)</TableHead>
-                  <TableHead className="font-medium text-center">Afternoon (12PM-6PM)</TableHead>
-                  <TableHead className="font-medium text-center">Peak Period</TableHead>
-                  <TableHead className="font-medium text-right">Peak Usage</TableHead>
-                  <TableHead className="font-medium text-right">Total Usage</TableHead>
+            <TableHead className="font-medium">Site</TableHead>
+            <TableHead className="font-medium">Peak Period</TableHead>
+            <TableHead className="font-medium">Peak Usage</TableHead>
+            <TableHead className="font-medium">Total Usage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -420,24 +418,16 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                     .filter(site => !selectedCostCode || site.cost_code === selectedCostCode)
                     .map((site, index) => {
                       const peakPeriodName = site.peak_time_slot === 'morning_to_afternoon' ? 'Morning' : 'Afternoon';
-                      const peakPeriodTime = site.peak_time_slot === 'morning_to_afternoon' ? '6AM-12PM' : '12PM-6PM';
                       const estimatedCost = (site.total_fuel_usage || 0) * 21.50;
-                      
+
                       return (
                         <TableRow key={index} className="h-12">
                           <TableCell className="font-medium py-2">
                             <div>
                               <div className="font-medium">{site.branch || site.generator}</div>
-                              <div className="text-xs text-gray-500">{site.cost_code}</div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center py-2">
-                            <span className="font-medium text-blue-600">{(site.morning_to_afternoon_usage || 0).toFixed(1)}L</span>
-                          </TableCell>
-                          <TableCell className="text-center py-2">
-                            <span className="font-medium text-orange-600">{(site.afternoon_to_evening_usage || 0).toFixed(1)}L</span>
-                          </TableCell>
-                          <TableCell className="text-center py-2">
+                          <TableCell className="py-2">
                             <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                               site.peak_time_slot === 'morning_to_afternoon' ? 'bg-blue-100 text-blue-800' :
                               'bg-orange-100 text-orange-800'
@@ -445,10 +435,10 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                               {peakPeriodName}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right py-2">
+                          <TableCell className="py-2">
                             <span className="font-medium text-red-600">{(site.peak_fuel_usage || 0).toFixed(1)}L</span>
                           </TableCell>
-                          <TableCell className="text-right font-medium py-2">
+                          <TableCell className="font-medium py-2">
                             <span className="text-gray-900">{(site.total_fuel_usage || 0).toFixed(1)}L</span>
                           </TableCell>
                         </TableRow>
@@ -456,7 +446,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                     })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       No activity data available for the selected date range
                     </TableCell>
                   </TableRow>

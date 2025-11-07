@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Thermometer, Droplets, Gauge, Clock, NotebookPen } from 'lucide-react';
+import { Thermometer, Droplets, Gauge, Clock, NotebookPen, Fuel } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 
 interface FuelGaugeProps {
@@ -17,6 +17,8 @@ interface FuelGaugeProps {
   status: string;
   lastUpdated: string;
   updated_at?: string;
+  anomalyNote?: string;
+  anomaly?: boolean;
   lastFuelFill?: {
     time: string;
     amount: number;
@@ -40,6 +42,8 @@ export function FuelGauge({
   status,
   lastUpdated,
   updated_at,
+  anomalyNote,
+  anomaly,
   lastFuelFill,
   className,
   colorCodes,
@@ -89,6 +93,25 @@ export function FuelGauge({
       {/* Header */}
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
+        {anomalyNote && (
+          <div className={cn(
+            "mb-2 p-2 rounded-lg border",
+            anomaly 
+              ? "bg-red-50 border-red-200" 
+              : "bg-blue-50 border-blue-200"
+          )}>
+            <div className={cn(
+              "flex items-start gap-1",
+              anomaly ? "text-red-800" : "text-blue-800"
+            )}>
+              <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span className={cn(
+                "text-xs text-left break-words",
+                anomaly ? "text-red-700" : "text-blue-700"
+              )}>{anomalyNote}</span>
+            </div>
+          </div>
+        )}
         {status && (
           <TooltipProvider>
             <Tooltip>
@@ -161,7 +184,7 @@ export function FuelGauge({
       {/* Stats Grid */}
       <div className="space-y-1">
         <div className={cn(
-          "flex justify-center items-center px-1 py-0.5 rounded-lg",
+          "flex justify-start items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
             : "bg-gray-50"
@@ -173,22 +196,25 @@ export function FuelGauge({
               status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
                 : "text-gray-700"
-            )}>Temperature {temperature}C</span>
+            )}>Temperature {temperature}°C</span>
           </div>
         </div>
 
         <div className={cn(
-          "flex justify-center items-center px-1 py-0.5 rounded-lg",
+          "flex justify-start items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
             ? "bg-green-100" 
             : "bg-gray-50"
         )}>
-          <span className={cn(
-            "font-medium text-xs truncate whitespace-nowrap",
-            status.includes('PTO ON') || status.includes('ENGINE ON') 
-              ? "text-green-800" 
-              : "text-gray-700"
-          )}>Rem: {remaining}</span>
+          <div className="flex items-center gap-2">
+            <Fuel className="w-4 h-4 text-orange-500" />
+            <span className={cn(
+              "font-medium text-xs truncate whitespace-nowrap",
+              status.includes('PTO ON') || status.includes('ENGINE ON') 
+                ? "text-green-800" 
+                : "text-gray-700"
+            )}>Rem: {remaining}</span>
+          </div>
         </div>
 
         <div className={cn(
@@ -203,7 +229,7 @@ export function FuelGauge({
             status.includes('PTO ON') || status.includes('ENGINE ON') 
               ? "text-green-700" 
               : "text-gray-600"
-          )}>{formatForDisplay(updated_at || lastUpdated)}</span>
+          )}>{lastUpdated}</span>
         </div>
 
         {/* Last Fuel Fill Information */}
