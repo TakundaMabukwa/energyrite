@@ -92,6 +92,38 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     return `Energyrite => Activity Reports - ${formatted}`;
   };
 
+  // Convert decimal hours to readable format (e.g., 0.92 -> "55m", 2.22 -> "2h 13m")
+  const formatHours = (decimalHours: number): string => {
+    if (!decimalHours || decimalHours === 0) return "0m";
+    
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (hours === 0) {
+      return `${minutes}m`;
+    } else if (minutes === 0) {
+      return `${hours}h`;
+    } else {
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
+  // Format timestamp to readable time (e.g., "2025-11-07T12:30:42.621+00:00" -> "12:30")
+  const formatPeakTime = (timestamp: string): string => {
+    if (!timestamp) return "-";
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+    } catch (error) {
+      return "-";
+    }
+  };
+
   // Fetch activity reports data
   const fetchActivityData = useCallback(async () => {
     try {
@@ -296,11 +328,18 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
 
   const timeSlotCards = getTimeSlotCards();
 
-  // Aggregate top-level totals for summary cards
-  const totalFuelUsage = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_usage || 0), 0) ?? 0;
-  const totalOperatingHours = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_operating_hours || 0), 0) ?? 0;
-  const totalSessions = reportData?.site_reports?.reduce((sum, s) => sum + (s.total_sessions || 0), 0) ?? 0;
-  const avgOperatingHours = reportData && reportData.site_reports && reportData.site_reports.length > 0 ? (totalOperatingHours / reportData.site_reports.length) : 0;
+  // Use API summary data when available, fallback to calculated totals
+  const totalFuelUsage = reportData?.summary?.total_fuel_usage ?? 
+    (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_usage || 0), 0) ?? 0);
+  const totalOperatingHours = reportData?.summary?.total_operating_hours ?? 
+    (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_operating_hours || 0), 0) ?? 0);
+  const totalFuelFilled = reportData?.summary?.total_fuel_filled ?? 
+    (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_filled || 0), 0) ?? 0);
+  const totalSessions = reportData?.summary?.total_sessions ?? 
+    (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_sessions || 0), 0) ?? 0);
+  const totalSites = reportData?.summary?.total_sites ?? 
+    (reportData?.site_reports?.length ?? 0);
+  const avgOperatingHours = totalSites > 0 ? (totalOperatingHours / totalSites) : 0;
 
   return (
     <div className="bg-gray-50 h-full">
@@ -318,54 +357,41 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
           </div>
         </div>
 
-        {/* Time Period Analysis Summary */}
-        {/* Summary Cards: totals for the day */}
+        {/* Summary Cards: Operating Hours, Fuel Usage, Fuel Fills */}
         {reportData && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            {/* Total Operating Hours */}
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-sky-600" />
+              <CardContent className="p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-3xl font-extrabold text-sky-700">{formatHours(totalOperatingHours || 0)}</div>
+                  <div className="text-sm text-gray-500 mt-1">Total operating hours</div>
+                  <div className="text-xs text-gray-400 mt-2">For the day</div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Total Fuel Usage */}
             <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
               <div className="h-1 bg-blue-500" />
               <CardContent className="p-4">
                 <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-gray-900">{(totalFuelUsage || 0).toFixed(1)}L</div>
-                  <div className="text-sm text-gray-500 mt-1">Total fuel consumed (day)</div>
-                  <div className="text-xs text-gray-400 mt-2">Aggregated across all sites</div>
+                  <div className="text-3xl font-extrabold text-blue-700">{(totalFuelUsage || 0).toFixed(1)}L</div>
+                  <div className="text-sm text-gray-500 mt-1">Total fuel usage</div>
+                  <div className="text-xs text-gray-400 mt-2">For the day</div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Total Operational Hours */}
+            {/* Total Fuel Fills */}
             <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
-              <div className="h-1 bg-sky-600" />
+              <div className="h-1 bg-green-500" />
               <CardContent className="p-4">
                 <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-sky-700">{(totalOperatingHours || 0).toFixed(1)}h</div>
-                  <div className="text-sm text-gray-500 mt-1">Sum of operating hours (day)</div>
-                  <div className="text-xs text-gray-400 mt-2">Includes all recorded sessions</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Total Sessions */}
-            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
-              <div className="h-1 bg-emerald-500" />
-              <CardContent className="p-4">
-                <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-emerald-700">{totalSessions || 0}</div>
-                  <div className="text-sm text-gray-500 mt-1">Total sessions recorded (day)</div>
-                  <div className="text-xs text-gray-400 mt-2">Number of activity sessions</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Avg Operating Hours / Site */}
-            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
-              <div className="h-1 bg-amber-500" />
-              <CardContent className="p-4">
-                <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-amber-700">{(avgOperatingHours || 0).toFixed(1)}h</div>
-                  <div className="text-sm text-gray-500 mt-1">Average operating hours per site</div>
-                  <div className="text-xs text-gray-400 mt-2">Computed as total hours / # sites</div>
+                  <div className="text-3xl font-extrabold text-green-700">{(totalFuelFilled || 0).toFixed(1)}L</div>
+                  <div className="text-sm text-gray-500 mt-1">Total fills</div>
+                  <div className="text-xs text-gray-400 mt-2">For the day</div>
                 </div>
               </CardContent>
             </Card>
@@ -407,9 +433,10 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
               <TableHeader>
                 <TableRow>
             <TableHead className="font-medium">Site</TableHead>
-            <TableHead className="font-medium">Peak Period</TableHead>
-            <TableHead className="font-medium">Peak Usage</TableHead>
-            <TableHead className="font-medium">Total Usage</TableHead>
+            <TableHead className="font-medium">Operating Hours</TableHead>
+            <TableHead className="font-medium">Fuel Usage</TableHead>
+            <TableHead className="font-medium">Fuel Fills</TableHead>
+            <TableHead className="font-medium">Peak Usage Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -428,18 +455,16 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
                             </div>
                           </TableCell>
                           <TableCell className="py-2">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                              site.peak_time_slot === 'morning_to_afternoon' ? 'bg-blue-100 text-blue-800' :
-                              'bg-orange-100 text-orange-800'
-                            }`}>
-                              {peakPeriodName}
-                            </span>
+                            <span className="font-medium text-sky-700">{formatHours(site.total_operating_hours || 0)}</span>
                           </TableCell>
                           <TableCell className="py-2">
-                            <span className="font-medium text-red-600">{(site.peak_fuel_usage || 0).toFixed(1)}L</span>
+                            <span className="font-medium text-blue-600">{(site.total_fuel_usage || 0).toFixed(1)}L</span>
                           </TableCell>
                           <TableCell className="font-medium py-2">
-                            <span className="text-gray-900">{(site.total_fuel_usage || 0).toFixed(1)}L</span>
+                            <span className="text-green-600">{(site.total_fuel_filled || 0).toFixed(1)}L</span>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <span className="font-medium text-orange-600">{formatPeakTime(site.peak_usage_session)}</span>
                           </TableCell>
                         </TableRow>
                       );
