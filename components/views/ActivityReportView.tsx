@@ -244,28 +244,31 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     try {
       setGeneratingExcel(true);
       
+      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
-      const siteIdFilter = userSiteId || null;
       const params = new URLSearchParams();
-      if (siteIdFilter) {
-        params.append('site_id', siteIdFilter);
-      } else if (costCodeFilter) {
-        params.append('costCode', costCodeFilter);
+      if (costCodeFilter) {
+        params.append('cost_code', costCodeFilter);
       }
-      if (selectedDate) params.append('date', selectedDate);
-      
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/activity-excel-reports/generate?${params.toString()}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        window.open(result.data.download_url, '_blank');
-        toast({
-          title: 'Excel Report Generated',
-          description: `Activity report for ${result.data.total_sites} sites downloaded successfully.`
-        });
-      } else {
-        throw new Error(result.message || 'Failed to generate report');
+      if (selectedDate) {
+        params.append('date', selectedDate);
       }
+      params.append('format', 'excel');
+      
+      const downloadUrl = `${baseUrl}/api/energy-rite/reports/activity/download?${params.toString()}`;
+      
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `activity-report-${costCodeFilter}-${selectedDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: 'Excel Report Downloaded',
+        description: `Activity report for ${selectedDate} downloaded successfully.`
+      });
     } catch (error) {
       console.error('❌ Error generating Excel report:', error);
       toast({

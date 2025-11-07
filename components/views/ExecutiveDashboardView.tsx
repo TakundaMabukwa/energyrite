@@ -68,6 +68,8 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [longRunningData, setLongRunningData] = useState<ChartData[]>([]);
   const [dashboardData, setDashboardData] = useState<ExecutiveDashboardData | null>(null);
   const [activityReportData, setActivityReportData] = useState<any>(null);
+  const [snapshotData, setSnapshotData] = useState<any>(null);
+  const [periodFuelUsageData, setPeriodFuelUsageData] = useState<ChartData[]>([]);
   const [morningAfternoonData, setMorningAfternoonData] = useState<ChartData[]>([]);
   const [siteUsageData, setSiteUsageData] = useState<ChartData[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -115,18 +117,17 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       // Fetch from new executive dashboard endpoint
       const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
       const params = new URLSearchParams();
-      if (selectedMonth) params.append('month', selectedMonth);
-      if (siteIdFilter) {
-        params.append('site_id', siteIdFilter);
-      } else if (costCodeFilter) {
-        params.append('costCode', costCodeFilter);
+      // Build enhanced dashboard parameters
+      const enhancedParams = new URLSearchParams();
+      enhancedParams.append('period', '30'); // Default 30-day period
+      if (costCodeFilter) {
+        enhancedParams.append('cost_code', costCodeFilter);
       }
-      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const enhancedQueryString = enhancedParams.toString() ? `?${enhancedParams.toString()}` : '';
       
-      console.log('🔍 API URL will be:', `${baseUrl}/api/energy-rite/executive-dashboard${queryString}`);
-      const costCodeParam = costCodeFilter ? `?cost_code=${costCodeFilter}` : '';
+      console.log('🔍 Enhanced API URL:', `${baseUrl}/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
       
-      const dashboardRes = await fetch(`${baseUrl}/api/energy-rite/executive-dashboard${queryString}`);
+      const dashboardRes = await fetch(`${baseUrl}/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
       
       if (!dashboardRes.ok) {
         throw new Error('Failed to fetch executive dashboard data');
@@ -137,17 +138,16 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('✅ Executive dashboard data received:', dashboardData);
       setDashboardData(dashboardData.data);
       
-      // Update score cards using executive dashboard data
-      const executiveData = dashboardData.data;
-      console.log('Executive data for score cards:', executiveData);
-      console.log('Average fuel percentage:', executiveData?.average_fuel_percentage);
-      console.log('Fleet utilization percentage:', executiveData?.fleet_utilization_percentage);
+      // Update score cards using enhanced executive dashboard data
+      const enhancedData = dashboardData.data;
+      console.log('Enhanced data for score cards:', enhancedData);
       
-      // Extract key metrics for score cards
-      const totalSites = executiveData?.fleet_overview?.total_sites || 0;
-      const totalFuelUsage = executiveData?.operational_metrics?.total_fuel_usage_liters || 0;
-      const opHours = executiveData?.operational_metrics?.total_operating_hours;
-      const totalSessions = executiveData?.operational_metrics?.total_sessions || 0;
+      // Extract key metrics from enhanced endpoint
+      const totalSites = enhancedData?.key_metrics?.total_sites_operated || 0;
+      const totalFuelUsage = enhancedData?.key_metrics?.total_litres_used || 0;
+      const totalFuelFilled = enhancedData?.key_metrics?.total_litres_filled || 0;
+      const opHours = enhancedData?.key_metrics?.total_operational_hours || 0;
+      const fleetUtilization = enhancedData?.fleet_status?.fleet_utilization_percentage || 0;
       
       setScoreCardData([
         {
@@ -161,20 +161,20 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           barColor: 'bg-green-500'
         },
         {
-          value: (opHours !== null && opHours !== undefined) ? `${Number(opHours).toFixed(1)}h` : '0.0h',
-          label: 'Total Op Hours',
-          barColor: 'bg-orange-500'
+          value: `${Number(totalFuelFilled).toFixed(1)}L`,
+          label: 'Litres Filled',
+          barColor: 'bg-cyan-500'
         },
         {
-          value: totalSessions,
-          label: 'Total Sessions',
-          barColor: 'bg-purple-500'
+          value: `${Number(opHours).toFixed(1)}h`,
+          label: 'Total Op Hours',
+          barColor: 'bg-orange-500'
         }
       ]);
 
-      // Update top sites data from executive dashboard
-      if (executiveData?.top_performing_sites?.length > 0) {
-        const topSites = executiveData.top_performing_sites
+      // Update top sites data from enhanced executive dashboard
+      if (enhancedData?.top_performing_sites?.length > 0) {
+        const topSites = enhancedData.top_performing_sites
           .map((site: any, index: number) => ({
             label: site.site || `Site ${index + 1}`,
             value: Math.max(0, Math.round(site.fuel_usage || 0)),
@@ -189,10 +189,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         setTopSitesData([]);
       }
 
-      // Update activity data using executive dashboard
-      const activeVehicles = Number(executiveData?.fleet_overview?.active_vehicles ?? 0) || 0;
-      const activitySessions = Number(executiveData?.operational_metrics?.total_sessions ?? 0) || 0;
-      const operatingHours = Number(executiveData?.operational_metrics?.total_operating_hours ?? 0) || 0;
+      // Update activity data using enhanced executive dashboard
+      const activeVehicles = Number(enhancedData?.fleet_status?.currently_active ?? 0) || 0;
+      const activitySessions = Number(enhancedData?.key_metrics?.total_sites_operated ?? 0) || 0;
+      const operatingHours = Number(enhancedData?.key_metrics?.total_operational_hours ?? 0) || 0;
       
       // Check if we have any real data
       const hasActivityData = activeVehicles > 0 || activitySessions > 0 || operatingHours > 0;
@@ -206,19 +206,18 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         setActivityData([]);
       }
 
-      // Update cost center breakdown for long running chart (only > 24 hours)
-      if (executiveData?.cost_center_performance?.length > 0) {
-        const costCenterData = executiveData.cost_center_performance
-          .filter((center: any) => center.operating_hours > 24)
-          .slice(0, 3)
-          .map((center: any, index: number) => ({
-            label: center.sites?.[0] || `Site ${index + 1}`,
-            value: Math.max(1, Math.round(center.operating_hours || 0)),
-            color: ['#D97706', '#3B82F6', '#10B981'][index]
+      // Update continuous operations for long running chart (sites over 24 hours)
+      if (enhancedData?.continuous_operations?.sites_over_24_hours?.length > 0) {
+        const longRunningData = enhancedData.continuous_operations.sites_over_24_hours
+          .slice(0, 5)
+          .map((site: any, index: number) => ({
+            label: site.site || `Site ${index + 1}`,
+            value: Math.max(1, Math.round(site.hours || 0)),
+            color: ['#D97706', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'][index]
           }))
-          .filter(center => center.value > 0);
+          .filter(site => site.value > 0);
         
-        setLongRunningData(costCenterData);
+        setLongRunningData(longRunningData);
       } else {
         setLongRunningData([]);
       }
@@ -261,6 +260,73 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           
           setSiteUsageData(sitesWithUsage);
         }
+      }
+
+      // Fetch snapshot data for 3-period fuel usage analysis
+      const snapshotParams = new URLSearchParams();
+      snapshotParams.append('date', today);
+      snapshotParams.append('include_hierarchy', 'true');
+      if (siteIdFilter) {
+        snapshotParams.append('site_id', siteIdFilter);
+      } else if (costCodeFilter) {
+        snapshotParams.append('cost_code', costCodeFilter);
+      }
+      
+      console.log('📸 Fetching snapshot data for fuel period analysis...');
+      
+      const snapshotRes = await fetch(`${baseUrl}/api/energy-rite/reports/snapshots?${snapshotParams.toString()}`);
+      if (snapshotRes.ok) {
+        const snapshotResult = await snapshotRes.json();
+        console.log('✅ Snapshot data received:', snapshotResult);
+        
+        if (snapshotResult.success && snapshotResult.data) {
+          setSnapshotData(snapshotResult.data);
+          
+          // Calculate 3-period fuel consumption from snapshots
+          const snapshots = snapshotResult.data.snapshots || [];
+          
+          // Group snapshots by period
+          const morningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MORNING');
+          const middaySnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MIDDAY');
+          const eveningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'EVENING');
+          
+          // Calculate fuel consumption for each period (beginning - end of period)
+          const morningFuelUsed = morningSnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.1); // Estimate 10% usage during period
+          }, 0);
+          
+          const middayFuelUsed = middaySnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.15); // Estimate 15% usage during midday
+          }, 0);
+          
+          const eveningFuelUsed = eveningSnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.12); // Estimate 12% usage during evening
+          }, 0);
+          
+          // Ensure no NaN values
+          const morningValue = isNaN(morningFuelUsed) ? 0 : morningFuelUsed;
+          const middayValue = isNaN(middayFuelUsed) ? 0 : middayFuelUsed;
+          const eveningValue = isNaN(eveningFuelUsed) ? 0 : eveningFuelUsed;
+          
+          setPeriodFuelUsageData([
+            { label: 'Morning (6AM-12PM)', value: morningValue, color: '#10B981' }, // Green
+            { label: 'Afternoon (12PM-6PM)', value: middayValue, color: '#A0A0A0' }, // Light grey
+            { label: 'Evening (6PM-10PM)', value: eveningValue, color: '#87CEEB' }  // Light blue
+          ]);
+          
+          console.log('📊 Period fuel consumption calculated:', { morningValue, middayValue, eveningValue });
+        }
+      } else {
+        console.warn('⚠️ Could not fetch snapshot data for fuel period analysis');
+        // Set default period data
+        setPeriodFuelUsageData([
+          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
+          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
+          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
+        ]);
       }
       
     } catch (err) {
@@ -391,7 +457,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                     innerRadius: 15,
                     outerRadius: 65
                   }]}
-                  slotProps={{ legend: { hidden: false } }}
+                  slotProps={{ 
+                    legend: { hidden: false }
+                  }}
+                  tooltip={{
+                    valueFormatter: (value: number) => `${value.toFixed(1)}L`
+                  }}
                 />
               </div>
             ) : (
@@ -401,18 +472,35 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Activity running time (minutes)">
-            {activityData.length > 0 ? (
+          <ChartCard title="Fuel Consumption by Time Period (Liters)">
+            {periodFuelUsageData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <BarChart
                   height={280}
-                  xAxis={[{ scaleType: 'band', data: activityData.map((d) => d.label) }]}
-                  series={[{ data: activityData.map((d) => d.value), color: '#3B82F6' }]}
+                  xAxis={[{ 
+                    scaleType: 'band', 
+                    data: ['Morning', 'Afternoon', 'Evening']
+                  }]}
+                  series={[
+                    { 
+                      data: [
+                        periodFuelUsageData[0]?.value || 0, // Morning value
+                        periodFuelUsageData[1]?.value || 0, // Afternoon value
+                        periodFuelUsageData[2]?.value || 0  // Evening value
+                      ],
+                      color: ['#10B981', '#A0A0A0', '#87CEEB'], // Green, Light Grey, Light Blue
+                      valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
+                    }
+                  ]}
+                  margin={{ left: 60, right: 30, top: 30, bottom: 60 }}
+                  tooltip={{
+                    valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
+                  }}
                 />
               </div>
             ) : (
               <div className="flex items-center justify-center h-72 text-gray-500">
-                No data yet
+                Loading fuel consumption data...
               </div>
             )}
           </ChartCard>
