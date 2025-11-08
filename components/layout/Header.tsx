@@ -88,7 +88,7 @@ export function Header() {
               ) : (
                 energyriteCostCenters.map((costCenter) => (
                   <SelectItem key={costCenter.id} value={costCenter.costCode || costCenter.id}>
-                    {costCenter.name} ({costCenter.costCode})
+                    {costCenter.name}
                   </SelectItem>
                 ))
               )}

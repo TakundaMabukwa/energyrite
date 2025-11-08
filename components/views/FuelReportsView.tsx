@@ -375,9 +375,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 {loading ? 'Generating...' : 'Generate Report'}
               </Button>
             </div>
-            <p className="text-gray-500 text-xs">
-              {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode ? `Cost Code: ${selectedRoute.costCode}` : (userCostCode ? `Cost Code: ${userCostCode}` : 'All data'))}
-            </p>
           </CardContent>
         </Card>
 
@@ -402,9 +399,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   <Download className="mr-2 w-4 h-4" />
                   Generate Daily Report
                 </Button>
-                <p className="mt-2 text-center text-gray-500 text-xs">
-                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -428,9 +422,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   <Download className="mr-2 w-4 h-4" />
                   Generate Weekly Report
                 </Button>
-                <p className="mt-2 text-center text-gray-500 text-xs">
-                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -454,9 +445,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                   <Download className="mr-2 w-4 h-4" />
                   Generate Monthly Report
                 </Button>
-                <p className="mt-2 text-center text-gray-500 text-xs">
-                  {userSiteId ? `Site: ${userSiteId}` : (selectedRoute?.costCode || userCostCode) ? `Cost Code: ${selectedRoute?.costCode || userCostCode}` : 'All cost centers'}
-                </p>
               </div>
             </CardContent>
           </Card>

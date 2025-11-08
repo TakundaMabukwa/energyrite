@@ -722,7 +722,6 @@ export function StoreEquipmentView() {
                           <tr>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
-                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">TANK VOLUME</th>
                             {canViewNotes && (
@@ -761,19 +760,6 @@ export function StoreEquipmentView() {
                                   />
                                 ) : (
                                   equipment.company
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                                {editingRowId === equipment.id ? (
-                                  <Input 
-                                    className="h-8 w-full py-1 px-2"
-                                    value={editedEquipment?.cost_code || ''}
-                                    onChange={(e) => handleInputChange(e, 'cost_code')}
-                                  />
-                                ) : (
-                                  <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                                    {equipment.cost_code}
-                                  </code>
                                 )}
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
@@ -940,46 +926,6 @@ export function StoreEquipmentView() {
                 </div>
                 
                 <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="cost_code" className="text-right font-medium text-gray-700 col-span-1">Cost Code</Label>
-                  <div className="col-span-3">
-                    {uniqueCostCodes.length > 0 ? (
-                      <Select
-                        value={newGenerator.cost_code || ''}
-                        onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}
-                      >
-                        <SelectTrigger className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300">
-                          <SelectValue placeholder="Select a cost code" />
-                        </SelectTrigger>
-                        <SelectContent className="border-gray-200 max-h-60">
-                          {uniqueCostCodes.map((code) => {
-                            // Find equipment with this cost code to get branch info
-                            const relatedEquipment = equipmentData.find(eq => eq.cost_code === code);
-                            const branchInfo = relatedEquipment ? ` (${relatedEquipment.branch})` : '';
-                            
-                            return (
-                              <SelectItem key={code} value={code} className="py-1.5">
-                                <div className="flex items-center text-sm">
-                                  <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded mr-1.5 text-blue-800">{code}</span>
-                                  {branchInfo && <span className="text-gray-600 text-xs">{branchInfo}</span>}
-                                </div>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        id="cost_code"
-                        className="w-full h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                        placeholder="Enter cost code"
-                        value={newGenerator.cost_code || ''}
-                        onChange={(e) => handleNewGeneratorChange('cost_code', e.target.value)}
-                      />
-                    )}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-2">
                   <Label htmlFor="ip_address" className="text-right font-medium text-gray-700 col-span-1">IP Address</Label>
                   <Input
                     id="ip_address"
@@ -1133,46 +1079,6 @@ export function StoreEquipmentView() {
                   value={newGenerator.company || ''}
                   onChange={(e) => handleNewGeneratorChange('company', e.target.value)}
                 />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="cost_code" className="text-right font-medium text-gray-700 col-span-1">Cost Code</Label>
-                <div className="col-span-3">
-                  {uniqueCostCodes.length > 0 ? (
-                    <Select
-                      value={newGenerator.cost_code || ''}
-                      onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}
-                    >
-                      <SelectTrigger className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300">
-                        <SelectValue placeholder="Select a cost code" />
-                      </SelectTrigger>
-                      <SelectContent className="border-gray-200 max-h-60">
-                        {uniqueCostCodes.map((code) => {
-                          // Find equipment with this cost code to get branch info
-                          const relatedEquipment = equipmentData.find(eq => eq.cost_code === code);
-                          const branchInfo = relatedEquipment ? ` (${relatedEquipment.branch})` : '';
-                          
-                          return (
-                            <SelectItem key={code} value={code} className="py-1.5">
-                              <div className="flex items-center text-sm">
-                                <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded mr-1.5 text-blue-800">{code}</span>
-                                {branchInfo && <span className="text-gray-600 text-xs">{branchInfo}</span>}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      id="cost_code"
-                      className="w-full h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                      placeholder="Enter cost code"
-                      value={newGenerator.cost_code || ''}
-                      onChange={(e) => handleNewGeneratorChange('cost_code', e.target.value)}
-                    />
-                  )}
-                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-2">
