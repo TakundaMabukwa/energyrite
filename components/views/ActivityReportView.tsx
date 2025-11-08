@@ -109,16 +109,20 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     }
   };
 
-  // Format timestamp to readable time (e.g., "2025-11-07T12:30:42.621+00:00" -> "12:30")
+  // Format timestamp to readable period (e.g., "2025-11-07T12:30:42.621+00:00" -> "Afternoon")
   const formatPeakTime = (timestamp: string): string => {
     if (!timestamp) return "-";
     try {
       const date = new Date(timestamp);
-      return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      });
+      const hour = date.getHours();
+      
+      if (hour >= 0 && hour < 8) {
+        return "Morning";
+      } else if (hour >= 8 && hour < 16) {
+        return "Afternoon";
+      } else {
+        return "Evening";
+      }
     } catch (error) {
       return "-";
     }
