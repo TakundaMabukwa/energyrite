@@ -322,8 +322,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
         updated_at: vehicle.updated_at,
         anomaly: !!vehicle.fuel_anomaly,
-        anomalyNote: vehicle.fuel_anomaly_note || '',
-        clientNote: vehicle.notes || '', // Use 'notes' to test the working pattern
+        anomalyNote: vehicle.notes || '', // System notes (restricted to @soltrack.co.za)
+        clientNote: vehicle.client_notes || '', // Client notes (visible to everyone)
         lastFuelFill: vehicle.lastFuelFill,
         vehicleData: vehicle, // Pass the full vehicle data for API calls
 

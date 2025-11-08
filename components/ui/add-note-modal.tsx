@@ -56,7 +56,7 @@ export function AddNoteModal({
         cost_code: vehicleData?.cost_code || null,
         ip_address: vehicleData?.ip_address || null,
         volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
-        notes: note.trim() // Use 'notes' like the working equipment pattern
+        client_notes: note.trim() // Use client_notes for public notes
       };
 
       console.log('🔍 Sending payload:', updatePayload);
@@ -115,7 +115,7 @@ export function AddNoteModal({
         cost_code: vehicleData?.cost_code || null,
         ip_address: vehicleData?.ip_address || null,
         volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
-        notes: null // Clear the note
+        client_notes: null // Clear the client note
       };
 
       console.log('🗑️ Removing note for vehicle:', vehicleId);
@@ -167,7 +167,7 @@ export function AddNoteModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <NotebookPen className="w-5 h-5 text-blue-600" />
-            Add Note - {vehicleLocation}
+            Add Client Note - {vehicleLocation}
           </DialogTitle>
         </DialogHeader>
         
@@ -178,13 +178,13 @@ export function AddNoteModal({
               id="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Enter your note about this fuel gauge..."
+              placeholder="Enter your client note about this fuel gauge..."
               rows={4}
               className="min-h-[100px] resize-none"
-              disabled={isSaving}
+              disabled={isSaving || isRemoving}
             />
             <p className="text-xs text-gray-500">
-              Add maintenance notes, observations, or any relevant information about this fuel gauge.
+              Add client notes, observations, or any relevant information about this fuel gauge.
             </p>
           </div>
         </div>
