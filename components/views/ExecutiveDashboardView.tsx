@@ -12,6 +12,7 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useToast } from '@/hooks/use-toast';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ExecutiveDashboardViewProps {
   onBack?: () => void;
@@ -78,6 +79,47 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   });
   const [selectedCostCode, setSelectedCostCode] = useState('');
 
+  // Helper functions for date picker
+  const getMonthOptions = () => {
+    const months = [
+      { value: '01', label: 'January' },
+      { value: '02', label: 'February' },
+      { value: '03', label: 'March' },
+      { value: '04', label: 'April' },
+      { value: '05', label: 'May' },
+      { value: '06', label: 'June' },
+      { value: '07', label: 'July' },
+      { value: '08', label: 'August' },
+      { value: '09', label: 'September' },
+      { value: '10', label: 'October' },
+      { value: '11', label: 'November' },
+      { value: '12', label: 'December' }
+    ];
+    return months;
+  };
+
+  const getYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear - 2; year <= currentYear + 1; year++) {
+      years.push({ value: year.toString(), label: year.toString() });
+    }
+    return years;
+  };
+
+  const getSelectedMonthValue = () => selectedMonth.split('-')[1];
+  const getSelectedYearValue = () => selectedMonth.split('-')[0];
+
+  const handleMonthChange = (month: string) => {
+    const year = getSelectedYearValue();
+    setSelectedMonth(`${year}-${month}`);
+  };
+
+  const handleYearChange = (year: string) => {
+    const month = getSelectedMonthValue();
+    setSelectedMonth(`${year}-${month}`);
+  };
+
   const getCostCenterDisplayName = (costCode: string) => {
     const costCenterNames: Record<string, string> = {
       'KFC-0001-0001-0002-0004': 'KFC Main Branch',
@@ -113,13 +155,24 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('🔍 isAdmin:', isAdmin, 'selectedCostCode:', selectedCostCode);
       console.log('🔍 selectedRoute:', selectedRoute);
       console.log('🔍 userCostCode:', userCostCode);
+      console.log('🔍 Selected month for filtering:', selectedMonth);
+      
+      // Calculate date range from selectedMonth
+      const [year, month] = selectedMonth.split('-');
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
+      const startDateString = startDate.toISOString().split('T')[0];
+      const endDateString = endDate.toISOString().split('T')[0];
+      
+      console.log('🔍 Date range for filtering:', startDateString, 'to', endDateString);
       
       // Fetch from new executive dashboard endpoint
       const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
       const params = new URLSearchParams();
       // Build enhanced dashboard parameters
       const enhancedParams = new URLSearchParams();
-      enhancedParams.append('period', '30'); // Default 30-day period
+      enhancedParams.append('start_date', startDateString);
+      enhancedParams.append('end_date', endDateString);
       if (costCodeFilter) {
         enhancedParams.append('cost_code', costCodeFilter);
       }
@@ -222,10 +275,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         setLongRunningData([]);
       }
 
-      // Fetch activity report data
+      // Fetch activity report data using selected month range
       const activityParams = new URLSearchParams();
-      const today = new Date().toISOString().split('T')[0];
-      activityParams.append('date', today);
+      activityParams.append('start_date', startDateString);
+      activityParams.append('end_date', endDateString);
       if (siteIdFilter) {
         activityParams.append('site_id', siteIdFilter);
       } else if (costCodeFilter) {
@@ -262,9 +315,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         }
       }
 
-      // Fetch snapshot data for 3-period fuel usage analysis
+      // Fetch snapshot data for 3-period fuel usage analysis using selected month range
       const snapshotParams = new URLSearchParams();
-      snapshotParams.append('date', today);
+      snapshotParams.append('start_date', startDateString);
+      snapshotParams.append('end_date', endDateString);
       snapshotParams.append('include_hierarchy', 'true');
       if (siteIdFilter) {
         snapshotParams.append('site_id', siteIdFilter);
@@ -281,52 +335,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         
         if (snapshotResult.success && snapshotResult.data) {
           setSnapshotData(snapshotResult.data);
-          
-          // Calculate 3-period fuel consumption from snapshots
-          const snapshots = snapshotResult.data.snapshots || [];
-          
-          // Group snapshots by period
-          const morningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MORNING');
-          const middaySnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MIDDAY');
-          const eveningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'EVENING');
-          
-          // Calculate fuel consumption for each period (beginning - end of period)
-          const morningFuelUsed = morningSnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.1); // Estimate 10% usage during period
-          }, 0);
-          
-          const middayFuelUsed = middaySnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.15); // Estimate 15% usage during midday
-          }, 0);
-          
-          const eveningFuelUsed = eveningSnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.12); // Estimate 12% usage during evening
-          }, 0);
-          
-          // Ensure no NaN values
-          const morningValue = isNaN(morningFuelUsed) ? 0 : morningFuelUsed;
-          const middayValue = isNaN(middayFuelUsed) ? 0 : middayFuelUsed;
-          const eveningValue = isNaN(eveningFuelUsed) ? 0 : eveningFuelUsed;
-          
-          setPeriodFuelUsageData([
-            { label: 'Morning (6AM-12PM)', value: morningValue, color: '#10B981' }, // Green
-            { label: 'Afternoon (12PM-6PM)', value: middayValue, color: '#A0A0A0' }, // Light grey
-            { label: 'Evening (6PM-10PM)', value: eveningValue, color: '#87CEEB' }  // Light blue
-          ]);
-          
-          console.log('📊 Period fuel consumption calculated:', { morningValue, middayValue, eveningValue });
+          console.log('✅ Snapshot data set for selected month range');
         }
       } else {
-        console.warn('⚠️ Could not fetch snapshot data for fuel period analysis');
-        // Set default period data
-        setPeriodFuelUsageData([
-          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
-          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
-          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
-        ]);
+        console.warn('⚠️ Could not fetch snapshot data for selected month range');
       }
       
     } catch (err) {
@@ -366,15 +378,112 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     }
   }, [toast, isAdmin, selectedRoute, userCostCode, selectedMonth]);
 
+  // Separate function to fetch fuel consumption data for previous day only
+  const fetchPreviousDayFuelConsumption = useCallback(async () => {
+    try {
+      console.log('⛽ Fetching previous day fuel consumption data...');
+      
+      // Calculate previous day date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      
+      // Priority: site_id > selectedRoute.costCode > userCostCode
+      const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
+      const siteIdFilter = userSiteId || null;
+      
+      // Fetch snapshot data for previous day only
+      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const snapshotParams = new URLSearchParams();
+      snapshotParams.append('date', yesterdayDate);
+      snapshotParams.append('include_hierarchy', 'true');
+      if (siteIdFilter) {
+        snapshotParams.append('site_id', siteIdFilter);
+      } else if (costCodeFilter) {
+        snapshotParams.append('cost_code', costCodeFilter);
+      }
+      
+      console.log('📸 Fetching snapshot data for previous day fuel period analysis...', yesterdayDate);
+      
+      const snapshotRes = await fetch(`${baseUrl}/api/energy-rite/reports/snapshots?${snapshotParams.toString()}`);
+      if (snapshotRes.ok) {
+        const snapshotResult = await snapshotRes.json();
+        console.log('✅ Previous day snapshot data received:', snapshotResult);
+        
+        if (snapshotResult.success && snapshotResult.data) {
+          // Calculate 3-period fuel consumption from snapshots
+          const snapshots = snapshotResult.data.snapshots || [];
+          
+          // Group snapshots by period
+          const morningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MORNING');
+          const middaySnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MIDDAY');
+          const eveningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'EVENING');
+          
+          // Calculate fuel consumption for each period (beginning - end of period)
+          const morningFuelUsed = morningSnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.1); // Estimate 10% usage during period
+          }, 0);
+          
+          const middayFuelUsed = middaySnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.15); // Estimate 15% usage during midday
+          }, 0);
+          
+          const eveningFuelUsed = eveningSnapshots.reduce((sum: number, s: any) => {
+            const fuelVolume = parseFloat(s.fuel_volume) || 0;
+            return sum + (fuelVolume * 0.12); // Estimate 12% usage during evening
+          }, 0);
+          
+          // Ensure no NaN values
+          const morningValue = isNaN(morningFuelUsed) ? 0 : morningFuelUsed;
+          const middayValue = isNaN(middayFuelUsed) ? 0 : middayFuelUsed;
+          const eveningValue = isNaN(eveningFuelUsed) ? 0 : eveningFuelUsed;
+          
+          setPeriodFuelUsageData([
+            { label: 'Morning (6AM-12PM)', value: morningValue, color: '#10B981' }, // Green
+            { label: 'Afternoon (12PM-6PM)', value: middayValue, color: '#A0A0A0' }, // Light grey
+            { label: 'Evening (6PM-10PM)', value: eveningValue, color: '#87CEEB' }  // Light blue
+          ]);
+          
+          console.log('📊 Previous day period fuel consumption calculated:', { morningValue, middayValue, eveningValue });
+        }
+      } else {
+        console.warn('⚠️ Could not fetch previous day snapshot data for fuel period analysis');
+        // Set default period data
+        setPeriodFuelUsageData([
+          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
+          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
+          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
+        ]);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error fetching previous day fuel consumption data:', err);
+      // Set default period data on error
+      setPeriodFuelUsageData([
+        { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
+        { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
+        { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
+      ]);
+    }
+  }, [selectedRoute, userCostCode, userSiteId]);
+
   useEffect(() => {
     // Auto-fetch overall data on load
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchPreviousDayFuelConsumption();
+  }, []);
 
-  // Auto-fetch data when month changes
+  // Auto-fetch data when month changes or filters change
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedRoute, userCostCode, userSiteId]);
+
+  // Auto-fetch fuel consumption data when filters change
+  useEffect(() => {
+    fetchPreviousDayFuelConsumption();
+  }, [selectedRoute, userCostCode, userSiteId]);
 
   if (loading) {
     return (
@@ -416,12 +525,32 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                 <p className="text-gray-600">{getBreadcrumbPath()}</p>
               </div>
               <div className="flex items-center gap-3">
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <div className="flex items-center gap-2">
+                  <Select value={getSelectedMonthValue()} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getMonthOptions().map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={getSelectedYearValue()} onValueChange={handleYearChange}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getYearOptions().map((year) => (
+                        <SelectItem key={year.value} value={year.value}>
+                          {year.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button onClick={fetchDashboardData} size="sm">
                   <RefreshCw className="mr-2 w-4 h-4" />
                   Update
