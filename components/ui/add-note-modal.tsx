@@ -167,7 +167,7 @@ export function AddNoteModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <NotebookPen className="w-5 h-5 text-blue-600" />
-            Add Client Note - {vehicleLocation}
+            Add Note - {vehicleLocation}
           </DialogTitle>
         </DialogHeader>
         
@@ -183,9 +183,6 @@ export function AddNoteModal({
               className="min-h-[100px] resize-none"
               disabled={isSaving || isRemoving}
             />
-            <p className="text-xs text-gray-500">
-              Add client notes, observations, or any relevant information about this fuel gauge.
-            </p>
           </div>
         </div>
         
