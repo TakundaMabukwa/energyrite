@@ -7,19 +7,21 @@ export async function GET(request: NextRequest) {
     const costCode = searchParams.get('cost_code') || searchParams.get('costCode');
     const siteId = searchParams.get('site_id');
 
-    console.log('📊 Activity Report Request:', { date, costCode, siteId });
+    console.log('📊 Daily Activity Report Request:', { date, costCode, siteId });
 
-    // Set default date to today if not provided
-    const reportDate = date || new Date().toISOString().split('T')[0];
+    // Set default date to yesterday if not provided
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const reportDate = date || yesterday.toISOString().split('T')[0];
 
-    // Build parameters for external API call
+    // Build parameters for external API call - focus on daily stats only
     const params = new URLSearchParams();
     params.append('date', reportDate);
     
     if (siteId) {
       params.append('site_id', siteId);
     } else if (costCode) {
-      params.append('costCode', costCode);
+      params.append('cost_code', costCode);
     }
 
     // Forward the request to the external API
@@ -48,11 +50,9 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Activity reports data received successfully');
 
-    // Return the data in the expected format
-    return NextResponse.json({
-      success: true,
-      data: data
-    });
+    // The external API already returns data in the format {"success": true, "data": {...}}
+    // So we can just return it directly without double-wrapping
+    return NextResponse.json(data);
 
   } catch (error) {
     console.error('❌ Activity reports error:', error);

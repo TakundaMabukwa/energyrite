@@ -114,8 +114,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('🔍 selectedRoute:', selectedRoute);
       console.log('🔍 userCostCode:', userCostCode);
       
-      // Fetch from new executive dashboard endpoint
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      // Use local Next.js API routes instead of external API to avoid CORS issues
       const params = new URLSearchParams();
       // Build enhanced dashboard parameters
       const enhancedParams = new URLSearchParams();
@@ -125,9 +124,9 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       }
       const enhancedQueryString = enhancedParams.toString() ? `?${enhancedParams.toString()}` : '';
       
-      console.log('🔍 Enhanced API URL:', `${baseUrl}/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
+      console.log('🔍 Enhanced API URL:', `/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
       
-      const dashboardRes = await fetch(`${baseUrl}/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
+      const dashboardRes = await fetch(`/api/energy-rite/enhanced-executive-dashboard${enhancedQueryString}`);
       
       if (!dashboardRes.ok) {
         throw new Error('Failed to fetch executive dashboard data');
@@ -232,7 +231,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         activityParams.append('cost_code', costCodeFilter);
       }
       
-      const activityRes = await fetch(`${baseUrl}/api/energy-rite/reports/activity?${activityParams.toString()}`);
+      const activityRes = await fetch(`/api/energy-rite/reports/activity?${activityParams.toString()}`);
       if (activityRes.ok) {
         const activityData = await activityRes.json();
         if (activityData.success && activityData.data) {

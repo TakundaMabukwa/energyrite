@@ -136,8 +136,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
       const siteIdFilter = userSiteId || null;
       
-      // Fetch from activity reports endpoint
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      // Use local Next.js API route instead of external API to avoid CORS issues
       const params = new URLSearchParams();
       params.append('date', selectedDate);
       if (siteIdFilter) {
@@ -151,7 +150,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       
       console.log('🔍 API call params:', params.toString(), 'costCodeFilter:', costCodeFilter);
       
-      const reportsRes = await fetch(`${baseUrl}/api/energy-rite/reports/activity?${params.toString()}`);
+      const reportsRes = await fetch(`/api/energy-rite/reports/activity?${params.toString()}`);
       
       if (!reportsRes.ok) {
         throw new Error('Failed to fetch activity reports data');
@@ -161,15 +160,31 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       
       console.log('✅ Activity reports data received:', reportsData);
       console.log('🔍 API Data structure:', reportsData.data);
-      console.log('🔍 Fuel analysis:', reportsData.data?.fuel_analysis);
-      console.log('🔍 Sites data:', reportsData.data?.sites);
+      console.log('🔍 Site reports found:', reportsData.data?.data?.site_reports?.length || 0, 'sites');
       
       if (reportsData.success && reportsData.data) {
         // Transform the API response to match expected structure
-        const apiData = reportsData.data;
+        // The external API returns nested data: reportsData.data.data contains the actual data
+        const apiData = reportsData.data?.data || reportsData.data;
         
-        // Check if new API structure exists
-        if (apiData.fuel_analysis && apiData.sites) {
+        // Check if we have the correct API structure with site_reports
+        if (apiData.site_reports && Array.isArray(apiData.site_reports)) {
+          console.log('🆕 Using site_reports API structure');
+          const transformedData = {
+            period: apiData.period,
+            total_sites: apiData.total_sites,
+            overall_peak_time_slot: apiData.overall_peak_time_slot,
+            overall_peak_usage: apiData.overall_peak_usage,
+            site_reports: apiData.site_reports,
+            time_slot_totals: apiData.time_slot_totals || {
+              morning_to_afternoon: 0,
+              afternoon_to_evening: 0,
+              morning_to_evening: 0
+            },
+            summary: apiData.summary
+          };
+          setReportData(transformedData);
+        } else if (apiData.fuel_analysis && apiData.sites) {
           console.log('🆕 Using new API structure');
           const transformedData = {
             summary: apiData.summary,
@@ -244,7 +259,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
     try {
       setGeneratingExcel(true);
       
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      // Use local Next.js API route for downloads as well
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
       const params = new URLSearchParams();
       if (costCodeFilter) {
@@ -255,7 +270,7 @@ export function ActivityReportView({ onBack }: ActivityReportViewProps) {
       }
       params.append('format', 'excel');
       
-      const downloadUrl = `${baseUrl}/api/energy-rite/reports/activity/download?${params.toString()}`;
+      const downloadUrl = `/api/energy-rite/reports/activity/download?${params.toString()}`;
       
       // Create a temporary anchor element to trigger download
       const link = document.createElement('a');

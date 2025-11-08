@@ -142,12 +142,10 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         selectedDate,
         selectedPeriod,
         requestBody,
-        apiUrl: `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`
+        apiUrl: `/api/energy-rite/excel-reports/generate`
       });
       
-      const apiUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`;
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`/api/energy-rite/excel-reports/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -185,12 +183,12 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       });
       
     } catch (error) {
-      console.error(`Error generating report:`, error);
+      console.error(`Error generating Excel:`, error);
       
       let errorMessage = 'Unknown error occurred';
       if (error instanceof Error) {
         if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
-          errorMessage = `API server not accessible at ${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}. Please check if the server is running.`;
+          errorMessage = `API server not accessible. Please check if the server is running.`;
         } else {
           errorMessage = error.message;
         }
@@ -234,10 +232,9 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       
       console.log('📊 Request body:', requestBody);
       
-      const apiUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`;
-      console.log('🌐 API URL:', apiUrl);
+      console.log('🌐 API URL:', `/api/energy-rite/excel-reports/generate`);
       
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`/api/energy-rite/excel-reports/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
