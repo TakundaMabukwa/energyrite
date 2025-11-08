@@ -24,7 +24,7 @@ export async function PUT(
     // Define allowed fields that can be updated
     const allowedFields = [
       'branch', 'company', 'cost_code', 'ip_address', 'volume', 'notes',
-      'fuel_anomaly_note', 'status'
+      'fuel_anomaly_note', 'status', 'client_notes'
     ];
     
     for (const field of allowedFields) {

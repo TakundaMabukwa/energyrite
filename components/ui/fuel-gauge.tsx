@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Thermometer, Droplets, Gauge, Clock, NotebookPen, Fuel } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { AddNoteModal } from '@/components/ui/add-note-modal';
+import { useUser } from '@/contexts/UserContext';
 
 interface FuelGaugeProps {
   location: string;
@@ -19,6 +20,7 @@ interface FuelGaugeProps {
   lastUpdated: string;
   updated_at?: string;
   anomalyNote?: string;
+  clientNote?: string;
   anomaly?: boolean;
   lastFuelFill?: {
     time: string;
@@ -32,6 +34,7 @@ interface FuelGaugeProps {
     low?: string;
   };
   id?: string | number;
+  vehicleData?: any; // Add vehicle data for API calls
   onNoteUpdate?: (vehicleId: string | number, note: string) => void;
 }
 
@@ -45,15 +48,22 @@ export function FuelGauge({
   lastUpdated,
   updated_at,
   anomalyNote,
+  clientNote,
   anomaly,
   lastFuelFill,
   className,
   colorCodes,
   id,
+  vehicleData,
   onNoteUpdate
 }: FuelGaugeProps) {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState(anomalyNote || '');
+  const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
+  const { user } = useUser();
+  
+  // Check if user email contains @soltrack.co.za
+  const canViewNotes = user?.email?.includes('@soltrack.co.za') || false;
   
   const radius = 80;
   const strokeWidth = 12;
@@ -89,7 +99,7 @@ export function FuelGauge({
   };
 
   const handleNoteAdded = (note: string) => {
-    setCurrentNote(note);
+    setCurrentClientNote(note);
     if (onNoteUpdate && id) {
       onNoteUpdate(id, note);
     }
@@ -106,7 +116,7 @@ export function FuelGauge({
       {/* Header */}
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
-        {currentNote && (
+        {canViewNotes && currentNote && (
           <div className={cn(
             "mb-2 p-2 rounded-lg border",
             anomaly 
@@ -122,6 +132,15 @@ export function FuelGauge({
                 "text-xs text-left break-words",
                 anomaly ? "text-red-700" : "text-blue-700"
               )}>{currentNote}</span>
+            </div>
+          </div>
+        )}
+        {/* Client Notes - Always visible to everyone */}
+        {currentClientNote && (
+          <div className="mb-2 p-2 rounded-lg border bg-green-50 border-green-200">
+            <div className="flex items-start gap-1 text-green-800">
+              <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-left break-words text-green-700">{currentClientNote}</span>
             </div>
           </div>
         )}
@@ -281,7 +300,8 @@ export function FuelGauge({
         onClose={() => setIsNoteModalOpen(false)}
         vehicleId={id || 'unknown'}
         vehicleLocation={location}
-        currentNote={currentNote}
+        currentNote={currentClientNote}
+        vehicleData={vehicleData}
         onNoteAdded={handleNoteAdded}
       />
     </div>

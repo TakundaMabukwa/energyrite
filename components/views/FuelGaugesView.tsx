@@ -32,6 +32,7 @@ interface FuelConsumptionData {
   fuel_anomaly?: string;
   fuel_anomaly_note?: string;
   notes?: string | null;
+  client_notes?: string | null;
   lastFuelFill?: FuelFill;
 
 }
@@ -58,7 +59,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
     setFuelConsumptionData(prev => 
       prev.map(vehicle => 
         vehicle.id === vehicleId 
-          ? { ...vehicle, notes: note }
+          ? { ...vehicle, client_notes: note }
           : vehicle
       )
     );
@@ -151,6 +152,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
           fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
           notes: vehicle.notes,
+          client_notes: vehicle.client_notes,
 
           lastFuelFill: undefined // Will be populated below
         };
@@ -320,8 +322,10 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
         updated_at: vehicle.updated_at,
         anomaly: !!vehicle.fuel_anomaly,
-        anomalyNote: vehicle.notes || vehicle.fuel_anomaly_note || '',
+        anomalyNote: vehicle.fuel_anomaly_note || '',
+        clientNote: vehicle.notes || '', // Use 'notes' to test the working pattern
         lastFuelFill: vehicle.lastFuelFill,
+        vehicleData: vehicle, // Pass the full vehicle data for API calls
 
       });
     })
@@ -384,8 +388,10 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 lastUpdated={data.lastUpdated}
                 updated_at={data.updated_at}
                 anomalyNote={data.anomalyNote}
+                clientNote={data.clientNote}
                 anomaly={data.anomaly}
                 lastFuelFill={data.lastFuelFill}
+                vehicleData={data.vehicleData}
                 onNoteUpdate={handleNoteUpdate}
                 colorCodes={fuelGaugeColors}
                 className="hover:scale-105 transition-transform duration-200 transform"

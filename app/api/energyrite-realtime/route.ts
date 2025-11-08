@@ -106,7 +106,8 @@ export async function GET(request: NextRequest) {
               fuel_anomaly,
               fuel_anomaly_note,
               last_anomaly_time,
-              created_at
+              created_at,
+              client_notes
             FROM energyrite_vehicles 
             ORDER BY updated_at DESC 
             LIMIT 50

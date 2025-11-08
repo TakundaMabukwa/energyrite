@@ -101,7 +101,8 @@ export async function GET(request: NextRequest) {
       fuel_anomaly_note,
       last_anomaly_time,
       created_at,
-      notes
+      notes,
+      client_notes
     FROM energyrite_vehicles
     ${where}
     ORDER BY updated_at DESC

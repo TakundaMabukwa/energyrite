@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { NotebookPen, X } from 'lucide-react';
+import { NotebookPen, X, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddNoteModalProps {
@@ -14,6 +14,7 @@ interface AddNoteModalProps {
   vehicleId: string | number;
   vehicleLocation: string;
   currentNote?: string;
+  vehicleData?: any; // Add vehicle data to include required fields
   onNoteAdded: (note: string) => void;
 }
 
@@ -23,10 +24,12 @@ export function AddNoteModal({
   vehicleId, 
   vehicleLocation, 
   currentNote = '', 
+  vehicleData,
   onNoteAdded 
 }: AddNoteModalProps) {
   const [note, setNote] = useState(currentNote);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,19 +49,34 @@ export function AddNoteModal({
     try {
       setIsSaving(true);
       
-      // Update the vehicle note via API
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles/${vehicleId}`, {
+      // Update the vehicle note via API using the same pattern as equipment updates
+      const updatePayload = {
+        branch: vehicleData?.branch || vehicleLocation,
+        company: vehicleData?.company || '',
+        cost_code: vehicleData?.cost_code || null,
+        ip_address: vehicleData?.ip_address || null,
+        volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
+        notes: note.trim() // Use 'notes' like the working equipment pattern
+      };
+
+      console.log('🔍 Sending payload:', updatePayload);
+      console.log('🔍 Vehicle ID:', vehicleId);
+      console.log('🔍 API URL:', `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`);
+
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          notes: note.trim()
-        })
+        body: JSON.stringify(updatePayload)
       });
+
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response ok:', response.ok);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log('❌ Error response data:', errorData);
         throw new Error(errorData.error || `Failed to save note: ${response.status}`);
       }
 
@@ -86,8 +104,58 @@ export function AddNoteModal({
     }
   };
 
+  const handleRemove = async () => {
+    try {
+      setIsRemoving(true);
+      
+      // Remove the note by setting it to empty/null
+      const updatePayload = {
+        branch: vehicleData?.branch || vehicleLocation,
+        company: vehicleData?.company || '',
+        cost_code: vehicleData?.cost_code || null,
+        ip_address: vehicleData?.ip_address || null,
+        volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
+        notes: null // Clear the note
+      };
+
+      console.log('🗑️ Removing note for vehicle:', vehicleId);
+
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to remove note: ${response.status}`);
+      }
+
+      // Call the callback to update parent component
+      onNoteAdded(''); // Empty string to clear the note
+
+      toast({
+        title: "Note removed",
+        description: `Note removed from ${vehicleLocation}`,
+      });
+
+      onClose();
+    } catch (error: any) {
+      console.error('Error removing note:', error);
+      toast({
+        title: "Error removing note",
+        description: error?.message || 'Failed to remove note. Please try again.',
+        variant: "destructive"
+      });
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   const handleClose = () => {
-    if (!isSaving) {
+    if (!isSaving && !isRemoving) {
       setNote(currentNote || '');
       onClose();
     }
@@ -125,15 +193,26 @@ export function AddNoteModal({
           <Button 
             variant="outline" 
             onClick={handleClose}
-            disabled={isSaving}
+            disabled={isSaving || isRemoving}
             className="flex items-center gap-2"
           >
             <X className="w-4 h-4" />
             Cancel
           </Button>
+          {currentNote && (
+            <Button 
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={isSaving || isRemoving}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              {isRemoving ? 'Removing...' : 'Remove Note'}
+            </Button>
+          )}
           <Button 
             onClick={handleSave}
-            disabled={isSaving || !note.trim()}
+            disabled={isSaving || isRemoving || !note.trim()}
             className="flex items-center gap-2"
           >
             <NotebookPen className="w-4 h-4" />

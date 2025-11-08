@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { HierarchicalTable } from '@/components/ui/hierarchical-table';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { useApp } from '@/contexts/AppContext';
+import { useUser } from '@/contexts/UserContext';
 import { Badge } from '@/components/ui/badge';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,8 +82,12 @@ interface VehicleEquipment {
 
 export function StoreEquipmentView() {
   const { costCenters, setSelectedRoute, activeTab, selectedRoute, vehicles } = useApp();
+  const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Check if user email contains @soltrack.co.za
+  const canViewNotes = user?.email?.includes('@soltrack.co.za') || false;
   
   const [showVehicles, setShowVehicles] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -720,7 +725,9 @@ export function StoreEquipmentView() {
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COST CODE</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">TANK VOLUME</th>
-                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">NOTES</th>
+                            {canViewNotes && (
+                              <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">NOTES</th>
+                            )}
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">ACTIONS</th>
                           </tr>
                         </thead>
@@ -804,26 +811,28 @@ export function StoreEquipmentView() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-4 py-4 text-gray-900 text-sm">
-                                {editingRowId === equipment.id ? (
-                                  <Textarea 
-                                    className="min-h-[60px] w-full py-1 px-2 text-xs"
-                                    value={editedEquipment?.notes || ''}
-                                    onChange={(e) => handleInputChange(e, 'notes')}
-                                    placeholder="Add notes..."
-                                  />
-                                ) : (
-                                  <div className="max-w-xs">
-                                    {equipment.notes ? (
-                                      <div className="text-xs text-gray-600 truncate" title={equipment.notes}>
-                                        {equipment.notes}
-                                      </div>
-                                    ) : (
-                                      <span className="text-gray-400 text-xs">No notes</span>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
+                              {canViewNotes && (
+                                <td className="px-4 py-4 text-gray-900 text-sm">
+                                  {editingRowId === equipment.id ? (
+                                    <Textarea 
+                                      className="min-h-[60px] w-full py-1 px-2 text-xs"
+                                      value={editedEquipment?.notes || ''}
+                                      onChange={(e) => handleInputChange(e, 'notes')}
+                                      placeholder="Add notes..."
+                                    />
+                                  ) : (
+                                    <div className="max-w-xs">
+                                      {canViewNotes && equipment.notes ? (
+                                        <div className="text-xs text-gray-600 truncate" title={equipment.notes}>
+                                          {equipment.notes}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400 text-xs">No notes</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              )}
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
                                 {editingRowId === equipment.id ? (
                                   <div className="flex items-center gap-2">
