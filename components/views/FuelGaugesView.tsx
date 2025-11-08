@@ -315,7 +315,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         fuelLevel: percent || 0,
         temperature: parseFloat(vehicle.fuel_probe_1_temperature) || 25,
         volume: capacity,
-        remaining: `${capacity.toFixed(1)}L / ${remaining.toFixed(1)}L`,
+        remaining: `${remaining.toFixed(1)}L`,
         status: vehicle.current_status || '',
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
         updated_at: vehicle.updated_at,

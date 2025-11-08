@@ -226,7 +226,7 @@ export function FuelGauge({
               status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-800" 
                 : "text-gray-700"
-            )}>Rem: {remaining}</span>
+            )}>Remaining: {remaining}</span>
           </div>
         </div>
 
