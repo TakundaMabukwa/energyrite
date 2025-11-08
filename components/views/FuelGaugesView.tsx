@@ -52,6 +52,17 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
     medium: '#FFFF00', // yellow
     low: '#FF0000', // red
   });
+
+  // Handle note updates
+  const handleNoteUpdate = (vehicleId: string | number, note: string) => {
+    setFuelConsumptionData(prev => 
+      prev.map(vehicle => 
+        vehicle.id === vehicleId 
+          ? { ...vehicle, notes: note }
+          : vehicle
+      )
+    );
+  };
   
 
 
@@ -375,7 +386,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 anomalyNote={data.anomalyNote}
                 anomaly={data.anomaly}
                 lastFuelFill={data.lastFuelFill}
-
+                onNoteUpdate={handleNoteUpdate}
                 colorCodes={fuelGaugeColors}
                 className="hover:scale-105 transition-transform duration-200 transform"
               />

@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Thermometer, Droplets, Gauge, Clock, NotebookPen, Fuel } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
+import { AddNoteModal } from '@/components/ui/add-note-modal';
 
 interface FuelGaugeProps {
   location: string;
@@ -31,6 +32,7 @@ interface FuelGaugeProps {
     low?: string;
   };
   id?: string | number;
+  onNoteUpdate?: (vehicleId: string | number, note: string) => void;
 }
 
 export function FuelGauge({
@@ -47,8 +49,12 @@ export function FuelGauge({
   lastFuelFill,
   className,
   colorCodes,
-  id
+  id,
+  onNoteUpdate
 }: FuelGaugeProps) {
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [currentNote, setCurrentNote] = useState(anomalyNote || '');
+  
   const radius = 80;
   const strokeWidth = 12;
   const normalizedRadius = radius - strokeWidth * 2;
@@ -82,6 +88,13 @@ export function FuelGauge({
     return colors.high;
   };
 
+  const handleNoteAdded = (note: string) => {
+    setCurrentNote(note);
+    if (onNoteUpdate && id) {
+      onNoteUpdate(id, note);
+    }
+  };
+
   return (
     <div className={cn(
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
@@ -93,7 +106,7 @@ export function FuelGauge({
       {/* Header */}
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
-        {anomalyNote && (
+        {currentNote && (
           <div className={cn(
             "mb-2 p-2 rounded-lg border",
             anomaly 
@@ -108,7 +121,7 @@ export function FuelGauge({
               <span className={cn(
                 "text-xs text-left break-words",
                 anomaly ? "text-red-700" : "text-blue-700"
-              )}>{anomalyNote}</span>
+              )}>{currentNote}</span>
             </div>
           </div>
         )}
@@ -232,6 +245,19 @@ export function FuelGauge({
           )}>{lastUpdated}</span>
         </div>
 
+        {/* Add Note Button */}
+        <div className="mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full h-8 text-xs font-medium hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+            onClick={() => setIsNoteModalOpen(true)}
+          >
+            <NotebookPen className="w-3 h-3 mr-1" />
+            Add Note
+          </Button>
+        </div>
+
         {/* Last Fuel Fill Information */}
         {lastFuelFill && (
           <div className="bg-green-50 p-2 rounded-lg">
@@ -248,6 +274,16 @@ export function FuelGauge({
           </div>
         )}
       </div>
+
+      {/* Add Note Modal */}
+      <AddNoteModal
+        isOpen={isNoteModalOpen}
+        onClose={() => setIsNoteModalOpen(false)}
+        vehicleId={id || 'unknown'}
+        vehicleLocation={location}
+        currentNote={currentNote}
+        onNoteAdded={handleNoteAdded}
+      />
     </div>
   );
 }
