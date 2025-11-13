@@ -12,6 +12,7 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
+import { getReportsApiUrl } from '@/lib/utils/api-url';
 
 interface ActivityReportViewProps {
   onBack?: () => void;
@@ -142,7 +143,7 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
       const siteIdFilter = userSiteId || null;
       
       // Fetch from activity reports endpoint
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const baseUrl = getReportsApiUrl('');
       const params = new URLSearchParams();
       params.append('date', selectedDate);
       if (siteIdFilter) {
@@ -249,7 +250,7 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     try {
       setGeneratingExcel(true);
       
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const baseUrl = getReportsApiUrl('');
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
       const params = new URLSearchParams();
       if (costCodeFilter) {

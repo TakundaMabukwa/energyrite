@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { costCenterService, HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
 import { getLastFuelFill } from '@/lib/fuel-fill-detector';
 import { useUser } from './UserContext';
+import { getApiUrl } from '@/lib/utils/api-url';
 
 interface Route {
   id: string;
@@ -128,7 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCostCenters(costCentersData);
         
         // Load all vehicles
-        const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles`);
+        const resp = await fetch(getApiUrl('/api/energy-rite/vehicles'));
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success && Array.isArray(json.data)) {
@@ -142,7 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.log('👤 Regular user - loading data for cost code:', userCostCode);
         
         // Load vehicles filtered by cost code
-        const resp = await fetch(`http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles?cost_code=${userCostCode}`);
+        const resp = await fetch(getApiUrl(`/api/energy-rite/vehicles?cost_code=${userCostCode}`));
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success && Array.isArray(json.data)) {

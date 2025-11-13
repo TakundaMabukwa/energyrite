@@ -10,6 +10,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { ActivityReportView } from './ActivityReportView';
+import { getReportsApiUrl } from '@/lib/utils/api-url';
 
 interface FuelReportsViewProps {
   onBack: () => void;
@@ -152,10 +153,10 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         selectedDate,
         selectedPeriod,
         requestBody,
-        apiUrl: `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`
+        apiUrl: getReportsApiUrl('/api/energy-rite/excel-reports/generate')
       });
       
-      const apiUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`;
+      const apiUrl = getReportsApiUrl('/api/energy-rite/excel-reports/generate');
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -255,7 +256,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       
       console.log('📊 Request body:', requestBody);
       
-      const apiUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}/api/energy-rite/excel-reports/generate`;
+      const apiUrl = getReportsApiUrl('/api/energy-rite/excel-reports/generate');
       console.log('🌐 API URL:', apiUrl);
       
       const response = await fetch(apiUrl, {
