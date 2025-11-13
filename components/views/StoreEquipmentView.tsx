@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { getApiUrl } from '@/lib/utils/api-url';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -119,7 +120,7 @@ export function StoreEquipmentView() {
       setLoading(true);
       setError(null);
       
-      let url = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite-reports/realtime-dashboard`;
+      let url = getApiUrl('/api/energy-rite-reports/realtime-dashboard');
       
       // Add cost center specific parameters if provided
       if (costCenter) {
@@ -326,7 +327,7 @@ export function StoreEquipmentView() {
     
     if (confirm(`Are you sure you want to delete ${equipment.branch}?`)) {
       try {
-        const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${equipment.id}?confirm=true`, {
+        const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${equipment.id}?confirm=true` : `/api/energy-rite/vehicles/${equipment.id}?confirm=true`, {
           method: 'DELETE',
         });
         
@@ -380,7 +381,7 @@ export function StoreEquipmentView() {
       };
       
       // Use the correct API URL as shown in the curl examples
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -468,7 +469,7 @@ export function StoreEquipmentView() {
       };
       
       // Send the request to create a new generator
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles` : '/api/energy-rite/vehicles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

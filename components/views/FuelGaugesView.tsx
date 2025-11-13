@@ -12,6 +12,7 @@ import { getLastFuelFill, FuelFill } from '@/lib/fuel-fill-detector';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
+import { getApiUrl } from '@/lib/utils/api-url';
 
 interface FuelGaugesViewProps {
   onBack: () => void;
@@ -71,7 +72,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   const fetchColorCodes = async () => {
     try {
       const costCode = (selectedRoute as any)?.costCode;
-      const url = `http://${process.env.NEXT_PUBLIC_SERVER_URL}/api/energy-rite/vehicles?limit=1${costCode ? `&costCode=${costCode}` : ''}`;
+      const url = getApiUrl(`/api/energy-rite/vehicles?limit=1${costCode ? `&costCode=${costCode}` : ''}`);
       const response = await fetch(url);
       
       if (response.ok) {
@@ -163,8 +164,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         try {
           const today = new Date().toISOString().split('T')[0];
           const activityUrl = userSiteId 
-            ? `http://localhost:4000/api/energy-rite/reports/activity?date=${today}&site_id=${userSiteId}`
-            : `http://localhost:4000/api/energy-rite/reports/activity?date=${today}&cost_code=${costCode}`;
+            ? `/api/energy-rite/reports/activity?date=${today}&site_id=${userSiteId}`
+            : `/api/energy-rite/reports/activity?date=${today}&cost_code=${costCode}`;
           
           console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
           const activityResponse = await fetch(activityUrl);

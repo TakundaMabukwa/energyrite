@@ -13,6 +13,7 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import { useToast } from '@/hooks/use-toast';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getReportsApiUrl } from '@/lib/utils/api-url';
 
 interface ExecutiveDashboardViewProps {
   onBack?: () => void;
@@ -167,7 +168,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('🔍 Date range for filtering:', startDateString, 'to', endDateString);
       
       // Fetch from new executive dashboard endpoint
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const baseUrl = getReportsApiUrl('');
       const params = new URLSearchParams();
       // Build enhanced dashboard parameters
       const enhancedParams = new URLSearchParams();
@@ -393,7 +394,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       const siteIdFilter = userSiteId || null;
       
       // Fetch snapshot data for previous day only
-      const baseUrl = `http://${process.env.NEXT_PUBLIC_API_HOST}:${process.env.NEXT_PUBLIC_API_PORT}`;
+      const baseUrl = getReportsApiUrl('');
       const snapshotParams = new URLSearchParams();
       snapshotParams.append('date', yesterdayDate);
       snapshotParams.append('include_hierarchy', 'true');
