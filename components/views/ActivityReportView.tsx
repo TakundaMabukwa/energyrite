@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ActivityReportViewProps {
   onBack?: () => void;
+  initialDate?: string;
 }
 
 interface SiteReport {
@@ -69,14 +70,14 @@ interface ActivityReportData {
   };
 }
 
-export function ActivityReportView({ onBack }: ActivityReportViewProps) {
+export function ActivityReportView({ onBack, initialDate }: ActivityReportViewProps) {
   const { selectedRoute } = useApp();
   const { userCostCode, userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    return initialDate || new Date().toISOString().split('T')[0];
   });
   const [reportData, setReportData] = useState<ActivityReportData | null>(null);
   const [selectedCostCode, setSelectedCostCode] = useState('');

@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TopNavigation } from '@/components/layout/TopNavigation';
-import { Download, Fuel, RefreshCw, FileX, Plus, Calendar } from 'lucide-react';
+import { Download, Fuel, RefreshCw, FileX, Plus, Calendar, FileText } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
+import { ActivityReportView } from './ActivityReportView';
 
 interface FuelReportsViewProps {
   onBack: () => void;
@@ -96,6 +97,15 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   const [reportDocuments, setReportDocuments] = useState<ReportDocument[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [showDailyReport, setShowDailyReport] = useState(false);
+
+  const handleDailyReportClick = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    setSelectedDate(yesterday.toISOString().split('T')[0]);
+    setSelectedPeriod('day');
+    setShowDailyReport(true);
+  };
 
   // No need to fetch pre-made reports - we generate them on demand
       
@@ -222,12 +232,23 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       let costCode = selectedRoute?.costCode || userCostCode || null;
       let siteId = userSiteId || null;
       
+      // For daily reports, use yesterday's date
+      const reportDate = reportType === 'daily' 
+        ? (() => {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return yesterday.toISOString().split('T')[0];
+          })()
+        : selectedDate;
+      
       console.log('📊 Excel Report - Final cost code:', costCode);
       console.log('📊 Excel Report - Site ID:', siteId);
       console.log('📊 Excel Report - Report type:', reportType);
+      console.log('📊 Excel Report - Date:', reportDate);
       
       const requestBody = {
         report_type: reportType,
+        ...(reportType === 'daily' && { date: reportDate, target_date: reportDate }),
         ...(siteId && { site_id: siteId }),
         ...(costCode && !siteId && { cost_code: costCode })
       };
@@ -311,6 +332,18 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
     return 'Macsteel > HARVEY ROOFING PRODUCTS - DIV OF MSCSA (PTY) LTD > TRUCKS - (COST CODE: MACS-0001)';
   };
 
+  // Show ActivityReportView when daily report is requested
+  if (showDailyReport) {
+    return (
+      <div className="bg-gray-50 h-full">
+        <ActivityReportView 
+          onBack={() => setShowDailyReport(false)} 
+          initialDate={selectedDate}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-50 h-full">
       <TopNavigation />
@@ -335,6 +368,28 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 Real-time engine ON/OFF events with fuel calculations
               </p>
         </div>
+
+        {/* Daily Report Quick Access */}
+        <Card className="shadow-sm border border-blue-200 bg-blue-50 mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-medium text-blue-900">Daily Report</h3>
+                  <p className="text-blue-700 text-sm">View yesterday's activity report</p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleDailyReportClick}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <FileText className="mr-2 w-4 h-4" />
+                View Daily Report
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Custom Report Generator */}
         <Card className="shadow-sm border border-gray-200 mb-6">
@@ -374,6 +429,15 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
                 <Download className="mr-2 w-4 h-4" />
                 {loading ? 'Generating...' : 'Generate Report'}
               </Button>
+              {showDailyReport && (
+                <Button 
+                  onClick={() => setShowDailyReport(false)}
+                  variant="outline"
+                  className="border-gray-300"
+                >
+                  Back to Reports
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
