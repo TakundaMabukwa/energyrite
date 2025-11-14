@@ -75,6 +75,7 @@ export function FuelGauge({
   const strokeDashoffset = circumference - (fuelLevel / 100) * circumference;
 
   const getStatusColor = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-700 border-gray-200';
     if (status.includes('PTO ON') || status.includes('ENGINE ON')) return 'bg-green-100 text-green-700 border-green-200';
     if (status.includes('PTO OFF') || status.includes('ENGINE OFF')) return 'bg-gray-100 text-gray-700 border-gray-200';
     if (status.includes('Possible Fuel Fill')) return 'bg-orange-100 text-orange-700 border-orange-200';
