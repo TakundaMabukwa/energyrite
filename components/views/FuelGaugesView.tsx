@@ -112,50 +112,25 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
 
       const mapped: FuelConsumptionData[] = filtered.map((vehicle: any, index: number) => {
-        // Better string to number conversion with proper parsing
-        const percentage = parseFloat(vehicle.fuel_probe_1_level_percentage) || 0;
-        const capacity = parseFloat(vehicle.fuel_probe_1_volume_in_tank) || 0;
-        const remainingLiters = (Number.isFinite(capacity) && Number.isFinite(percentage))
-          ? (capacity * (percentage / 100))
-          : 0;
-
-        // Use drivername field for engine status, hide if null/unknown
-        const engineStatus = vehicle.drivername && vehicle.drivername.toLowerCase() !== 'unknown' ? vehicle.drivername : null;
-
-        // Use original time without shift
-        const lastMessageDate = vehicle.last_message_date || vehicle.updated_at || new Date().toISOString();
-
-        // Debug logging to help identify conversion issues
-        if (percentage === 0 || capacity === 0) {
-          console.log('Fuel data conversion debug:', {
-            id: vehicle.id,
-            branch: vehicle.branch,
-            raw_level_percentage: vehicle.fuel_probe_1_level_percentage,
-            raw_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank,
-            parsed_percentage: percentage,
-            parsed_capacity: capacity,
-            calculated_remaining: remainingLiters
-          });
-        }
-
         return {
-          id: vehicle.id || `vehicle-${index + 1}`,
-          plate: vehicle.plate || 'Unknown Plate',
-          branch: vehicle.branch || 'Unknown Branch',
-          company: vehicle.company || 'Unknown Company',
-          fuel_probe_1_level_percentage: Math.max(0, Math.min(100, percentage || 0)),
-          fuel_probe_1_volume_in_tank: Math.max(0, Number(capacity || 0)),
-          fuel_probe_2_level_percentage: parseFloat(vehicle.fuel_probe_2_level_percentage) || 0,
-          fuel_probe_2_volume_in_tank: parseFloat(vehicle.fuel_probe_2_volume_in_tank) || 0,
-          current_status: engineStatus,
-          last_message_date: lastMessageDate,
+          id: vehicle.id,
+          plate: vehicle.plate,
+          branch: vehicle.branch,
+          company: vehicle.company,
+          fuel_probe_1_level_percentage: parseFloat(vehicle.fuel_probe_1_level_percentage),
+          fuel_probe_1_volume_in_tank: parseFloat(vehicle.fuel_probe_1_volume_in_tank),
+          fuel_probe_2_level_percentage: parseFloat(vehicle.fuel_probe_2_level_percentage),
+          fuel_probe_2_volume_in_tank: parseFloat(vehicle.fuel_probe_2_volume_in_tank),
+          current_status: vehicle.drivername,
+          last_message_date: vehicle.last_message_date,
           updated_at: vehicle.updated_at,
-          fuel_anomaly: vehicle.fuel_anomaly || vehicle.theft || false,
-          fuel_anomaly_note: vehicle.fuel_anomaly_note || (vehicle.theft_time ? `Theft detected at ${vehicle.theft_time}` : ''),
+          fuel_anomaly: vehicle.fuel_anomaly,
+          fuel_anomaly_note: vehicle.fuel_anomaly_note,
           notes: vehicle.notes,
           client_notes: vehicle.client_notes,
-
-          lastFuelFill: undefined // Will be populated below
+          volume: parseFloat(vehicle.volume),
+          fuel_probe_1_temperature: parseFloat(vehicle.fuel_probe_1_temperature),
+          lastFuelFill: undefined
         };
       });
 
@@ -313,22 +288,21 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         const remaining = capacity * (percent / 100);
 
         return ({
-        id: vehicle.id || index + 1,
-        location: vehicle.branch || vehicle.plate || 'Unknown Location',
-        fuelLevel: percent || 0,
-        temperature: parseFloat(vehicle.fuel_probe_1_temperature) || 0,
-        volume: parseFloat(vehicle.volume) || capacity, // Total tank capacity
-        currentVolume: parseFloat(vehicle.fuel_probe_1_volume_in_tank) || remaining, // Current fuel volume
-        remaining: `${remaining.toFixed(1)}L`,
-        status: vehicle.current_status || '',
-        lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
+        id: vehicle.id,
+        location: vehicle.branch,
+        fuelLevel: vehicle.fuel_probe_1_level_percentage,
+        temperature: vehicle.fuel_probe_1_temperature,
+        volume: vehicle.volume,
+        currentVolume: vehicle.fuel_probe_1_volume_in_tank,
+        remaining: `${vehicle.fuel_probe_1_volume_in_tank}L`,
+        status: vehicle.current_status,
+        lastUpdated: formatForDisplay(vehicle.last_message_date),
         updated_at: vehicle.updated_at,
-        anomaly: !!vehicle.fuel_anomaly,
-        anomalyNote: vehicle.notes || '', // System notes (restricted to @soltrack.co.za)
-        clientNote: vehicle.client_notes || '', // Client notes (visible to everyone)
+        anomaly: vehicle.fuel_anomaly,
+        anomalyNote: vehicle.notes,
+        clientNote: vehicle.client_notes,
         lastFuelFill: vehicle.lastFuelFill,
-        vehicleData: vehicle, // Pass the full vehicle data for API calls
-
+        vehicleData: vehicle
       });
     })
     .sort((a, b) => {
