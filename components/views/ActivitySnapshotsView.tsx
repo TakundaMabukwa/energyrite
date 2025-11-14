@@ -67,7 +67,7 @@ export function ActivitySnapshotsView({ onBack }: ActivitySnapshotsViewProps) {
 
       // Build cost_code filter - admin sees all, non-admin sees selected route
       const costCodeFilter = isAdmin ? '' : (selectedRoute?.costCode || userCostCode || '');
-      const baseUrl = `http://localhost:4000/api/energy-rite/activity-reports`;
+      const baseUrl = '/api/energy-rite/activity-reports';
       
       // Fetch activity dashboard for specific date
       const dashboardUrl = `${baseUrl}/dashboard?startDate=${date}&endDate=${date}${costCodeFilter ? `&cost_code=${costCodeFilter}` : ''}`;

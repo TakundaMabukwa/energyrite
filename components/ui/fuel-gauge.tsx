@@ -109,7 +109,7 @@ export function FuelGauge({
     <div className={cn(
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
       status.includes('PTO ON') || status.includes('ENGINE ON') 
-        ? "bg-green-50 border-green-200" 
+        ? "bg-green-200 border-green-400" 
         : "bg-white border-gray-300",
       className
     )}>
@@ -218,7 +218,7 @@ export function FuelGauge({
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-100" 
+            ? "bg-green-300" 
             : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
@@ -226,16 +226,16 @@ export function FuelGauge({
             <span className={cn(
               "font-medium text-sm",
               status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-800" 
+                ? "text-green-900" 
                 : "text-gray-700"
-            )}>Temperature {temperature}°C</span>
+            )}>Temp: {temperature}°C</span>
           </div>
         </div>
 
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-100" 
+            ? "bg-green-300" 
             : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
@@ -243,23 +243,23 @@ export function FuelGauge({
             <span className={cn(
               "font-medium text-xs truncate whitespace-nowrap",
               status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-800" 
+                ? "text-green-900" 
                 : "text-gray-700"
-            )}>Remaining: {remaining}</span>
+            )}>Rem: {volume}L/{(volume * (fuelLevel / 100)).toFixed(1)}L</span>
           </div>
         </div>
 
         <div className={cn(
           "flex items-center gap-2 px-1 py-0.5 rounded-lg",
           status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-100" 
+            ? "bg-green-300" 
             : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400" />
           <span className={cn(
             "text-xs",
             status.includes('PTO ON') || status.includes('ENGINE ON') 
-              ? "text-green-700" 
+              ? "text-green-800" 
               : "text-gray-600"
           )}>{lastUpdated}</span>
         </div>

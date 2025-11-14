@@ -230,7 +230,9 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       if (enhancedData?.top_performing_sites?.length > 0) {
         const topSites = enhancedData.top_performing_sites
           .map((site: any, index: number) => ({
-            label: site.site || `Site ${index + 1}`,
+            label: (site.site || `Site ${index + 1}`).length > 15 
+              ? (site.site || `Site ${index + 1}`).substring(0, 15) + '...' 
+              : site.site || `Site ${index + 1}`,
             value: Math.max(0, Math.round(site.fuel_usage || 0)),
             color: ['#10B981', '#D97706', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F59E0B', '#EC4899', '#F97316'][index % 10]
           }))
@@ -265,7 +267,9 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         const longRunningData = enhancedData.continuous_operations.sites_over_24_hours
           .slice(0, 5)
           .map((site: any, index: number) => ({
-            label: site.site || `Site ${index + 1}`,
+            label: (site.site || `Site ${index + 1}`).length > 12 
+              ? (site.site || `Site ${index + 1}`).substring(0, 12) + '...' 
+              : site.site || `Site ${index + 1}`,
             value: Math.max(1, Math.round(site.hours || 0)),
             color: ['#D97706', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'][index]
           }))
