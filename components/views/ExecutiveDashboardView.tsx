@@ -383,93 +383,65 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     }
   }, [toast, isAdmin, selectedRoute, userCostCode, selectedMonth]);
 
-  // Separate function to fetch fuel consumption data for previous day only
+  // Fetch fuel consumption data using cumulative snapshots for current month
   const fetchPreviousDayFuelConsumption = useCallback(async () => {
     try {
-      console.log('⛽ Fetching previous day fuel consumption data...');
+      console.log('⛽ Fetching cumulative fuel consumption data...');
       
-      // Calculate previous day date
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      // Get current month and year
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
       
       // Priority: site_id > selectedRoute.costCode > userCostCode
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
       const siteIdFilter = userSiteId || null;
       
-      // Fetch snapshot data for previous day only
+      // Fetch cumulative snapshot data for current month
       const baseUrl = getReportsApiUrl('');
-      const snapshotParams = new URLSearchParams();
-      snapshotParams.append('date', yesterdayDate);
-      snapshotParams.append('include_hierarchy', 'true');
-      if (siteIdFilter) {
-        snapshotParams.append('site_id', siteIdFilter);
-      } else if (costCodeFilter) {
-        snapshotParams.append('cost_code', costCodeFilter);
+      const cumulativeParams = new URLSearchParams();
+      if (costCodeFilter) {
+        cumulativeParams.append('cost_code', costCodeFilter);
       }
       
-      console.log('📸 Fetching snapshot data for previous day fuel period analysis...', yesterdayDate);
+      const cumulativeUrl = `${baseUrl}/api/energy-rite/cumulative-snapshots/${currentYear}/${currentMonth}${cumulativeParams.toString() ? `?${cumulativeParams.toString()}` : ''}`;
+      console.log('📸 Fetching cumulative snapshot data:', cumulativeUrl);
       
-      const snapshotRes = await fetch(`${baseUrl}/api/energy-rite/reports/snapshots?${snapshotParams.toString()}`);
+      const snapshotRes = await fetch(cumulativeUrl);
       if (snapshotRes.ok) {
         const snapshotResult = await snapshotRes.json();
-        console.log('✅ Previous day snapshot data received:', snapshotResult);
+        console.log('✅ Cumulative snapshot data received:', snapshotResult);
         
         if (snapshotResult.success && snapshotResult.data) {
-          // Calculate 3-period fuel consumption from snapshots
-          const snapshots = snapshotResult.data.snapshots || [];
-          
-          // Group snapshots by period
-          const morningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MORNING');
-          const middaySnapshots = snapshots.filter((s: any) => s.snapshot_type === 'MIDDAY');
-          const eveningSnapshots = snapshots.filter((s: any) => s.snapshot_type === 'EVENING');
-          
-          // Calculate fuel consumption for each period (beginning - end of period)
-          const morningFuelUsed = morningSnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.1); // Estimate 10% usage during period
-          }, 0);
-          
-          const middayFuelUsed = middaySnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.15); // Estimate 15% usage during midday
-          }, 0);
-          
-          const eveningFuelUsed = eveningSnapshots.reduce((sum: number, s: any) => {
-            const fuelVolume = parseFloat(s.fuel_volume) || 0;
-            return sum + (fuelVolume * 0.12); // Estimate 12% usage during evening
-          }, 0);
-          
-          // Ensure no NaN values
-          const morningValue = isNaN(morningFuelUsed) ? 0 : morningFuelUsed;
-          const middayValue = isNaN(middayFuelUsed) ? 0 : middayFuelUsed;
-          const eveningValue = isNaN(eveningFuelUsed) ? 0 : eveningFuelUsed;
+          // Extract period fuel consumption from monthly_fuel_usage
+          const monthlyUsage = snapshotResult.data.monthly_fuel_usage;
+          const morningValue = parseFloat(monthlyUsage?.morning_7_12) || 0;
+          const afternoonValue = parseFloat(monthlyUsage?.afternoon_12_17) || 0;
+          const eveningValue = parseFloat(monthlyUsage?.evening_17_24) || 0;
           
           setPeriodFuelUsageData([
-            { label: 'Morning (6AM-12PM)', value: morningValue, color: '#10B981' }, // Green
-            { label: 'Afternoon (12PM-6PM)', value: middayValue, color: '#A0A0A0' }, // Light grey
-            { label: 'Evening (6PM-10PM)', value: eveningValue, color: '#87CEEB' }  // Light blue
+            { label: 'Morning (7AM-12PM)', value: morningValue, color: '#10B981' }, // Green
+            { label: 'Afternoon (12PM-5PM)', value: afternoonValue, color: '#A0A0A0' }, // Light grey
+            { label: 'Evening (5PM-12AM)', value: eveningValue, color: '#87CEEB' }  // Light blue
           ]);
           
-          console.log('📊 Previous day period fuel consumption calculated:', { morningValue, middayValue, eveningValue });
+          console.log('📊 Monthly fuel usage by period:', { morningValue, afternoonValue, eveningValue });
         }
       } else {
-        console.warn('⚠️ Could not fetch previous day snapshot data for fuel period analysis');
-        // Set default period data
+        console.warn('⚠️ Could not fetch cumulative snapshot data');
         setPeriodFuelUsageData([
-          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
-          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
-          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
+          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' },
+          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' },
+          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }
         ]);
       }
       
     } catch (err) {
-      console.error('❌ Error fetching previous day fuel consumption data:', err);
-      // Set default period data on error
+      console.error('❌ Error fetching cumulative fuel consumption data:', err);
       setPeriodFuelUsageData([
-        { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' }, // Green
-        { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' }, // Light grey
-        { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }  // Light blue
+        { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' },
+        { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' },
+        { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }
       ]);
     }
   }, [selectedRoute, userCostCode, userSiteId]);
@@ -606,7 +578,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Fuel Consumption by Time Period (Yesterday)">
+          <ChartCard title="Fuel Consumption by Time Period (Current Month)">
             {periodFuelUsageData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <BarChart
