@@ -370,27 +370,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </p>
         </div>
 
-        {/* Daily Report Quick Access */}
-        <Card className="shadow-sm border border-blue-200 bg-blue-50 mb-6">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <div>
-                  <h3 className="font-medium text-blue-900">Daily Report</h3>
-                  <p className="text-blue-700 text-sm">View yesterday's activity report</p>
-                </div>
-              </div>
-              <Button 
-                onClick={handleDailyReportClick}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <FileText className="mr-2 w-4 h-4" />
-                View Daily Report
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Custom Report Generator */}
         <Card className="shadow-sm border border-gray-200 mb-6">

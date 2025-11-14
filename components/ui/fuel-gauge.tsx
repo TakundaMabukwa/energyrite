@@ -111,7 +111,7 @@ export function FuelGauge({
   return (
     <div className={cn(
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
-      isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
+      isEngineOn ? "bg-green-400 border-green-600" : "bg-white border-gray-300",
       className
     )}>
       <div className="mb-1 text-center">
@@ -209,38 +209,38 @@ export function FuelGauge({
       <div className="space-y-1">
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
-          isEngineOn ? "bg-green-300" : "bg-gray-50"
+          isEngineOn ? "bg-green-500" : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-blue-500" />
             <span className={cn(
               "font-medium text-sm",
-              isEngineOn ? "text-green-900" : "text-gray-700"
+              isEngineOn ? "text-white" : "text-gray-700"
             )}>Temp: {temperature}°C</span>
           </div>
         </div>
 
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
-          isEngineOn ? "bg-green-300" : "bg-gray-50"
+          isEngineOn ? "bg-green-500" : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
             <Fuel className="w-4 h-4 text-orange-500" />
             <span className={cn(
               "font-medium text-xs truncate whitespace-nowrap",
-              isEngineOn ? "text-green-900" : "text-gray-700"
+              isEngineOn ? "text-white" : "text-gray-700"
             )}>Rem: {volume ? volume.toFixed(1) : 'N/A'}L/{currentVolume ? currentVolume.toFixed(1) : 'N/A'}L</span>
           </div>
         </div>
 
         <div className={cn(
           "flex items-center gap-2 px-1 py-0.5 rounded-lg",
-          isEngineOn ? "bg-green-300" : "bg-gray-50"
+          isEngineOn ? "bg-green-500" : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400" />
           <span className={cn(
             "text-xs",
-            isEngineOn ? "text-green-800" : "text-gray-600"
+            isEngineOn ? "text-white" : "text-gray-600"
           )}>{lastUpdated}</span>
         </div>
 
