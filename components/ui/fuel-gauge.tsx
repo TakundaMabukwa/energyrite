@@ -35,7 +35,7 @@ interface FuelGaugeProps {
     low?: string;
   };
   id?: string | number;
-  vehicleData?: any; // Add vehicle data for API calls
+  vehicleData?: any;
   onNoteUpdate?: (vehicleId: string | number, note: string) => void;
 }
 
@@ -64,7 +64,6 @@ export function FuelGauge({
   const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
   const { user } = useUser();
   
-  // Check if user email contains @soltrack.co.za
   const canViewNotes = user?.email?.includes('@soltrack.co.za') || false;
   
   const radius = 80;
@@ -84,10 +83,9 @@ export function FuelGauge({
 
   const getFuelColor = (level: number) => {
     if (!colorCodes) {
-      // Default fuel gauge colors
-      if (level <= 40) return '#ef4444'; // red
-      if (level <= 60) return '#eab308'; // yellow
-      return '#22c55e'; // green
+      if (level <= 40) return '#ef4444';
+      if (level <= 60) return '#eab308';
+      return '#22c55e';
     }
     
     const colors = {
@@ -108,23 +106,20 @@ export function FuelGauge({
     }
   };
 
+  const isEngineOn = status && (status.includes('PTO ON') || status.includes('ENGINE ON'));
+
   return (
     <div className={cn(
       "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
-      status.includes('PTO ON') || status.includes('ENGINE ON') 
-        ? "bg-green-200 border-green-400" 
-        : "bg-white border-gray-300",
+      isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
       className
     )}>
-      {/* Header */}
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
         {canViewNotes && currentNote && (
           <div className={cn(
             "mb-2 p-2 rounded-lg border",
-            anomaly 
-              ? "bg-red-50 border-red-200" 
-              : "bg-blue-50 border-blue-200"
+            anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
           )}>
             <div className={cn(
               "flex items-start gap-1",
@@ -138,7 +133,6 @@ export function FuelGauge({
             </div>
           </div>
         )}
-        {/* Client Notes - Always visible to everyone */}
         {currentClientNote && (
           <div className="mb-2 p-2 rounded-lg border bg-green-50 border-green-200">
             <div className="flex items-start gap-1 text-green-800">
@@ -174,7 +168,6 @@ export function FuelGauge({
         )}
       </div>
 
-      {/* Fuel Gauge */}
       <div className="flex justify-center mb-1">
         <div className="relative">
           <svg
@@ -182,7 +175,6 @@ export function FuelGauge({
             width={radius * 2}
             className="-rotate-90 transform"
           >
-            {/* Background Circle */}
             <circle
               stroke="#f1f5f9"
               fill="transparent"
@@ -191,7 +183,6 @@ export function FuelGauge({
               cx={radius}
               cy={radius}
             />
-            {/* Progress Circle */}
             <circle
               stroke={getFuelColor(fuelLevel)}
               fill="transparent"
@@ -206,7 +197,6 @@ export function FuelGauge({
             />
           </svg>
           
-          {/* Center Content */}
           <div className="absolute inset-0 flex flex-col justify-center items-center">
             <Gauge className="mb-0.5 w-5 h-5 text-gray-400" />
             <span className="font-medium text-gray-500 text-sm">Fuel</span>
@@ -216,58 +206,44 @@ export function FuelGauge({
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="space-y-1">
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
-          status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-300" 
-            : "bg-gray-50"
+          isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-blue-500" />
             <span className={cn(
               "font-medium text-sm",
-              status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-900" 
-                : "text-gray-700"
+              isEngineOn ? "text-green-900" : "text-gray-700"
             )}>Temp: {temperature}°C</span>
           </div>
         </div>
 
         <div className={cn(
           "flex justify-start items-center px-1 py-0.5 rounded-lg",
-          status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-300" 
-            : "bg-gray-50"
+          isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <div className="flex items-center gap-2">
             <Fuel className="w-4 h-4 text-orange-500" />
             <span className={cn(
               "font-medium text-xs truncate whitespace-nowrap",
-              status.includes('PTO ON') || status.includes('ENGINE ON') 
-                ? "text-green-900" 
-                : "text-gray-700"
-            )}>Rem: {volume.toFixed(1)}L/{currentVolume.toFixed(1)}L</span>
+              isEngineOn ? "text-green-900" : "text-gray-700"
+            )}>Rem: {volume ? volume.toFixed(1) : 'N/A'}L/{currentVolume ? currentVolume.toFixed(1) : 'N/A'}L</span>
           </div>
         </div>
 
         <div className={cn(
           "flex items-center gap-2 px-1 py-0.5 rounded-lg",
-          status.includes('PTO ON') || status.includes('ENGINE ON') 
-            ? "bg-green-300" 
-            : "bg-gray-50"
+          isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400" />
           <span className={cn(
             "text-xs",
-            status.includes('PTO ON') || status.includes('ENGINE ON') 
-              ? "text-green-800" 
-              : "text-gray-600"
+            isEngineOn ? "text-green-800" : "text-gray-600"
           )}>{lastUpdated}</span>
         </div>
 
-        {/* Add Note Button */}
         <div className="mt-2">
           <Button 
             variant="outline" 
@@ -280,7 +256,6 @@ export function FuelGauge({
           </Button>
         </div>
 
-        {/* Last Fuel Fill Information */}
         {lastFuelFill && (
           <div className="bg-green-50 p-2 rounded-lg">
             <div className="flex justify-between items-center mb-1">
@@ -297,7 +272,6 @@ export function FuelGauge({
         )}
       </div>
 
-      {/* Add Note Modal */}
       <AddNoteModal
         isOpen={isNoteModalOpen}
         onClose={() => setIsNoteModalOpen(false)}
