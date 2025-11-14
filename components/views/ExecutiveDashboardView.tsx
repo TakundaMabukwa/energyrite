@@ -606,7 +606,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Fuel Consumption by Time Period (Liters)">
+          <ChartCard title="Fuel Consumption by Time Period (Yesterday)">
             {periodFuelUsageData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <BarChart

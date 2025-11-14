@@ -15,6 +15,7 @@ interface FuelGaugeProps {
   fuelLevel: number;
   temperature: number;
   volume: number;
+  currentVolume: number;
   remaining: string;
   status: string;
   lastUpdated: string;
@@ -43,6 +44,7 @@ export function FuelGauge({
   fuelLevel,
   temperature,
   volume,
+  currentVolume,
   remaining,
   status,
   lastUpdated,
@@ -245,7 +247,7 @@ export function FuelGauge({
               status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-900" 
                 : "text-gray-700"
-            )}>Rem: {volume}L/{(volume * (fuelLevel / 100)).toFixed(1)}L</span>
+            )}>Rem: {volume}L/{currentVolume.toFixed(1)}L</span>
           </div>
         </div>
 

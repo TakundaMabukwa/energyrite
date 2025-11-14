@@ -317,7 +317,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         location: vehicle.branch || vehicle.plate || 'Unknown Location',
         fuelLevel: percent || 0,
         temperature: parseFloat(vehicle.fuel_probe_1_temperature) || 25,
-        volume: capacity,
+        volume: parseFloat(vehicle.volume) || capacity, // Total tank capacity
+        currentVolume: parseFloat(vehicle.fuel_probe_1_volume_in_tank) || remaining, // Current fuel volume
         remaining: `${remaining.toFixed(1)}L`,
         status: vehicle.current_status || '',
         lastUpdated: formatForDisplay(vehicle.last_message_date || new Date().toISOString()),
@@ -384,6 +385,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 fuelLevel={data.fuelLevel}
                 temperature={data.temperature}
                 volume={data.volume}
+                currentVolume={data.currentVolume}
                 remaining={data.remaining}
                 status={data.status}
                 lastUpdated={data.lastUpdated}
