@@ -247,7 +247,7 @@ export function FuelGauge({
               status.includes('PTO ON') || status.includes('ENGINE ON') 
                 ? "text-green-900" 
                 : "text-gray-700"
-            )}>Rem: {volume}L/{currentVolume.toFixed(1)}L</span>
+            )}>Rem: {volume.toFixed(1)}L/{currentVolume.toFixed(1)}L</span>
           </div>
         </div>
 
