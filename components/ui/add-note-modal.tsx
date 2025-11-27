@@ -50,14 +50,9 @@ export function AddNoteModal({
     try {
       setIsSaving(true);
       
-      // Update the vehicle note via API using the same pattern as equipment updates
+      // Update only the client_notes field to avoid overwriting other data
       const updatePayload = {
-        branch: vehicleData?.branch || vehicleLocation,
-        company: vehicleData?.company || '',
-        cost_code: vehicleData?.cost_code || null,
-        ip_address: vehicleData?.ip_address || null,
-        volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
-        client_notes: note.trim() // Use client_notes for public notes
+        client_notes: note.trim()
       };
 
       console.log('🔍 Sending payload:', updatePayload);
@@ -116,14 +111,9 @@ export function AddNoteModal({
     try {
       setIsRemoving(true);
       
-      // Remove the note by setting it to empty/null
+      // Remove the note by setting it to null
       const updatePayload = {
-        branch: vehicleData?.branch || vehicleLocation,
-        company: vehicleData?.company || '',
-        cost_code: vehicleData?.cost_code || null,
-        ip_address: vehicleData?.ip_address || null,
-        volume: vehicleData?.volume ? parseFloat(vehicleData.volume) : null,
-        client_notes: null // Clear the client note
+        client_notes: null
       };
 
       console.log('🗑️ Removing note for vehicle:', vehicleId);

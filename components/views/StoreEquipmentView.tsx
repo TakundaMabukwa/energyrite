@@ -371,15 +371,16 @@ export function StoreEquipmentView() {
     try {
       setIsSaving(true);
       
-      // Prepare payload with only the fields we want to update
-      const updatePayload = {
-        branch: editedEquipment.branch,
-        company: editedEquipment.company,
-        cost_code: editedEquipment.cost_code,
-        ip_address: editedEquipment.ip_address,
-        volume: editedEquipment.volume,
-        notes: editedEquipment.notes
-      };
+      // Prepare payload with only the fields that actually changed
+      const originalEquipment = equipmentData.find(item => item.id === editedEquipment.id);
+      const updatePayload: any = {};
+      
+      if (editedEquipment.branch !== originalEquipment?.branch) updatePayload.branch = editedEquipment.branch;
+      if (editedEquipment.company !== originalEquipment?.company) updatePayload.company = editedEquipment.company;
+      if (editedEquipment.cost_code !== originalEquipment?.cost_code) updatePayload.cost_code = editedEquipment.cost_code;
+      if (editedEquipment.ip_address !== originalEquipment?.ip_address) updatePayload.ip_address = editedEquipment.ip_address;
+      if (editedEquipment.volume !== originalEquipment?.volume) updatePayload.volume = editedEquipment.volume;
+      if (editedEquipment.notes !== originalEquipment?.notes) updatePayload.notes = editedEquipment.notes;
       
       // Use the correct API URL as shown in the curl examples
       const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
@@ -399,10 +400,10 @@ export function StoreEquipmentView() {
       console.log('Update response:', responseData);
       
       // Log note changes and update UI simultaneously
-      const originalEquipment = equipmentData.find(item => item.id === editedEquipment.id);
+      const originalForLogging = equipmentData.find(item => item.id === editedEquipment.id);
       await Promise.all([
-        originalEquipment?.notes !== editedEquipment.notes ? 
-          logNoteChange(editedEquipment.id.toString(), originalEquipment?.notes || '', editedEquipment.notes || '', 'update') : 
+        originalForLogging?.notes !== editedEquipment.notes ? 
+          logNoteChange(editedEquipment.id.toString(), originalForLogging?.notes || '', editedEquipment.notes || '', 'update') : 
           Promise.resolve(),
         Promise.resolve(setEquipmentData(prev => 
           prev.map(item => 
