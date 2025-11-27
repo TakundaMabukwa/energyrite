@@ -149,7 +149,7 @@ export function AddNoteModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full sm:max-w-[200px]">
+      <DialogContent className="w-full sm:max-w-[350px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <NotebookPen className="w-5 h-5 text-blue-600" />
