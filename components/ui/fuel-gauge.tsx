@@ -237,9 +237,9 @@ export function FuelGauge({
           "flex items-center gap-2 px-1 py-0.5 rounded-lg",
           isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
-          <Clock className="w-4 h-4 text-gray-400" />
+          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <span className={cn(
-            "text-xs",
+            "text-xs whitespace-nowrap overflow-hidden text-ellipsis",
             isEngineOn ? "text-green-800" : "text-gray-600"
           )}>Comm: {lastUpdated}</span>
         </div>
