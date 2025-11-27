@@ -44,7 +44,8 @@ export function VehicleNotesHistoryModal({
         .from('note_logs')
         .select('*')
         .eq('vehicle_id', vehicleId.toString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       if (error) throw error;
       setNoteLogs(data || []);
@@ -75,7 +76,7 @@ export function VehicleNotesHistoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[70vh] overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[60vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <History className="w-5 h-5 text-blue-600" />
@@ -83,7 +84,7 @@ export function VehicleNotesHistoryModal({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto">
+        <div className="max-h-[300px] overflow-y-auto pr-2">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -95,57 +96,33 @@ export function VehicleNotesHistoryModal({
               <p className="text-sm">No notes history for this vehicle</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {noteLogs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 bg-white">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <User className="w-3 h-3 text-gray-500" />
-                      <span className="font-medium text-gray-900 text-sm">{log.user_email}</span>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${
-                          getNoteType(log.user_email) === 'Internal' 
-                            ? 'bg-purple-100 text-purple-800 border-purple-200' 
-                            : 'bg-green-100 text-green-800 border-green-200'
-                        }`}
-                      >
-                        {getNoteType(log.user_email)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Clock className="w-3 h-3" />
-                      {formatForDisplay(log.created_at)}
-                      <Badge className={`ml-1 text-xs ${getActionColor(log.action)}`}>
-                        {log.action}
-                      </Badge>
-                    </div>
+                <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-1">
+                    {log.new_note ? (
+                      <p className="text-sm text-gray-900 font-medium">{log.new_note}</p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Note deleted</p>
+                    )}
                   </div>
                   
-                  <div className="space-y-2">
-                    {log.old_note && (
-                      <div>
-                        <span className="text-xs font-medium text-red-600 uppercase">Previous:</span>
-                        <div className="bg-red-50 border border-red-200 rounded p-2 text-xs text-red-800">
-                          {log.old_note}
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 ml-4">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        getNoteType(log.user_email) === 'Internal' 
+                          ? 'bg-purple-100 text-purple-700 border-purple-300' 
+                          : 'bg-blue-100 text-blue-700 border-blue-300'
+                      }`}
+                    >
+                      {getNoteType(log.user_email)}
+                    </Badge>
                     
-                    {log.new_note && (
-                      <div>
-                        <span className="text-xs font-medium text-green-600 uppercase">New:</span>
-                        <div className="bg-green-50 border border-green-200 rounded p-2 text-xs text-green-800">
-                          {log.new_note}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {log.action === 'delete' && !log.new_note && (
-                      <div className="bg-gray-50 border border-gray-200 rounded p-2 text-xs text-gray-600 italic">
-                        Note was deleted
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatForDisplay(log.created_at)}</span>
+                    </div>
                   </div>
                 </div>
               ))}
