@@ -62,9 +62,13 @@ export function AddNoteModal({
 
       console.log('🔍 Sending payload:', updatePayload);
       console.log('🔍 Vehicle ID:', vehicleId);
-      console.log('🔍 API URL:', `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`);
+      const apiUrl = process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST 
+        ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`
+        : `/api/energy-rite/vehicles/${vehicleId}`;
+      
+      console.log('🔍 API URL:', apiUrl);
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`, {
+      const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +128,11 @@ export function AddNoteModal({
 
       console.log('🗑️ Removing note for vehicle:', vehicleId);
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST 
+        ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`
+        : `/api/energy-rite/vehicles/${vehicleId}`;
+
+      const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
