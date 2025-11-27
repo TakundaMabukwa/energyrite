@@ -237,27 +237,11 @@ export function FuelGauge({
           "flex items-center gap-2 px-1 py-0.5 rounded-lg",
           isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
-          <div className="flex items-center gap-1">
-            <span className={cn(
-              "text-xs font-medium",
-              isEngineOn ? "text-green-800" : "text-gray-600"
-            )}>Comm:</span>
-            <span className={cn(
-              "text-xs",
-              isEngineOn ? "text-green-700" : "text-gray-500"
-            )}>Online</span>
-          </div>
-        </div>
-
-        <div className={cn(
-          "flex items-center gap-2 px-1 py-0.5 rounded-lg",
-          isEngineOn ? "bg-green-300" : "bg-gray-50"
-        )}>
           <Clock className="w-4 h-4 text-gray-400" />
           <span className={cn(
             "text-xs",
             isEngineOn ? "text-green-800" : "text-gray-600"
-          )}>{lastUpdated}</span>
+          )}>Comm: {lastUpdated}</span>
         </div>
 
         <div className="mt-2">
