@@ -39,12 +39,21 @@ export function NotesHistoryModal({ isOpen, onClose }: NotesHistoryModalProps) {
     try {
       setLoading(true);
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const isInternal = user?.email?.includes('@soltrack.co.za');
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('note_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
+      
+      // Filter out internal notes for non-Soltrack users
+      if (!isInternal) {
+        query = query.eq('note_type', 'external');
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       
