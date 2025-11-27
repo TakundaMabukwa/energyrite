@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Thermometer, Droplets, Gauge, Clock, NotebookPen, Fuel } from 'lucide-react';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { AddNoteModal } from '@/components/ui/add-note-modal';
+import { VehicleNotesHistoryModal } from '@/components/ui/vehicle-notes-history-modal';
 import { useUser } from '@/contexts/UserContext';
 
 interface FuelGaugeProps {
@@ -60,6 +61,7 @@ export function FuelGauge({
   onNoteUpdate
 }: FuelGaugeProps) {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState(anomalyNote || '');
   const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
   const { user } = useUser();
@@ -114,6 +116,16 @@ export function FuelGauge({
       isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
       className
     )}>
+      {/* History Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 w-6 h-6 p-0 hover:bg-gray-100"
+        onClick={() => setIsHistoryModalOpen(true)}
+        title="View Notes History"
+      >
+        <Clock className="w-3 h-3 text-gray-500" />
+      </Button>
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
         {canViewNotes && currentNote && (
@@ -280,6 +292,13 @@ export function FuelGauge({
         currentNote={currentClientNote}
         vehicleData={vehicleData}
         onNoteAdded={handleNoteAdded}
+      />
+      
+      <VehicleNotesHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        vehicleId={id || 'unknown'}
+        vehicleLocation={location}
       />
     </div>
   );

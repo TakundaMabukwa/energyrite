@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
-import { BarChart3, FileText, Activity, TrendingUp, ChevronDown } from 'lucide-react';
+import { BarChart3, FileText, Activity, TrendingUp, ChevronDown, History } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { NotesHistoryModal } from '@/components/ui/notes-history-modal';
 
 const topNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -15,6 +17,7 @@ const topNavItems = [
 
 export function TopNavigation() {
   const { activeTab, setActiveTab, costCenters, selectedRoute, setSelectedRoute } = useApp();
+  const [showNotesHistory, setShowNotesHistory] = useState(false);
 
   return (
     <div className="bg-white border-b border-gray-200">
@@ -38,8 +41,25 @@ export function TopNavigation() {
           ))}
           </div>
 
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+              onClick={() => setShowNotesHistory(true)}
+              title="Notes History"
+            >
+              <History className="w-4 h-4" />
+              Notes History
+            </Button>
+          </div>
         </div>
       </div>
+      
+      <NotesHistoryModal 
+        isOpen={showNotesHistory} 
+        onClose={() => setShowNotesHistory(false)} 
+      />
     </div>
   );
 }
