@@ -109,16 +109,19 @@ export function VehicleNotesHistoryModal({
               {noteLogs.map((log) => (
                 <div key={log.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs flex-shrink-0 ${
-                        getNoteType(log.user_email) === 'Internal' 
-                          ? 'bg-purple-100 text-purple-700 border-purple-300' 
-                          : 'bg-blue-100 text-blue-700 border-blue-300'
-                      }`}
-                    >
-                      {getNoteType(log.user_email)}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs flex-shrink-0 ${
+                          getNoteType(log.user_email) === 'Internal' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-300' 
+                            : 'bg-blue-100 text-blue-700 border-blue-300'
+                        }`}
+                      >
+                        {getNoteType(log.user_email)}
+                      </Badge>
+                      <span className="text-xs text-gray-600">{log.user_email}</span>
+                    </div>
                     
                     <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
                       <Clock className="w-3 h-3" />
