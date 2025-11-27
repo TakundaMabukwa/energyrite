@@ -161,21 +161,36 @@ export function AddNoteModal({
 
   const logNoteChange = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
     try {
+      console.log('🔍 Logging note change:', { vehicleId, oldNote, newNote, action });
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
+      console.log('🔍 User for logging:', user);
+      
       if (user) {
-        await supabase.from('note_logs').insert({
+        const logEntry = {
           vehicle_id: vehicleId,
           user_id: user.id,
           user_email: user.email,
           old_note: oldNote || null,
           new_note: newNote || null,
           action: action
-        });
+        };
+        
+        console.log('🔍 Inserting log entry:', logEntry);
+        
+        const { data, error } = await supabase.from('note_logs').insert(logEntry);
+        
+        if (error) {
+          console.error('❌ Supabase insert error:', error);
+        } else {
+          console.log('✅ Note logged successfully:', data);
+        }
+      } else {
+        console.warn('⚠️ No user found for logging');
       }
     } catch (error) {
-      console.error('Failed to log note change:', error);
+      console.error('❌ Failed to log note change:', error);
     }
   };
 
