@@ -149,7 +149,7 @@ export function AddNoteModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full sm:max-w-[500px]">
+      <DialogContent className="w-full sm:max-w-[200px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <NotebookPen className="w-5 h-5 text-blue-600" />
@@ -165,8 +165,8 @@ export function AddNoteModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Enter your client note about this fuel gauge..."
-              rows={4}
-              className="min-h-[100px] resize-none"
+              rows={3}
+              className="min-h-[80px] resize-none"
               disabled={isSaving || isRemoving}
             />
           </div>

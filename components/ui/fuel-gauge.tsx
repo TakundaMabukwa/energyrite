@@ -141,10 +141,10 @@ export function FuelGauge({
 
   return (
     <div className={cn(
-      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible",
+      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible flex flex-col",
       isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
       className
-    )}>
+    )} style={{ minHeight: '420px' }}>
       {/* History Button */}
       <Button
         variant="ghost"
@@ -159,30 +159,28 @@ export function FuelGauge({
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
         {canViewNotes && currentNote && (
           <div className={cn(
-            "mb-2 p-2 rounded-lg border",
+            "mb-1 p-1.5 rounded border",
             anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
           )}>
             <div className={cn(
               "flex items-start gap-1",
               anomaly ? "text-red-800" : "text-blue-800"
             )}>
-              <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
               <span className={cn(
-                "text-xs text-left break-words",
+                "text-xs text-left break-words line-clamp-1 leading-tight",
                 anomaly ? "text-red-700" : "text-blue-700"
               )}>{currentNote}</span>
             </div>
           </div>
         )}
-        <div className="mb-2 min-h-[32px]">
-          {currentClientNote && (
-            <div className="p-2 rounded-lg border bg-green-50 border-green-200">
-              <div className="flex items-start gap-1 text-green-800">
-                <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                <span className="text-xs text-left break-words text-green-700 line-clamp-2">{currentClientNote}</span>
-              </div>
-            </div>
-          )}
+        <div className="mb-1 p-1.5 rounded border bg-green-50 border-green-200">
+          <div className="flex items-start gap-1 text-green-800">
+            <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
+            <span className="text-xs text-left break-words text-green-700 line-clamp-1 leading-tight">
+              {currentClientNote || '-'}
+            </span>
+          </div>
         </div>
         {status && (
           <TooltipProvider>
