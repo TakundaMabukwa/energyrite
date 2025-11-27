@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Bell, Menu, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, Menu, LogOut, History } from 'lucide-react';
+import { NotesHistoryModal } from '@/components/ui/notes-history-modal';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LogoutButton } from '@/components/logout-button';
@@ -14,6 +15,7 @@ export function Header() {
   const { costCenters, selectedRoute, setSelectedRoute } = useApp();
   const { isAdmin, userCostCode } = useUser();
   const [isMounted, setIsMounted] = React.useState(false);
+  const [showNotesHistory, setShowNotesHistory] = useState(false);
   
   React.useEffect(() => {
     setIsMounted(true);
@@ -100,6 +102,16 @@ export function Header() {
           Good evening, {getUserDisplayName()}
         </span>
         
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="hover:bg-white/10 text-white"
+          onClick={() => setShowNotesHistory(true)}
+          title="Notes History"
+        >
+          <History className="w-5 h-5" />
+        </Button>
+
         <Button variant="ghost" size="sm" className="relative hover:bg-white/10 text-white">
           <Bell className="w-5 h-5" />
           <span className="-top-1 -right-1 absolute bg-orange-500 rounded-full w-3 h-3"></span>
@@ -116,6 +128,11 @@ export function Header() {
           Logout
         </LogoutButton>
       </div>
+      
+      <NotesHistoryModal 
+        isOpen={showNotesHistory} 
+        onClose={() => setShowNotesHistory(false)} 
+      />
     </header>
   );
 }
