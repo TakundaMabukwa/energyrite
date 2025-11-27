@@ -98,19 +98,11 @@ export function VehicleNotesHistoryModal({
           ) : (
             <div className="space-y-2">
               {noteLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex-1">
-                    {log.new_note ? (
-                      <p className="text-sm text-gray-900 font-medium">{log.new_note}</p>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">Note deleted</p>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 ml-4">
+                <div key={log.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-start justify-between gap-3 mb-2">
                     <Badge 
                       variant="outline" 
-                      className={`text-xs ${
+                      className={`text-xs flex-shrink-0 ${
                         getNoteType(log.user_email) === 'Internal' 
                           ? 'bg-purple-100 text-purple-700 border-purple-300' 
                           : 'bg-blue-100 text-blue-700 border-blue-300'
@@ -119,10 +111,18 @@ export function VehicleNotesHistoryModal({
                       {getNoteType(log.user_email)}
                     </Badge>
                     
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
                       <Clock className="w-3 h-3" />
                       <span>{formatForDisplay(log.created_at)}</span>
                     </div>
+                  </div>
+                  
+                  <div>
+                    {log.new_note ? (
+                      <p className="text-sm text-gray-900 leading-relaxed break-words">{log.new_note}</p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Note deleted</p>
+                    )}
                   </div>
                 </div>
               ))}

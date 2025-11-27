@@ -174,14 +174,16 @@ export function FuelGauge({
             </div>
           </div>
         )}
-        {currentClientNote && (
-          <div className="mb-2 p-2 rounded-lg border bg-green-50 border-green-200">
-            <div className="flex items-start gap-1 text-green-800">
-              <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
-              <span className="text-xs text-left break-words text-green-700">{currentClientNote}</span>
+        <div className="mb-2 min-h-[32px]">
+          {currentClientNote && (
+            <div className="p-2 rounded-lg border bg-green-50 border-green-200">
+              <div className="flex items-start gap-1 text-green-800">
+                <NotebookPen className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <span className="text-xs text-left break-words text-green-700 line-clamp-2">{currentClientNote}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         {status && (
           <TooltipProvider>
             <Tooltip>
