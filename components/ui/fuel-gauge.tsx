@@ -10,6 +10,7 @@ import { formatForDisplay } from '@/lib/utils/date-formatter';
 import { AddNoteModal } from '@/components/ui/add-note-modal';
 import { VehicleNotesHistoryModal } from '@/components/ui/vehicle-notes-history-modal';
 import { useUser } from '@/contexts/UserContext';
+import { createClient } from '@/lib/supabase/client';
 
 interface FuelGaugeProps {
   location: string;
@@ -63,7 +64,7 @@ export function FuelGauge({
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState(anomalyNote || '');
-  const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
+  const [currentClientNote, setCurrentClientNote] = useState('');
   const { user } = useUser();
   
   const canViewNotes = user?.email?.includes('@soltrack.co.za') || false;
@@ -101,12 +102,40 @@ export function FuelGauge({
     return colors.high;
   };
 
+  const fetchLatestClientNote = async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('note_logs')
+        .select('new_note')
+        .eq('vehicle_id', id?.toString())
+        .eq('note_type', 'external')
+        .not('new_note', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setCurrentClientNote(data.new_note || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch latest client note:', error);
+    }
+  };
+
   const handleNoteAdded = (note: string) => {
     setCurrentClientNote(note);
     if (onNoteUpdate && id) {
       onNoteUpdate(id, note);
     }
   };
+
+  // Fetch latest client note on component mount
+  useEffect(() => {
+    if (id) {
+      fetchLatestClientNote();
+    }
+  }, [id]);
 
   const isEngineOn = status && (status.includes('PTO ON') || status.includes('ENGINE ON'));
 

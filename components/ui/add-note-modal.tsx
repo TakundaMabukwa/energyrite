@@ -50,44 +50,11 @@ export function AddNoteModal({
     try {
       setIsSaving(true);
       
-      // Update only the client_notes field to avoid overwriting other data
-      const updatePayload = {
-        client_notes: note.trim()
-      };
-
-      console.log('🔍 Sending payload:', updatePayload);
-      console.log('🔍 Vehicle ID:', vehicleId);
-      const apiUrl = process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST 
-        ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`
-        : `/api/energy-rite/vehicles/${vehicleId}`;
+      // Save client note directly to Supabase note_logs (not to external API)
+      await saveClientNote(vehicleId.toString(), currentNote, note.trim(), 'update');
       
-      console.log('🔍 API URL:', apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatePayload)
-      });
-
-      console.log('🔍 Response status:', response.status);
-      console.log('🔍 Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.log('❌ Error response data:', errorData);
-        throw new Error(errorData.error || `Failed to save note: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      console.log('Note saved successfully:', responseData);
-
-      // Log the note change and update UI simultaneously
-      await Promise.all([
-        logNoteChange(vehicleId.toString(), currentNote, note.trim(), 'update'),
-        Promise.resolve(onNoteAdded(note.trim()))
-      ]);
+      // Update UI
+      onNoteAdded(note.trim());
 
       toast({
         title: "Note saved",
@@ -111,35 +78,11 @@ export function AddNoteModal({
     try {
       setIsRemoving(true);
       
-      // Remove the note by setting it to null
-      const updatePayload = {
-        client_notes: null
-      };
-
-      console.log('🗑️ Removing note for vehicle:', vehicleId);
-
-      const apiUrl = process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST 
-        ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${vehicleId}`
-        : `/api/energy-rite/vehicles/${vehicleId}`;
-
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatePayload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to remove note: ${response.status}`);
-      }
-
-      // Log the note removal and update UI simultaneously
-      await Promise.all([
-        logNoteChange(vehicleId.toString(), currentNote, '', 'delete'),
-        Promise.resolve(onNoteAdded('')) // Empty string to clear the note
-      ]);
+      // Remove client note from Supabase note_logs
+      await saveClientNote(vehicleId.toString(), currentNote, '', 'delete');
+      
+      // Update UI
+      onNoteAdded('');
 
       toast({
         title: "Note removed",
@@ -159,7 +102,7 @@ export function AddNoteModal({
     }
   };
 
-  const logNoteChange = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
+  const saveClientNote = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
     try {
       console.log('🔍 Logging note change:', { vehicleId, oldNote, newNote, action });
       const supabase = createClient();
@@ -168,13 +111,16 @@ export function AddNoteModal({
       console.log('🔍 User for logging:', user);
       
       if (user) {
+        const isInternal = user.email?.includes('@soltrack.co.za');
+        
         const logEntry = {
           vehicle_id: vehicleId,
           user_id: user.id,
           user_email: user.email,
           old_note: oldNote || null,
           new_note: newNote || null,
-          action: action
+          action: action,
+          note_type: isInternal ? 'internal' : 'external'
         };
         
         console.log('🔍 Inserting log entry:', logEntry);
