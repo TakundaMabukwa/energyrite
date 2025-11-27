@@ -145,26 +145,19 @@ export function FuelGauge({
       isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
       className
     )} style={{ minHeight: '420px' }}>
-
+      {/* History Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 w-6 h-6 p-0 hover:bg-gray-100"
+        onClick={() => setIsHistoryModalOpen(true)}
+        title="View Notes History"
+      >
+        <Clock className="w-3 h-3 text-gray-500" />
+      </Button>
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
-        {canViewNotes && currentNote && (
-          <div className={cn(
-            "mb-1 p-1.5 rounded border",
-            anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
-          )}>
-            <div className={cn(
-              "flex items-start gap-1",
-              anomaly ? "text-red-800" : "text-blue-800"
-            )}>
-              <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
-              <span className={cn(
-                "text-xs text-left break-words line-clamp-1 leading-tight",
-                anomaly ? "text-red-700" : "text-blue-700"
-              )}>{currentNote}</span>
-            </div>
-          </div>
-        )}
+
         {currentClientNote && (
           <div className="mb-1 p-1.5 rounded border bg-green-50 border-green-200">
             <div className="flex items-start gap-1 text-green-800">
