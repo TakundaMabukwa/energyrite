@@ -102,15 +102,15 @@ export function Header() {
           Good evening, {getUserDisplayName()}
         </span>
         
-        // <Button 
-        //   variant="ghost" 
-        //   size="sm" 
-        //   className="hover:bg-white/10 text-white"
-        //   onClick={() => setShowNotesHistory(true)}
-        //   title="Notes History"
-        // >
-        //   <History className="w-5 h-5" />
-        // </Button>
+        {/* <Button 
+          variant="ghost" 
+          size="sm" 
+          className="hover:bg-white/10 text-white"
+          onClick={() => setShowNotesHistory(true)}
+          title="Notes History"
+        >
+          <History className="w-5 h-5" />
+        </Button> */}
 
         <Button variant="ghost" size="sm" className="relative hover:bg-white/10 text-white">
           <Bell className="w-5 h-5" />
