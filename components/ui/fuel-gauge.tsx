@@ -254,10 +254,7 @@ export function FuelGauge({
         )}>
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-blue-500" />
-            <span className={cn(
-              "font-medium text-sm",
-              isEngineOn ? "text-green-900" : "text-gray-700"
-            )}>Temp: {temperature}°C</span>
+            <span className="font-medium text-xs text-gray-900">Temp: {temperature}°C</span>
           </div>
         </div>
 
@@ -267,10 +264,7 @@ export function FuelGauge({
         )}>
           <div className="flex items-center gap-2">
             <Fuel className="w-4 h-4 text-orange-500" />
-            <span className={cn(
-              "font-medium text-xs truncate whitespace-nowrap",
-              isEngineOn ? "text-green-900" : "text-gray-700"
-            )}>Rem: {currentVolume ? currentVolume.toFixed(1) : 'N/A'}L from {volume ? volume.toFixed(1) : 'N/A'}L</span>
+            <span className="font-medium text-xs text-gray-900 truncate whitespace-nowrap">Rem: {currentVolume ? currentVolume.toFixed(1) : 'N/A'}L from {volume ? volume.toFixed(1) : 'N/A'}L</span>
           </div>
         </div>
 
@@ -279,10 +273,7 @@ export function FuelGauge({
           isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span className={cn(
-            "text-xs whitespace-nowrap overflow-hidden text-ellipsis",
-            isEngineOn ? "text-green-800" : "text-gray-600"
-          )}>Comm: {lastUpdated}</span>
+          <span className="text-xs text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">Comm: {lastUpdated}</span>
         </div>
 
         <div className="mt-2">
