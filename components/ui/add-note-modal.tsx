@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { NotebookPen, X, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
 
 interface AddNoteModalProps {
   isOpen: boolean;
@@ -83,8 +84,11 @@ export function AddNoteModal({
       const responseData = await response.json();
       console.log('Note saved successfully:', responseData);
 
-      // Call the callback to update parent component
-      onNoteAdded(note.trim());
+      // Log the note change and update UI simultaneously
+      await Promise.all([
+        logNoteChange(vehicleId.toString(), currentNote, note.trim(), 'update'),
+        Promise.resolve(onNoteAdded(note.trim()))
+      ]);
 
       toast({
         title: "Note saved",
@@ -133,8 +137,11 @@ export function AddNoteModal({
         throw new Error(errorData.error || `Failed to remove note: ${response.status}`);
       }
 
-      // Call the callback to update parent component
-      onNoteAdded(''); // Empty string to clear the note
+      // Log the note removal and update UI simultaneously
+      await Promise.all([
+        logNoteChange(vehicleId.toString(), currentNote, '', 'delete'),
+        Promise.resolve(onNoteAdded('')) // Empty string to clear the note
+      ]);
 
       toast({
         title: "Note removed",
@@ -151,6 +158,26 @@ export function AddNoteModal({
       });
     } finally {
       setIsRemoving(false);
+    }
+  };
+
+  const logNoteChange = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        await supabase.from('note_logs').insert({
+          vehicle_id: vehicleId,
+          user_id: user.id,
+          user_email: user.email,
+          old_note: oldNote || null,
+          new_note: newNote || null,
+          action: action
+        });
+      }
+    } catch (error) {
+      console.error('Failed to log note change:', error);
     }
   };
 

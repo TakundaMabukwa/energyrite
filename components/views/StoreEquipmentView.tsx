@@ -13,6 +13,7 @@ import { HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getApiUrl } from '@/lib/utils/api-url';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -397,20 +398,26 @@ export function StoreEquipmentView() {
       const responseData = await response.json();
       console.log('Update response:', responseData);
       
-      // Update the local state with the updated equipment
-      setEquipmentData(prev => 
-        prev.map(item => 
-          item.id === editedEquipment.id ? {
-            ...item,
-            branch: editedEquipment.branch,
-            company: editedEquipment.company,
-            cost_code: editedEquipment.cost_code,
-            ip_address: editedEquipment.ip_address,
-            volume: editedEquipment.volume,
-            notes: editedEquipment.notes
-          } : item
-        )
-      );
+      // Log note changes and update UI simultaneously
+      const originalEquipment = equipmentData.find(item => item.id === editedEquipment.id);
+      await Promise.all([
+        originalEquipment?.notes !== editedEquipment.notes ? 
+          logNoteChange(editedEquipment.id.toString(), originalEquipment?.notes || '', editedEquipment.notes || '', 'update') : 
+          Promise.resolve(),
+        Promise.resolve(setEquipmentData(prev => 
+          prev.map(item => 
+            item.id === editedEquipment.id ? {
+              ...item,
+              branch: editedEquipment.branch,
+              company: editedEquipment.company,
+              cost_code: editedEquipment.cost_code,
+              ip_address: editedEquipment.ip_address,
+              volume: editedEquipment.volume,
+              notes: editedEquipment.notes
+            } : item
+          )
+        ))
+      ]);
       
       toast({
         title: "Equipment updated",
@@ -432,6 +439,27 @@ export function StoreEquipmentView() {
     }
   };
   
+  // Log note changes
+  const logNoteChange = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        await supabase.from('note_logs').insert({
+          vehicle_id: vehicleId,
+          user_id: user.id,
+          user_email: user.email,
+          old_note: oldNote || null,
+          new_note: newNote || null,
+          action: action
+        });
+      }
+    } catch (error) {
+      console.error('Failed to log note change:', error);
+    }
+  };
+
   // Cancel editing
   const handleCancelEdit = () => {
     setEditingRowId(null);
