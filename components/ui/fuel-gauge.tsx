@@ -273,7 +273,7 @@ export function FuelGauge({
           isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span className="text-xs text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">Comm: {lastUpdated}</span>
+          <span className="text-xs text-gray-900">Comm: {lastUpdated}</span>
         </div>
 
         <div className="mt-2">
