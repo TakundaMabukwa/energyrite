@@ -158,13 +158,20 @@ export function FuelGauge({
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
 
-        {currentClientNote && (
-          <div className="mb-1 p-1.5 rounded border bg-green-50 border-green-200">
-            <div className="flex items-start gap-1 text-green-800">
+        {currentNote && (
+          <div className={cn(
+            "mb-1 p-1.5 rounded border",
+            anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
+          )}>
+            <div className={cn(
+              "flex items-start gap-1",
+              anomaly ? "text-red-800" : "text-blue-800"
+            )}>
               <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
-              <span className="text-xs text-left break-words text-green-700 line-clamp-1 leading-tight">
-                {currentClientNote}
-              </span>
+              <span className={cn(
+                "text-xs text-left break-words line-clamp-1 leading-tight",
+                anomaly ? "text-red-700" : "text-blue-700"
+              )}>{currentNote}</span>
             </div>
           </div>
         )}

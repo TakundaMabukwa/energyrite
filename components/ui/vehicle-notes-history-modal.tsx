@@ -40,7 +40,10 @@ export function VehicleNotesHistoryModal({
       setLoading(true);
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const isInternal = user?.email?.includes('@soltrack.co.za');
+      const userEmail = user?.email?.toLowerCase().trim() || '';
+      const isInternal = userEmail.includes('@soltrack.co.za');
+      
+      console.log('🔍 Vehicle notes history user check:', { userEmail, isInternal });
       
       let query = supabase
         .from('note_logs')
@@ -72,7 +75,8 @@ export function VehicleNotesHistoryModal({
   }, [isOpen, vehicleId]);
 
   const getNoteType = (userEmail: string) => {
-    return userEmail?.includes('@soltrack.co.za') ? 'Internal' : 'Client';
+    const email = userEmail?.toLowerCase().trim() || '';
+    return email.includes('@soltrack.co.za') ? 'Internal' : 'Client';
   };
 
   const getActionColor = (action: string) => {

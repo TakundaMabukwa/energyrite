@@ -110,8 +110,11 @@ export function AddNoteModal({
       
       console.log('🔍 User for logging:', user);
       
-      if (user) {
-        const isInternal = user.email?.includes('@soltrack.co.za');
+      if (user && user.email) {
+        const userEmail = user.email.toLowerCase().trim();
+        const isInternal = userEmail.includes('@soltrack.co.za');
+        
+        console.log('🔍 User email check:', { userEmail, isInternal });
         
         const logEntry = {
           vehicle_id: vehicleId,
