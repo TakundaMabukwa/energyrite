@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FuelGauge } from '@/components/ui/fuel-gauge';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { TopNavigation } from '@/components/layout/TopNavigation';
+
 
 import { RefreshCw, Fuel } from 'lucide-react';
 import { ColorPicker } from '@/components/ui/color-picker';
@@ -340,7 +340,6 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
   return (
     <div className="bg-gray-50 h-full">
-      <TopNavigation />
       
       {/* Header with Color Picker */}
       <div className="flex justify-end p-4 pb-0">

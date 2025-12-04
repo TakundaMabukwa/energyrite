@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TopNavigation } from '@/components/layout/TopNavigation';
+
 import { Download, Fuel, RefreshCw, FileX, Plus, Calendar, FileText } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
@@ -347,7 +347,6 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
 
   return (
     <div className="bg-gray-50 h-full">
-      <TopNavigation />
 
       {/* Fuel Reports Section */}
       <div className="space-y-6 p-6">

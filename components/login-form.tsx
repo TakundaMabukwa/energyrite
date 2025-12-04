@@ -72,9 +72,9 @@ export function LoginForm({
         <Image
           src="https://upload.wikimedia.org/wikipedia/commons/9/91/KFC_Logo.svg"
           alt="KFC Logo"
-          width={120}
-          height={60}
-          className="w-auto h-16"
+          width={80}
+          height={40}
+          className="w-auto h-12"
         />
       </div>
       

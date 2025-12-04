@@ -21,12 +21,9 @@ export function DashboardView() {
       return <ActivityReportView onBack={() => {}} />;
     case 'executive':
       return <ExecutiveDashboardView onBack={() => {}} />;
-    case 'store':
-      return <StoreEquipmentView />;
-    case 'add-user':
-      return <UsersView onBack={() => {}} />;
+    case 'dashboard':
     default:
-      // Show Fuel Gauges as the default dashboard view
+      // Show Fuel Gauges for dashboard tab only
       return <FuelGaugesView onBack={() => {}} />;
   }
 }

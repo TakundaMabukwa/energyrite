@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { TopNavigation } from '@/components/layout/TopNavigation';
+
 import { RefreshCw, Calendar, Clock, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -352,7 +352,6 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
 
   return (
     <div className="bg-gray-50 h-full">
-      <TopNavigation />
 
       {/* Main Content */}
       <div className="space-y-6 p-6">

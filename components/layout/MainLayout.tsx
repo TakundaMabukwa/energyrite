@@ -3,6 +3,7 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { TopNavigation } from './TopNavigation';
 import { DashboardView } from '@/components/views/DashboardView';
 import { FuelGaugesView } from '@/components/views/FuelGaugesView';
 import { StoreEquipmentView } from '@/components/views/StoreEquipmentView';
@@ -42,7 +43,11 @@ export function MainLayout() {
 
       {/* Main Content */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header />
+        {/* Sticky Header Container */}
+        <div className="sticky top-0 z-50">
+          <Header />
+          {['dashboard', 'reports', 'activity', 'executive'].includes(activeTab) && <TopNavigation />}
+        </div>
         
         <main className="flex-1 overflow-auto">
           {renderMainContent()}
