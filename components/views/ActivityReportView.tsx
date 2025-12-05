@@ -174,9 +174,67 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
         // Transform the API response to match expected structure
         const apiData = reportsData.data;
         
-        // Check if new API structure exists
-        if (apiData.fuel_analysis && apiData.sites) {
-          console.log('🆕 Using new API structure');
+        // Check if sessions data exists (new structure)
+        if (apiData.sessions && Array.isArray(apiData.sessions)) {
+          console.log('🆕 Using sessions-based API structure');
+          
+          // Group sessions by branch to create site reports
+          const sessionsByBranch = apiData.sessions.reduce((acc, session) => {
+            const branch = session.branch || 'Unknown';
+            if (!acc[branch]) {
+              acc[branch] = [];
+            }
+            acc[branch].push(session);
+            return acc;
+          }, {});
+          
+          // Transform sessions into site reports
+          const siteReports = Object.entries(sessionsByBranch).map(([branch, sessions]: [string, any[]]) => {
+            const totalOperatingHours = sessions.reduce((sum, s) => sum + (s.duration_hours || 0), 0);
+            const totalFuelUsage = sessions.reduce((sum, s) => sum + (s.fuel_usage || 0), 0);
+            const totalFuelFilled = sessions.reduce((sum, s) => sum + (s.fuel_filled || 0), 0);
+            const totalSessions = sessions.length;
+            
+            // Find peak usage session
+            const peakSession = sessions.reduce((max, s) => 
+              (s.fuel_usage || 0) > (max.fuel_usage || 0) ? s : max
+            , sessions[0]);
+            
+            return {
+              branch,
+              generator: branch,
+              company: sessions[0]?.company || 'Unknown',
+              cost_code: sessions[0]?.cost_code || '',
+              total_operating_hours: totalOperatingHours,
+              total_fuel_usage: totalFuelUsage,
+              total_fuel_filled: totalFuelFilled,
+              total_sessions: totalSessions,
+              peak_usage_session: peakSession?.start_time || '',
+              peak_fuel_usage: peakSession?.fuel_usage || 0,
+              peak_time_slot: 'morning_to_afternoon',
+              morning_to_afternoon_usage: totalFuelUsage,
+              afternoon_to_evening_usage: 0
+            };
+          });
+          
+          const transformedData = {
+            summary: apiData.summary || {
+              total_sites: siteReports.length,
+              total_sessions: apiData.sessions.length,
+              total_operating_hours: apiData.summary?.total_operating_hours || 0,
+              total_fuel_usage: apiData.summary?.total_fuel_usage || 0,
+              total_fuel_filled: apiData.summary?.total_fuel_filled || 0
+            },
+            site_reports: siteReports,
+            time_slot_totals: {
+              morning_to_afternoon: parseFloat(apiData.fuel_analysis?.period_breakdown?.morning?.fuel_usage || 0),
+              afternoon_to_evening: parseFloat(apiData.fuel_analysis?.period_breakdown?.afternoon?.fuel_usage || 0),
+              morning_to_evening: parseFloat(apiData.summary?.total_fuel_usage || 0)
+            }
+          };
+          setReportData(transformedData);
+        } else if (apiData.fuel_analysis && apiData.sites) {
+          console.log('🆕 Using sites-based API structure');
           const transformedData = {
             summary: apiData.summary,
             fuel_analysis: apiData.fuel_analysis,
