@@ -1,27 +1,32 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Skip TypeScript checking during build
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Skip ESLint during build
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
-  // Explicitly mark server externals for Node.js runtime
   serverExternalPackages: ['pg'],
-  webpack: (config, { isServer }) => {
+  output: 'standalone',
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: false,
+  webpack: (config, { isServer, webpack }) => {
     if (isServer) {
-      // Prevent optional native deps from breaking builds
       config.externals = Array.isArray(config.externals)
         ? [...config.externals, 'pg-native']
         : config.externals;
     }
+    config.optimization = {
+      ...config.optimization,
+      minimize: true,
+      nodeEnv: 'production',
+    };
+    config.parallelism = 1;
     return config;
   },
   // Add redirects for Vercel deployment
