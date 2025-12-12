@@ -40,7 +40,7 @@
   "editor.tabCompletion": "off",
   "editor.wordBasedSuggestions": "off",
   "editor.parameterHints.enabled": false,
-  "editor.hover.enabled": false,
+  "editor.hover.enabled": "off",
   "editor.lightbulb.enabled": "off",
   "editor.semanticHighlighting.enabled": false,
   "editor.bracketPairColorization.enabled": false,
