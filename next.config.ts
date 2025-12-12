@@ -12,6 +12,17 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ['pg'],
   output: 'standalone',
+  // Bind to localhost only
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+        ],
+      },
+    ];
+  },
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
