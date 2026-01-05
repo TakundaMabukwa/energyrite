@@ -155,7 +155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCostCenters(costCentersData);
         
         // Load all vehicles
-        const resp = await fetch(getApiUrl('/api/energy-rite/dashboard-vehicles'));
+        const resp = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
         console.log('🔍 Fetch response status:', resp.status, resp.ok);
         if (resp.ok) {
           const json = await resp.json();

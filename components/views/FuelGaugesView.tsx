@@ -101,7 +101,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       setLoading(true);
       setError(null);
       
-      const costCode = selectedRoute?.costCode;
+      const costCode = (selectedRoute as any)?.costCode;
       const source = Array.isArray(vehicles) ? vehicles : [];
       console.log('🚗 Total vehicles in context:', source.length);
       console.log('🔍 Selected route cost code:', costCode);

@@ -235,8 +235,8 @@ export function StoreEquipmentView() {
       setEquipmentLoading(true);
       setError(null);
       
-      // Use the new dashboard-vehicles API route
-      const response = await fetch(getApiUrl('/api/energy-rite/dashboard-vehicles'));
+      // Use internal API route (not proxied by nginx)
+      const response = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch vehicles: ${response.status}`);
