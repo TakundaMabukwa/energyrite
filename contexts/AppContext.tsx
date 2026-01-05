@@ -180,10 +180,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setVehicles(transformedData);
           setLastSseUpdate(new Date().toISOString());
           console.log('✅ Loaded vehicles for user cost code:', transformedData.length);
-            
-            // Automatically set fuel data for the user's cost code
-            await updateFuelDataForCostCode(userCostCode);
-          }
+          
+          // Automatically set fuel data for the user's cost code
+          await updateFuelDataForCostCode(userCostCode);
         }
         
         // Set a single cost center for the user
