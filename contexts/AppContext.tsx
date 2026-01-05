@@ -7,6 +7,32 @@ import { getLastFuelFill } from '@/lib/fuel-fill-detector';
 import { useUser } from './UserContext';
 import { getApiUrl } from '@/lib/utils/api-url';
 
+// Transform API response with capitalized keys to lowercase
+function transformVehicleData(vehicle: any): any {
+  return {
+    id: vehicle.id,
+    plate: vehicle.Plate || vehicle.plate,
+    branch: vehicle.Plate || vehicle.branch, // Use Plate as branch
+    company: vehicle.company,
+    cost_code: vehicle.cost_code,
+    speed: vehicle.Speed,
+    latitude: vehicle.Latitude,
+    longitude: vehicle.Longitude,
+    address: vehicle.Geozone || vehicle.address,
+    drivername: vehicle.DriverName || vehicle.drivername,
+    fuel_probe_1_level: vehicle.fuel_probe_1_level,
+    fuel_probe_1_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank,
+    fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature,
+    fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage,
+    volume: vehicle.fuel_probe_1_volume_in_tank || vehicle.volume,
+    last_message_date: vehicle.last_message_date || new Date().toISOString(),
+    updated_at: vehicle.updated_at || new Date().toISOString(),
+    color_codes: vehicle.color_codes || {},
+    client_notes: vehicle.client_notes,
+    ...vehicle
+  };
+}
+
 interface Route {
   id: string;
   route: string;
@@ -132,11 +158,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const resp = await fetch(getApiUrl('/api/energy-rite/vehicles'));
         if (resp.ok) {
           const json = await resp.json();
-          if (json?.success && Array.isArray(json.data)) {
-            setVehicles(json.data);
-            setLastSseUpdate(new Date().toISOString());
-            console.log('✅ Loaded all vehicles for admin:', json.data.length);
-          }
+          // Transform capitalized keys to lowercase
+          const transformedData = Array.isArray(json) ? json.map(transformVehicleData) : 
+            (json?.success && Array.isArray(json.data)) ? json.data.map(transformVehicleData) : [];
+          
+          setVehicles(transformedData);
+          setLastSseUpdate(new Date().toISOString());
+          console.log('✅ Loaded all vehicles for admin:', transformedData.length);
         }
       } else if (userCostCode) {
         // Non-admin users see only their cost code data
@@ -146,10 +174,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const resp = await fetch(getApiUrl(`/api/energy-rite/vehicles?cost_code=${userCostCode}`));
         if (resp.ok) {
           const json = await resp.json();
-          if (json?.success && Array.isArray(json.data)) {
-            setVehicles(json.data);
-            setLastSseUpdate(new Date().toISOString());
-            console.log('✅ Loaded vehicles for user cost code:', json.data.length);
+          const transformedData = Array.isArray(json) ? json.map(transformVehicleData) : 
+            (json?.success && Array.isArray(json.data)) ? json.data.map(transformVehicleData) : [];
+          
+          setVehicles(transformedData);
+          setLastSseUpdate(new Date().toISOString());
+          console.log('✅ Loaded vehicles for user cost code:', transformedData.length);
             
             // Automatically set fuel data for the user's cost code
             await updateFuelDataForCostCode(userCostCode);
