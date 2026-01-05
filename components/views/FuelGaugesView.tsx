@@ -94,9 +94,14 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       
       const costCode = selectedRoute?.costCode;
       const source = Array.isArray(vehicles) ? vehicles : [];
+      console.log('🚗 Total vehicles in context:', source.length);
+      console.log('🔍 Selected route cost code:', costCode);
+      
       let filtered = costCode 
         ? source.filter((v: any) => v.cost_code === costCode || v.cost_code?.startsWith(costCode + '-')) 
-        : source.filter((v: any) => v.cost_code); // Only show vehicles with cost_code
+        : source; // Show ALL vehicles when no cost code selected
+      
+      console.log('✅ Filtered vehicles:', filtered.length);
       
       // Apply single site filtering if user has site_id and is not admin
       if (userSiteId && !isAdmin) {

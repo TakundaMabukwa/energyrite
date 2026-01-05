@@ -160,11 +160,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (resp.ok) {
           const json = await resp.json();
           console.log('📦 Raw API response:', json);
+          console.log('📦 Is array?', Array.isArray(json));
+          console.log('📦 Has success?', json?.success);
+          console.log('📦 Has data?', Array.isArray(json?.data));
           // Transform capitalized keys to lowercase
           const transformedData = Array.isArray(json) ? json.map(transformVehicleData) : 
             (json?.success && Array.isArray(json.data)) ? json.data.map(transformVehicleData) : [];
           
           console.log('🔄 Transformed data:', transformedData.length, 'vehicles');
+          console.log('🔄 First vehicle sample:', transformedData[0]);
           setVehicles(transformedData);
           setLastSseUpdate(new Date().toISOString());
           console.log('✅ Loaded all vehicles for admin:', transformedData.length);

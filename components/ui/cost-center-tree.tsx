@@ -149,7 +149,7 @@ export function CostCenterTree({
   };
 
   // Group cost centers by level for better display
-  const rootNodes = costCenters.filter(cc => cc.level === 1);
+  const rootNodes = costCenters.filter(cc => cc.level === 0);
 
   // Debug logging
   React.useEffect(() => {
