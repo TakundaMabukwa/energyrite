@@ -156,15 +156,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         
         // Load all vehicles
         const resp = await fetch(getApiUrl('/api/energy-rite/vehicles'));
+        console.log('🔍 Fetch response status:', resp.status, resp.ok);
         if (resp.ok) {
           const json = await resp.json();
+          console.log('📦 Raw API response:', json);
           // Transform capitalized keys to lowercase
           const transformedData = Array.isArray(json) ? json.map(transformVehicleData) : 
             (json?.success && Array.isArray(json.data)) ? json.data.map(transformVehicleData) : [];
           
+          console.log('🔄 Transformed data:', transformedData.length, 'vehicles');
           setVehicles(transformedData);
           setLastSseUpdate(new Date().toISOString());
           console.log('✅ Loaded all vehicles for admin:', transformedData.length);
+        } else {
+          console.error('❌ Fetch failed:', resp.status, resp.statusText);
         }
       } else if (userCostCode) {
         // Non-admin users see only their cost code data
