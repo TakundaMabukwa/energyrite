@@ -41,7 +41,7 @@ interface FuelConsumptionData {
 
 
 export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
-  const { fuelData, selectedRoute, vehicles } = useApp();
+  const { fuelData, selectedRoute, vehicles, loading: contextLoading } = useApp();
   const { userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -68,21 +68,30 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   
 
 
-  // Fetch color codes from first vehicle with color_codes
+  // Fetch color codes from Supabase user settings
   const fetchColorCodes = async () => {
     try {
-      const costCode = (selectedRoute as any)?.costCode;
-      const url = getApiUrl(`/api/energy-rite/vehicles?limit=1${costCode ? `&costCode=${costCode}` : ''}`);
-      const response = await fetch(url);
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data?.[0]?.color_codes?.fuel) {
-          setFuelGaugeColors(data.data[0].color_codes.fuel);
-        }
+      if (!authUser) return;
+
+      const { data, error } = await supabase
+        .from('fuel_gauge_settings')
+        .select('color_high, color_medium, color_low')
+        .eq('user_id', authUser.id)
+        .single();
+      
+      if (!error && data) {
+        setFuelGaugeColors({
+          high: data.color_high,
+          medium: data.color_medium,
+          low: data.color_low,
+        });
       }
     } catch (error) {
-      console.warn('Could not fetch color codes:', error);
+      console.warn('Could not fetch color codes from Supabase:', error);
     }
   };
 
@@ -182,6 +191,45 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
       setFuelConsumptionData(mapped);
       console.log('✅ Fuel data built from context vehicles:', mapped.length);
+      
+      // Batch fetch all notes from Supabase in one query
+      if (mapped.length > 0) {
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          const vehicleIds = mapped.map(v => v.id?.toString()).filter(Boolean);
+          
+          const { data: notesData } = await supabase
+            .from('note_logs')
+            .select('vehicle_id, new_note, note_type')
+            .in('vehicle_id', vehicleIds)
+            .not('new_note', 'is', null)
+            .order('created_at', { ascending: false });
+          
+          if (notesData) {
+            const internalNotes = new Map<string, string>();
+            const externalNotes = new Map<string, string>();
+            
+            notesData.forEach(note => {
+              if (note.note_type === 'internal' && !internalNotes.has(note.vehicle_id)) {
+                internalNotes.set(note.vehicle_id, note.new_note);
+              } else if (note.note_type === 'external' && !externalNotes.has(note.vehicle_id)) {
+                externalNotes.set(note.vehicle_id, note.new_note);
+              }
+            });
+            
+            mapped.forEach(vehicle => {
+              const vid = vehicle.id?.toString();
+              if (vid) {
+                vehicle.notes = internalNotes.get(vid) || vehicle.notes;
+                vehicle.client_notes = externalNotes.get(vid) || vehicle.client_notes;
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch notes from Supabase:', err);
+        }
+      }
     } catch (err) {
       console.error('❌ Error fetching vehicle data:', err);
       setError('Failed to load vehicle data. Please try again.');
@@ -279,9 +327,16 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
   };
 
   useEffect(() => {
+    // Wait for AppContext to finish loading vehicles
+    if (contextLoading) {
+      console.log('⏳ Waiting for AppContext to load vehicles...');
+      return;
+    }
+    
+    console.log('✅ AppContext loaded, fetching fuel data');
     fetchColorCodes();
     fetchFuelData();
-  }, [selectedRoute, vehicles]);
+  }, [selectedRoute, vehicles, contextLoading]);
 
   // Convert fuel consumption data to fuel gauge format
   const getFuelGaugeData = () => {
@@ -316,7 +371,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
     });
   };
 
-  if (loading) {
+  if (loading || contextLoading) {
     return (
       <div className="flex justify-center items-center bg-gray-50 h-full">
         <div className="text-center">

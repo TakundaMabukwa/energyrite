@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { Palette, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
+import { useUser } from '@/contexts/UserContext';
 
 interface ColorPickerProps {
   onColorChange?: (colorCodes: { high: string; medium: string; low: string }) => void;
@@ -21,6 +23,7 @@ interface ColorPickerProps {
 
 export function ColorPicker({ onColorChange }: ColorPickerProps) {
   const { toast } = useToast();
+  const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [colorCodes, setColorCodes] = useState({
@@ -39,16 +42,58 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
   const handleSave = async () => {
     setLoading(true);
     
-    // Notify parent component of color change immediately
-    onColorChange?.(colorCodes);
+    try {
+      const supabase = createClient();
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      console.log('Auth user:', authUser?.id, 'Error:', authError);
+      
+      if (!authUser) {
+        toast({
+          title: 'Error',
+          description: 'You must be logged in to save color settings.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
 
-    toast({
-      title: 'Colors Updated',
-      description: 'Fuel gauge colors have been updated.',
-    });
+      console.log('Saving colors:', colorCodes);
+      
+      const { data, error } = await supabase
+        .from('fuel_gauge_settings')
+        .upsert({
+          user_id: authUser.id,
+          color_high: colorCodes.high,
+          color_medium: colorCodes.medium,
+          color_low: colorCodes.low,
+        }, {
+          onConflict: 'user_id'
+        })
+        .select();
 
-    setIsOpen(false);
-    setLoading(false);
+      console.log('Upsert result:', { data, error });
+
+      if (error) throw error;
+
+      onColorChange?.(colorCodes);
+
+      toast({
+        title: 'Colors Saved',
+        description: 'Your fuel gauge color preferences have been saved.',
+      });
+
+      setIsOpen(false);
+    } catch (error: any) {
+      console.error('Failed to save color settings:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to save color settings. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getLevelLabel = (level: string) => {

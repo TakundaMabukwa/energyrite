@@ -111,11 +111,6 @@ export function AddNoteModal({
       console.log('🔍 User for logging:', user);
       
       if (user && user.email) {
-        const userEmail = user.email.toLowerCase().trim();
-        const isInternal = userEmail.includes('@soltrack.co.za');
-        
-        console.log('🔍 User email check:', { userEmail, isInternal });
-        
         const logEntry = {
           vehicle_id: vehicleId,
           user_id: user.id,
@@ -123,7 +118,7 @@ export function AddNoteModal({
           old_note: oldNote || null,
           new_note: newNote || null,
           action: action,
-          note_type: isInternal ? 'internal' : 'external'
+          note_type: 'external' // Always external for fuel gauge notes
         };
         
         console.log('🔍 Inserting log entry:', logEntry);

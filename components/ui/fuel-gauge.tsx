@@ -64,7 +64,7 @@ export function FuelGauge({
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState(anomalyNote || '');
-  const [currentClientNote, setCurrentClientNote] = useState('');
+  const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
   const { user } = useUser();
   
   const canViewNotes = user?.email?.includes('@soltrack.co.za') || false;
@@ -129,13 +129,41 @@ export function FuelGauge({
       onNoteUpdate(id, note);
     }
   };
+  
+  // Update notes when props change
+  useEffect(() => {
+    setCurrentNote(anomalyNote || '');
+    setCurrentClientNote(clientNote || '');
+  }, [anomalyNote, clientNote]);
 
-  // Fetch latest client note on component mount
+  // Fetch latest internal note on component mount
   useEffect(() => {
     if (id) {
       fetchLatestClientNote();
+      fetchLatestInternalNote();
     }
   }, [id]);
+  
+  const fetchLatestInternalNote = async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('note_logs')
+        .select('new_note')
+        .eq('vehicle_id', id?.toString())
+        .eq('note_type', 'internal')
+        .not('new_note', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setCurrentNote(data.new_note || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch latest internal note:', error);
+    }
+  };
 
   const isEngineOn = status && (status.includes('PTO ON') || status.includes('ENGINE ON'));
 
@@ -193,8 +221,8 @@ export function FuelGauge({
                 sideOffset={5}
               >
                 <div className="flex flex-col items-center py-1 px-2">
-                  <p className="text-sm text-black font-medium">Last updated</p>
-                  <p className="text-xs text-gray-700">{formatForDisplay(updated_at || lastUpdated)}</p>
+                  <p className="text-sm text-black font-medium">Last Location Update</p>
+                  <p className="text-xs text-gray-700">{formatForDisplay(vehicleData?.loctime || lastUpdated)}</p>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -266,8 +294,17 @@ export function FuelGauge({
           isEngineOn ? "bg-green-300" : "bg-gray-50"
         )}>
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span className="text-xs text-gray-900">Comm: {lastUpdated}</span>
+          <span className="text-xs text-gray-900">Comm: {formatForDisplay(updated_at || lastUpdated)}</span>
         </div>
+        
+        {currentClientNote && (
+          <div className="bg-blue-50 px-2 py-1.5 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-1">
+              <NotebookPen className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-blue-800 leading-tight">{currentClientNote}</span>
+            </div>
+          </div>
+        )}
 
         <div className="mt-2">
           <Button 

@@ -229,20 +229,29 @@ export function StoreEquipmentView() {
     }
   };
 
-  // Build equipment data from global vehicles in context (same as fuel gauges)
+  // Build equipment data from dashboard API
   const fetchEquipmentData = async () => {
     try {
       setEquipmentLoading(true);
       setError(null);
       
-      const source = Array.isArray(vehicles) ? vehicles : [];
-      const filtered = source.filter((v: any) => v.cost_code); // Only show vehicles with cost_code
-
-      if (!filtered.length) {
-        console.log('⚠️ No vehicles available from context');
+      // Use the new dashboard-vehicles API route
+      const response = await fetch(getApiUrl('/api/energy-rite/dashboard-vehicles'));
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch vehicles: ${response.status}`);
       }
       
-      const equipment: VehicleEquipment[] = filtered.map((vehicle: any) => ({
+      const json = await response.json();
+      const source = json?.success && Array.isArray(json.data) ? json.data : [];
+      
+      console.log('✅ Fetched vehicles from dashboard API:', source.length);
+
+      if (!source.length) {
+        console.log('⚠️ No vehicles available from API');
+      }
+      
+      const equipment: VehicleEquipment[] = source.map((vehicle: any) => ({
         id: vehicle.id,
         branch: vehicle.branch || 'Unknown Branch',
         company: vehicle.company || 'Unknown Company',
@@ -288,8 +297,37 @@ export function StoreEquipmentView() {
         fuel_anomaly_note: vehicle.fuel_anomaly_note,
         last_anomaly_time: vehicle.last_anomaly_time,
         created_at: vehicle.created_at || new Date().toISOString(),
-        notes: vehicle.notes
+        notes: '' // Will be fetched from Supabase
       }));
+      
+      // Fetch notes from Supabase for all vehicles
+      try {
+        const supabase = createClient();
+        const vehicleIds = equipment.map(e => e.id.toString());
+        
+        const { data: notesData } = await supabase
+          .from('note_logs')
+          .select('vehicle_id, new_note')
+          .in('vehicle_id', vehicleIds)
+          .not('new_note', 'is', null)
+          .order('created_at', { ascending: false });
+        
+        // Map latest notes to equipment
+        if (notesData) {
+          const latestNotes = new Map<string, string>();
+          notesData.forEach(note => {
+            if (!latestNotes.has(note.vehicle_id)) {
+              latestNotes.set(note.vehicle_id, note.new_note);
+            }
+          });
+          
+          equipment.forEach(eq => {
+            eq.notes = latestNotes.get(eq.id.toString()) || null;
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to fetch notes from Supabase:', err);
+      }
       
       console.log('✅ Equipment data built from context vehicles:', equipment.length);
       setEquipmentData(equipment);
@@ -371,41 +409,64 @@ export function StoreEquipmentView() {
     try {
       setIsSaving(true);
       
-      // Prepare payload with only the fields that actually changed
       const originalEquipment = equipmentData.find(item => item.id === editedEquipment.id);
-      const updatePayload: any = {};
       
-      if (editedEquipment.branch !== originalEquipment?.branch) updatePayload.branch = editedEquipment.branch;
-      if (editedEquipment.company !== originalEquipment?.company) updatePayload.company = editedEquipment.company;
-      if (editedEquipment.cost_code !== originalEquipment?.cost_code) updatePayload.cost_code = editedEquipment.cost_code;
-      if (editedEquipment.ip_address !== originalEquipment?.ip_address) updatePayload.ip_address = editedEquipment.ip_address;
-      if (editedEquipment.volume !== originalEquipment?.volume) updatePayload.volume = editedEquipment.volume;
-      if (editedEquipment.notes !== originalEquipment?.notes) updatePayload.notes = editedEquipment.notes;
+      // If only notes changed, save to Supabase only
+      const onlyNotesChanged = 
+        editedEquipment.branch === originalEquipment?.branch &&
+        editedEquipment.company === originalEquipment?.company &&
+        editedEquipment.cost_code === originalEquipment?.cost_code &&
+        editedEquipment.ip_address === originalEquipment?.ip_address &&
+        editedEquipment.volume === originalEquipment?.volume &&
+        editedEquipment.notes !== originalEquipment?.notes;
       
-      // Use the correct API URL as shown in the curl examples
-      const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatePayload)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to update equipment: ${response.status}`);
-      }
-      
-      // Get the response data
-      const responseData = await response.json();
-      console.log('Update response:', responseData);
-      
-      // Log note changes and update UI simultaneously
-      const originalForLogging = equipmentData.find(item => item.id === editedEquipment.id);
-      await Promise.all([
-        originalForLogging?.notes !== editedEquipment.notes ? 
-          logNoteChange(editedEquipment.id.toString(), originalForLogging?.notes || '', editedEquipment.notes || '', 'update') : 
-          Promise.resolve(),
-        Promise.resolve(setEquipmentData(prev => 
+      if (onlyNotesChanged) {
+        // Save note to Supabase only
+        await logNoteChange(
+          editedEquipment.id.toString(), 
+          originalEquipment?.notes || '', 
+          editedEquipment.notes || '', 
+          'update'
+        );
+        
+        // Update UI
+        setEquipmentData(prev => 
+          prev.map(item => 
+            item.id === editedEquipment.id ? { ...item, notes: editedEquipment.notes } : item
+          )
+        );
+      } else {
+        // Save other fields to external API
+        const updatePayload: any = {};
+        
+        if (editedEquipment.branch !== originalEquipment?.branch) updatePayload.branch = editedEquipment.branch;
+        if (editedEquipment.company !== originalEquipment?.company) updatePayload.company = editedEquipment.company;
+        if (editedEquipment.cost_code !== originalEquipment?.cost_code) updatePayload.cost_code = editedEquipment.cost_code;
+        if (editedEquipment.ip_address !== originalEquipment?.ip_address) updatePayload.ip_address = editedEquipment.ip_address;
+        if (editedEquipment.volume !== originalEquipment?.volume) updatePayload.volume = editedEquipment.volume;
+        
+        const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to update equipment: ${response.status}`);
+        }
+        
+        // If notes also changed, save to Supabase
+        if (editedEquipment.notes !== originalEquipment?.notes) {
+          await logNoteChange(
+            editedEquipment.id.toString(), 
+            originalEquipment?.notes || '', 
+            editedEquipment.notes || '', 
+            'update'
+          );
+        }
+        
+        // Update UI
+        setEquipmentData(prev => 
           prev.map(item => 
             item.id === editedEquipment.id ? {
               ...item,
@@ -417,8 +478,8 @@ export function StoreEquipmentView() {
               notes: editedEquipment.notes
             } : item
           )
-        ))
-      ]);
+        );
+      }
       
       toast({
         title: "Equipment updated",
@@ -440,7 +501,7 @@ export function StoreEquipmentView() {
     }
   };
   
-  // Log note changes
+  // Log note changes to Supabase - Equipment tab notes are always internal
   const logNoteChange = async (vehicleId: string, oldNote: string, newNote: string, action: string) => {
     try {
       const supabase = createClient();
@@ -453,7 +514,8 @@ export function StoreEquipmentView() {
           user_email: user.email,
           old_note: oldNote || null,
           new_note: newNote || null,
-          action: action
+          action: action,
+          note_type: 'internal' // Equipment tab notes are always internal
         });
       }
     } catch (error) {
