@@ -102,66 +102,16 @@ export function FuelGauge({
     return colors.high;
   };
 
-  const fetchLatestClientNote = async () => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('note_logs')
-        .select('new_note')
-        .eq('vehicle_id', id?.toString())
-        .eq('note_type', 'external')
-        .not('new_note', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!error && data) {
-        setCurrentClientNote(data.new_note || '');
-      }
-    } catch (error) {
-      console.error('Failed to fetch latest client note:', error);
-    }
-  };
-
-  const handleNoteAdded = (note: string) => {
-    setCurrentClientNote(note);
-    if (onNoteUpdate && id) {
-      onNoteUpdate(id, note);
-    }
-  };
-  
   // Update notes when props change
   useEffect(() => {
     setCurrentNote(anomalyNote || '');
     setCurrentClientNote(clientNote || '');
   }, [anomalyNote, clientNote]);
 
-  // Fetch latest internal note on component mount
-  useEffect(() => {
-    if (id) {
-      fetchLatestClientNote();
-      fetchLatestInternalNote();
-    }
-  }, [id]);
-  
-  const fetchLatestInternalNote = async () => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('note_logs')
-        .select('new_note')
-        .eq('vehicle_id', id?.toString())
-        .eq('note_type', 'internal')
-        .not('new_note', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!error && data) {
-        setCurrentNote(data.new_note || '');
-      }
-    } catch (error) {
-      console.error('Failed to fetch latest internal note:', error);
+  const handleNoteAdded = (note: string) => {
+    setCurrentClientNote(note);
+    if (onNoteUpdate && id) {
+      onNoteUpdate(id, note);
     }
   };
 
