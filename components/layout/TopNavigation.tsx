@@ -40,26 +40,8 @@ export function TopNavigation() {
             </button>
           ))}
           </div>
-
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-              onClick={() => setShowNotesHistory(true)}
-              title="Notes History"
-            >
-              <History className="w-4 h-4" />
-              Notes History
-            </Button>
-          </div>
         </div>
       </div>
-      
-      <NotesHistoryModal 
-        isOpen={showNotesHistory} 
-        onClose={() => setShowNotesHistory(false)} 
-      />
     </div>
   );
 }

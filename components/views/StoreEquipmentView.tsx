@@ -250,7 +250,7 @@ export function StoreEquipmentView() {
         branch: vehicle.branch || 'Unknown Branch',
         company: vehicle.company || 'Unknown Company',
         plate: vehicle.plate,
-        ip_address: vehicle.ip_address || '',
+        ip_address: vehicle.quality || vehicle.ip_address || '',
         cost_code: vehicle.cost_code || '',
         speed: vehicle.speed || '0',
         latitude: vehicle.latitude || '0',
@@ -672,16 +672,23 @@ export function StoreEquipmentView() {
     initializeData();
   }, [selectedRoute, vehicles]); // Add vehicles dependency
   
-  // Get unique cost codes from equipment data for the dropdown
+  // Get unique cost codes from cost centers for the dropdown
   const getUniqueCostCodes = () => {
     const costCodes = new Set<string>();
     
-    equipmentData.forEach(equipment => {
-      if (equipment.cost_code) {
-        costCodes.add(equipment.cost_code);
-      }
-    });
+    // Flatten cost centers to get all cost codes
+    const flattenCostCenters = (centers: any[]): void => {
+      centers.forEach(center => {
+        if (center.costCode) {
+          costCodes.add(center.costCode);
+        }
+        if (center.children && center.children.length > 0) {
+          flattenCostCenters(center.children);
+        }
+      });
+    };
     
+    flattenCostCenters(costCenters);
     return Array.from(costCodes).sort();
   };
   
@@ -745,7 +752,9 @@ export function StoreEquipmentView() {
   if (showVehicles) {
     return (
       <div className="flex flex-col h-full">
-        <TopNavigation />
+        <div className="sticky top-0 z-10 bg-white">
+          <TopNavigation />
+        </div>
         
         <div className="flex-1 space-y-6 p-6">
           {/* Equipment Details Section */}
@@ -758,29 +767,6 @@ export function StoreEquipmentView() {
                   Equipment Details
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Filter by Cost Code" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Cost Codes</SelectItem>
-                        {uniqueCostCodes.map((code) => {
-                          const relatedEquipment = equipmentData.find(eq => eq.cost_code === code);
-                          const branchInfo = relatedEquipment ? ` (${relatedEquipment.branch})` : '';
-                          return (
-                            <SelectItem key={code} value={code}>
-                              <div className="flex items-center">
-                                <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded mr-1.5 text-blue-800 text-xs">{code}</span>
-                                {branchInfo && <span className="text-gray-600 text-xs">{branchInfo}</span>}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <Button 
                     variant="default" 
                     size="sm"
@@ -790,7 +776,7 @@ export function StoreEquipmentView() {
                     <PlusCircle className="w-4 h-4" /> Add Generator
                   </Button>
                   <Badge variant="outline" className="text-gray-600">
-                    {selectedCostCode === 'all' ? `All Generators (${filteredEquipmentData.length})` : `${selectedCostCode}+ (${filteredEquipmentData.length})`}
+                    {filteredEquipmentData.length} Generators
                   </Badge>
                 </div>
               </div>
@@ -806,7 +792,7 @@ export function StoreEquipmentView() {
                 <div className="py-12 text-gray-500 text-center">
                   <Building2 className="mx-auto mb-4 w-12 h-12 text-gray-400" />
                   <p className="font-medium text-lg">No Data Available</p>
-                  <p className="text-sm">No equipment data found{selectedCostCode !== 'all' ? ` for cost code: ${selectedCostCode}` : ''}</p>
+                  <p className="text-sm">No equipment data found</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -824,7 +810,6 @@ export function StoreEquipmentView() {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
-                            <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">COMPANY</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">IP ADDRESS</th>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">TANK VOLUME</th>
                             {canViewNotes && (
@@ -852,17 +837,6 @@ export function StoreEquipmentView() {
                                       </div>
                                     )}
                                   </div>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">
-                                {editingRowId === equipment.id ? (
-                                  <Input 
-                                    className="h-8 w-full py-1 px-2"
-                                    value={editedEquipment?.company || ''}
-                                    onChange={(e) => handleInputChange(e, 'company')}
-                                  />
-                                ) : (
-                                  equipment.company
                                 )}
                               </td>
                               <td className="px-4 py-4 text-gray-900 text-sm whitespace-nowrap">

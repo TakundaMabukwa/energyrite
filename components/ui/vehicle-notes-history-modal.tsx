@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { History, User, Clock, FileText, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
@@ -43,16 +42,13 @@ export function VehicleNotesHistoryModal({
       const userEmail = user?.email?.toLowerCase().trim() || '';
       const isInternal = userEmail.includes('@soltrack.co.za');
       
-      console.log('🔍 Vehicle notes history user check:', { userEmail, isInternal });
-      
       let query = supabase
         .from('note_logs')
         .select('*')
         .eq('vehicle_id', vehicleId.toString())
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
       
-      // Filter out internal notes for non-Soltrack users
       if (!isInternal) {
         query = query.eq('note_type', 'external');
       }
@@ -74,81 +70,79 @@ export function VehicleNotesHistoryModal({
     }
   }, [isOpen, vehicleId]);
 
-  const getNoteType = (userEmail: string) => {
-    const email = userEmail?.toLowerCase().trim() || '';
-    return email.includes('@soltrack.co.za') ? 'Internal' : 'Client';
-  };
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'update': return 'bg-blue-100 text-blue-800';
-      case 'delete': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[60vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="w-5 h-5 text-blue-600" />
-            Notes History - {vehicleLocation}
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden shadow-xl">
+        <DialogHeader className="pb-3 border-b border-gray-200">
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-blue-600" />
+              <span className="font-semibold text-gray-900 text-base">Notes History - {vehicleLocation}</span>
+            </div>
           </DialogTitle>
         </DialogHeader>
         
-        <div className="max-h-[300px] overflow-y-auto pr-2">
+        <div className="max-h-[550px] overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600 text-sm">Loading history...</span>
+            <div className="flex justify-center items-center py-12">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+                <span className="text-gray-600 text-sm">Loading history...</span>
+              </div>
             </div>
           ) : noteLogs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">No notes history for this vehicle</p>
+            <div className="flex justify-center items-center py-12">
+              <div className="text-center">
+                <FileText className="mx-auto mb-4 w-12 h-12 text-gray-400" />
+                <p className="text-gray-500 text-lg">No notes history</p>
+                <p className="text-gray-400 text-sm mt-2">This vehicle has no recorded notes</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              {noteLogs.map((log) => (
-                <div key={log.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex flex-col gap-1">
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs flex-shrink-0 ${
-                          getNoteType(log.user_email) === 'Internal' 
-                            ? 'bg-purple-100 text-purple-700 border-purple-300' 
-                            : 'bg-blue-100 text-blue-700 border-blue-300'
-                        }`}
-                      >
-                        {getNoteType(log.user_email)}
-                      </Badge>
-                      <span className="text-xs text-gray-600">{log.user_email}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatForDisplay(log.created_at)}</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    {log.new_note ? (
-                      <p className="text-sm text-gray-900 leading-relaxed break-words">{log.new_note}</p>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">Note deleted</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full">
+                <thead className="bg-[#1e3a5f] text-white">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">User</th>
+                    <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">Note</th>
+                    <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {noteLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-xs align-top">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span className="text-gray-900 font-medium">{log.user_email}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs align-top">
+                        {log.new_note ? (
+                          <p className="text-gray-800 leading-relaxed break-words">{log.new_note}</p>
+                        ) : (
+                          <span className="text-red-600 italic flex items-center gap-1">
+                            <X className="w-3 h-3" />
+                            Note deleted
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs align-top whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatForDisplay(log.created_at)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
         
-        <div className="flex justify-end pt-3 border-t">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            <X className="w-3 h-3 mr-1" />
+        <div className="flex justify-end pt-3 border-t border-gray-200">
+          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
             Close
           </Button>
         </div>
