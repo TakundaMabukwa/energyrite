@@ -14,7 +14,7 @@
 /coverage
 
 # next.js
-/.next/
+/.next
 /out/
 
 # production
@@ -50,3 +50,4 @@ next-env.d.ts
 
 # linting and type checking disabled
 # All linting and type checking has been disabled for this project
+.next

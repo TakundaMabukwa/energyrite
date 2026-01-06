@@ -2,8 +2,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "cross-env NODE_OPTIONS='--max-old-space-size=896' next build --no-lint",
-    "start": "cross-env NODE_OPTIONS='--max-old-space-size=384' node .next/standalone/server.js",
+    "build": "NODE_OPTIONS='--max-old-space-size=896' next build --no-lint",
+    "start": "NODE_OPTIONS='--max-old-space-size=384' node .next/standalone/server.js",
     "lint": "echo 'Linting disabled'",
     "lint:fix": "echo 'Linting disabled'",
     "type-check": "echo 'Type checking disabled'",
