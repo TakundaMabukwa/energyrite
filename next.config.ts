@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   serverExternalPackages: ['pg'],
-  output: 'standalone',
   // Bind to localhost only
   async headers() {
     return [
