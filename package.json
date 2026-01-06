@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --no-lint",
-    "start": "node .next/standalone/server.js",
+    "start": "next start",
     "lint": "echo 'Linting disabled'",
     "lint:fix": "echo 'Linting disabled'",
     "type-check": "echo 'Type checking disabled'",
