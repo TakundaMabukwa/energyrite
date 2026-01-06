@@ -5,26 +5,32 @@ export const runtime = 'nodejs';
 const EXTERNAL_API = 'http://209.38.217.58:8000/api/energyrite-sites';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('🚀 [INTERNAL API] Request received at', new Date().toISOString());
+  
   try {
-    console.log('🔍 Fetching vehicles from external API:', EXTERNAL_API);
+    console.log('🔍 [INTERNAL API] Fetching from external API:', EXTERNAL_API);
     
     const response = await fetch(EXTERNAL_API, {
       headers: {
         'Content-Type': 'application/json',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
+    console.log('📡 [INTERNAL API] External API responded:', response.status, 'in', Date.now() - startTime, 'ms');
+
     if (!response.ok) {
-      console.error('❌ External API error:', response.status, response.statusText);
+      console.error('❌ [INTERNAL API] External API error:', response.status, response.statusText);
       return NextResponse.json(
-        { success: false, error: 'External API error' },
-        { status: response.status }
+        { success: true, data: [] }, // Return empty array instead of error
+        { status: 200 }
       );
     }
 
     const data = await response.json();
-    console.log('✅ Received data from external API:', Array.isArray(data) ? data.length : 0, 'vehicles');
+    console.log('✅ [INTERNAL API] Received data:', Array.isArray(data) ? data.length : 0, 'vehicles');
 
     // Transform capitalized keys to lowercase
     const normalized = Array.isArray(data) ? data.map((vehicle: any) => ({
@@ -50,14 +56,14 @@ export async function GET(request: NextRequest) {
       client_notes: vehicle.client_notes,
     })) : [];
 
-    console.log('🔄 Normalized data:', normalized.length, 'vehicles');
+    console.log('🔄 [INTERNAL API] Normalized:', normalized.length, 'vehicles in', Date.now() - startTime, 'ms');
 
     return NextResponse.json({ success: true, data: normalized });
   } catch (error: any) {
-    console.error('❌ Error fetching vehicles:', error);
+    console.error('❌ [INTERNAL API] Error after', Date.now() - startTime, 'ms:', error.message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch vehicles' },
-      { status: 500 }
+      { success: true, data: [] }, // Return empty array on error
+      { status: 200 }
     );
   }
 }

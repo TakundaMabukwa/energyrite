@@ -2,8 +2,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "NODE_OPTIONS='--max-old-space-size=896' next build --no-lint",
-    "start": "NODE_OPTIONS='--max-old-space-size=384' node .next/standalone/server.js",
+    "build": "cross-env NODE_OPTIONS='--max-old-space-size=896' next build --no-lint",
+    "start": "cross-env NODE_OPTIONS='--max-old-space-size=384' node .next/standalone/server.js",
     "lint": "echo 'Linting disabled'",
     "lint:fix": "echo 'Linting disabled'",
     "type-check": "echo 'Type checking disabled'",
@@ -75,6 +75,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
     "eslint": "^9.34.0",
     "eslint-config-next": "15.3.1",
     "postcss": "^8.5.6",
