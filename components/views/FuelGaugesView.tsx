@@ -142,11 +142,41 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           fuel_anomaly_note: vehicle.fuel_anomaly_note,
           notes: vehicle.notes,
           client_notes: vehicle.client_notes,
-          volume: parseFloat(vehicle.volume),
+          volume: 0, // Will be fetched from Supabase vehicle_settings
           fuel_probe_1_temperature: parseFloat(vehicle.fuel_probe_1_temperature),
           lastFuelFill: undefined
         };
       });
+
+      // Fetch tank capacities from Supabase
+      if (mapped.length > 0) {
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          const vehicleIds = mapped.map(v => v.id?.toString()).filter(Boolean);
+          
+          const { data: tankData } = await supabase
+            .from('vehicle_settings')
+            .select('vehicle_id, tank_size')
+            .in('vehicle_id', vehicleIds);
+          
+          if (tankData) {
+            const tankSizes = new Map<string, number>();
+            tankData.forEach(tank => {
+              tankSizes.set(tank.vehicle_id, tank.tank_size);
+            });
+            
+            mapped.forEach(vehicle => {
+              const vid = vehicle.id?.toString();
+              if (vid) {
+                vehicle.volume = tankSizes.get(vid) || 0;
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch tank sizes from Supabase:', err);
+        }
+      }
 
       // Fetch activity report data to detect fuel fills
       if (costCode) {

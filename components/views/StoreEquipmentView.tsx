@@ -245,12 +245,6 @@ export function StoreEquipmentView() {
       const json = await response.json();
       const source = json?.success && Array.isArray(json.data) ? json.data : [];
       
-      console.log('✅ Fetched vehicles from dashboard API:', source.length);
-
-      if (!source.length) {
-        console.log('⚠️ No vehicles available from API');
-      }
-      
       const equipment: VehicleEquipment[] = source.map((vehicle: any) => ({
         id: vehicle.id,
         branch: vehicle.branch || 'Unknown Branch',
@@ -282,7 +276,7 @@ export function StoreEquipmentView() {
         status: vehicle.status,
         last_message_date: vehicle.last_message_date || new Date().toISOString(),
         updated_at: vehicle.updated_at || new Date().toISOString(),
-        volume: vehicle.volume || '0',
+        volume: '0', // Will be fetched from Supabase vehicle_settings
         theft: vehicle.theft || false,
         theft_time: vehicle.theft_time,
         previous_fuel_level: vehicle.previous_fuel_level,
@@ -300,11 +294,12 @@ export function StoreEquipmentView() {
         notes: '' // Will be fetched from Supabase
       }));
       
-      // Fetch notes from Supabase for all vehicles
+      // Fetch notes and tank sizes from Supabase for all vehicles
       try {
         const supabase = createClient();
         const vehicleIds = equipment.map(e => e.id.toString());
         
+        // Fetch notes
         const { data: notesData } = await supabase
           .from('note_logs')
           .select('vehicle_id, new_note')
@@ -312,7 +307,17 @@ export function StoreEquipmentView() {
           .not('new_note', 'is', null)
           .order('created_at', { ascending: false });
         
-        // Map latest notes to equipment
+        // Fetch tank sizes
+        const { data: tankData, error: tankError } = await supabase
+          .from('vehicle_settings')
+          .select('vehicle_id, tank_size')
+          .in('vehicle_id', vehicleIds);
+        
+        if (tankError) {
+          console.error('❌ Error fetching tank sizes from Supabase:', tankError);
+        }
+        
+        // Map latest notes and tank sizes to equipment
         if (notesData) {
           const latestNotes = new Map<string, string>();
           notesData.forEach(note => {
@@ -325,11 +330,24 @@ export function StoreEquipmentView() {
             eq.notes = latestNotes.get(eq.id.toString()) || null;
           });
         }
+        
+        if (tankData) {
+          const tankSizes = new Map<string, number>();
+          tankData.forEach(tank => {
+            tankSizes.set(tank.vehicle_id, tank.tank_size);
+          });
+          
+          equipment.forEach(eq => {
+            const tankSize = tankSizes.get(eq.id.toString());
+            if (tankSize !== undefined && tankSize !== null) {
+              eq.volume = tankSize.toString();
+            }
+          });
+        }
       } catch (err) {
-        console.warn('Failed to fetch notes from Supabase:', err);
+        console.error('❌ Failed to fetch data from Supabase:', err);
       }
       
-      console.log('✅ Equipment data built from context vehicles:', equipment.length);
       setEquipmentData(equipment);
     } catch (error) {
       console.error('❌ Error building equipment data:', error);
@@ -411,39 +429,46 @@ export function StoreEquipmentView() {
       
       const originalEquipment = equipmentData.find(item => item.id === editedEquipment.id);
       
-      // If only notes changed, save to Supabase only
-      const onlyNotesChanged = 
-        editedEquipment.branch === originalEquipment?.branch &&
-        editedEquipment.company === originalEquipment?.company &&
-        editedEquipment.cost_code === originalEquipment?.cost_code &&
-        editedEquipment.ip_address === originalEquipment?.ip_address &&
-        editedEquipment.volume === originalEquipment?.volume &&
-        editedEquipment.notes !== originalEquipment?.notes;
+      // Check what changed
+      const volumeChanged = editedEquipment.volume !== originalEquipment?.volume;
+      const notesChanged = editedEquipment.notes !== originalEquipment?.notes;
+      const otherFieldsChanged = 
+        editedEquipment.branch !== originalEquipment?.branch ||
+        editedEquipment.company !== originalEquipment?.company ||
+        editedEquipment.cost_code !== originalEquipment?.cost_code ||
+        editedEquipment.ip_address !== originalEquipment?.ip_address;
       
-      if (onlyNotesChanged) {
-        // Save note to Supabase only
+      // Save tank size to Supabase
+      if (volumeChanged) {
+        const supabase = createClient();
+        await supabase
+          .from('vehicle_settings')
+          .upsert({
+            vehicle_id: editedEquipment.id.toString(),
+            tank_size: parseFloat(editedEquipment.volume || '0'),
+          }, {
+            onConflict: 'vehicle_id'
+          });
+      }
+      
+      // Save notes to Supabase
+      if (notesChanged) {
         await logNoteChange(
           editedEquipment.id.toString(), 
           originalEquipment?.notes || '', 
           editedEquipment.notes || '', 
           'update'
         );
-        
-        // Update UI
-        setEquipmentData(prev => 
-          prev.map(item => 
-            item.id === editedEquipment.id ? { ...item, notes: editedEquipment.notes } : item
-          )
-        );
-      } else {
-        // Save other fields to external API
+      }
+      
+      // Save other fields to external API
+      if (otherFieldsChanged) {
         const updatePayload: any = {};
         
         if (editedEquipment.branch !== originalEquipment?.branch) updatePayload.branch = editedEquipment.branch;
         if (editedEquipment.company !== originalEquipment?.company) updatePayload.company = editedEquipment.company;
         if (editedEquipment.cost_code !== originalEquipment?.cost_code) updatePayload.cost_code = editedEquipment.cost_code;
         if (editedEquipment.ip_address !== originalEquipment?.ip_address) updatePayload.ip_address = editedEquipment.ip_address;
-        if (editedEquipment.volume !== originalEquipment?.volume) updatePayload.volume = editedEquipment.volume;
         
         const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
           method: 'PUT',
@@ -454,32 +479,22 @@ export function StoreEquipmentView() {
         if (!response.ok) {
           throw new Error(`Failed to update equipment: ${response.status}`);
         }
-        
-        // If notes also changed, save to Supabase
-        if (editedEquipment.notes !== originalEquipment?.notes) {
-          await logNoteChange(
-            editedEquipment.id.toString(), 
-            originalEquipment?.notes || '', 
-            editedEquipment.notes || '', 
-            'update'
-          );
-        }
-        
-        // Update UI
-        setEquipmentData(prev => 
-          prev.map(item => 
-            item.id === editedEquipment.id ? {
-              ...item,
-              branch: editedEquipment.branch,
-              company: editedEquipment.company,
-              cost_code: editedEquipment.cost_code,
-              ip_address: editedEquipment.ip_address,
-              volume: editedEquipment.volume,
-              notes: editedEquipment.notes
-            } : item
-          )
-        );
       }
+      
+      // Update UI
+      setEquipmentData(prev => 
+        prev.map(item => 
+          item.id === editedEquipment.id ? {
+            ...item,
+            branch: editedEquipment.branch,
+            company: editedEquipment.company,
+            cost_code: editedEquipment.cost_code,
+            ip_address: editedEquipment.ip_address,
+            volume: editedEquipment.volume,
+            notes: editedEquipment.notes
+          } : item
+        )
+      );
       
       toast({
         title: "Equipment updated",
@@ -574,7 +589,6 @@ export function StoreEquipmentView() {
       
       // Get the response data
       const responseData = await response.json();
-      console.log('Generator created successfully:', responseData);
       
       // Refresh equipment data
       await fetchEquipmentData();
@@ -608,9 +622,6 @@ export function StoreEquipmentView() {
 
   // Handle cost center click (same as dashboard)
   const handleCostCenterClick = async (costCenter: HierarchicalCostCenter) => {
-    console.log('🎯 Cost center clicked:', costCenter);
-    console.log('🎯 Cost center costCode:', costCenter.costCode);
-    
     // Set selected route
     setSelectedRoute({
       id: costCenter.id,
