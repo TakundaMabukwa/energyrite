@@ -17,8 +17,9 @@ export async function GET(request: NextRequest) {
     params.append('date', reportDate);
     
     if (siteId) {
-      params.append('site_id', siteId);
-    } else if (costCode) {
+      params.append('siteId', siteId);
+    }
+    if (costCode) {
       params.append('costCode', costCode);
     }
 

@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
     params.append('period', period);
     
     if (costCode) {
-      params.append('cost_code', costCode);
+      params.append('costCode', costCode);
     }
     if (costCodes) {
-      params.append('cost_codes', costCodes);
+      params.append('costCodes', costCodes);
     }
 
     // Forward the request to the external API
