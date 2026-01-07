@@ -218,12 +218,12 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
           });
           
           const transformedData = {
-            summary: apiData.summary || {
+            summary: {
               total_sites: siteReports.length,
               total_sessions: apiData.sessions.length,
               total_operating_hours: apiData.summary?.total_operating_hours || 0,
               total_fuel_usage: apiData.summary?.total_fuel_usage || 0,
-              total_fuel_filled: apiData.summary?.total_fuel_filled || 0
+              total_fuel_filled: parseFloat(apiData.fuel_fills?.total_fuel_filled || apiData.summary?.total_fuel_filled || 0)
             },
             site_reports: siteReports,
             time_slot_totals: {
