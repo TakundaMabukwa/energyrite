@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Thermometer, Droplets, Gauge, Clock, NotebookPen, Fuel } from 'lucide-react';
-import { formatForDisplay } from '@/lib/utils/date-formatter';
+import { formatForDisplay, formatLocationUpdate } from '@/lib/utils/date-formatter';
 import { AddNoteModal } from '@/components/ui/add-note-modal';
 import { VehicleNotesHistoryModal } from '@/components/ui/vehicle-notes-history-modal';
 import { useUser } from '@/contexts/UserContext';
@@ -172,7 +172,7 @@ export function FuelGauge({
               >
                 <div className="flex flex-col items-center py-1 px-2">
                   <p className="text-sm text-black font-medium">Last Location Update</p>
-                  <p className="text-xs text-gray-700">{formatForDisplay(vehicleData?.loctime || lastUpdated)}</p>
+                  <p className="text-xs text-gray-700">{formatLocationUpdate(vehicleData?.loctime || lastUpdated)}</p>
                 </div>
               </TooltipContent>
             </Tooltip>
