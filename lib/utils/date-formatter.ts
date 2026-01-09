@@ -245,3 +245,32 @@ export function formatSouthAfricanTime(timestamp: string): string {
     return 'Invalid Date';
   }
 }
+
+/**
+ * Formats timestamp with 2 hours added (for Last Location Update)
+ * @param timestamp - ISO 8601 timestamp string
+ * @returns Formatted string with 2 hours added
+ */
+export function formatLocationUpdate(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    // Add 2 hours
+    date.setHours(date.getHours() + 2);
+    
+    return date.toLocaleString('en-ZA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return 'Invalid Date';
+  }
+}
