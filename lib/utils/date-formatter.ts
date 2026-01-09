@@ -165,9 +165,11 @@ export function formatForDisplay(timestamp: string): string {
       return 'Invalid Date';
     }
     
-    // Convert to South African time (SAST - UTC+2)
+    // Add 2 hours to the timestamp
+    date.setHours(date.getHours() + 2);
+    
+    // Format the adjusted time
     return date.toLocaleString('en-ZA', {
-      timeZone: 'Africa/Johannesburg',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
