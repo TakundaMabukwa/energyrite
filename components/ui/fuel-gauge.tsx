@@ -161,7 +161,7 @@ export function FuelGauge({
                   variant="outline" 
                   className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
                 >
-                  ON
+                  {status}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent 
