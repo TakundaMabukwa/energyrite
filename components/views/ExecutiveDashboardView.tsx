@@ -388,16 +388,16 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     try {
       console.log('⛽ Fetching cumulative fuel consumption data...');
       
-      // Get current month and year
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
+      // Get selected month and year from selectedMonth state
+      const [yearStr, monthStr] = selectedMonth.split('-');
+      const currentYear = parseInt(yearStr);
+      const currentMonth = parseInt(monthStr);
       
       // Priority: site_id > selectedRoute.costCode > userCostCode
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
       const siteIdFilter = userSiteId || null;
       
-      // Fetch cumulative snapshot data for current month
+      // Fetch cumulative snapshot data for selected month
       const baseUrl = getReportsApiUrl('');
       const cumulativeParams = new URLSearchParams();
       if (costCodeFilter) {
@@ -444,7 +444,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }
       ]);
     }
-  }, [selectedRoute, userCostCode, userSiteId]);
+  }, [selectedRoute, userCostCode, userSiteId, selectedMonth]);
 
   useEffect(() => {
     // Auto-fetch overall data on load
@@ -455,12 +455,8 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   // Auto-fetch data when month changes or filters change
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedMonth, selectedRoute, userCostCode, userSiteId]);
-
-  // Auto-fetch fuel consumption data when filters change
-  useEffect(() => {
     fetchPreviousDayFuelConsumption();
-  }, [selectedRoute, userCostCode, userSiteId]);
+  }, [selectedMonth, selectedRoute, userCostCode, userSiteId]);
 
   if (loading) {
     return (
