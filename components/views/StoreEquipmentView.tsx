@@ -670,7 +670,7 @@ export function StoreEquipmentView() {
     };
 
     initializeData();
-  }, [selectedRoute, vehicles]); // Add vehicles dependency
+  }, []); // Initialize once on mount
   
   // Get unique cost codes from cost centers for the dropdown
   const getUniqueCostCodes = () => {

@@ -153,7 +153,7 @@ export function FuelGauge({
             </div>
           </div>
         )}
-        {status && isEngineOn && (
+        {status && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
