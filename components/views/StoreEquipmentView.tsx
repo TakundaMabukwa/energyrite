@@ -105,15 +105,37 @@ export function StoreEquipmentView() {
   
   // Add generator dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState<VehicleEquipment | null>(null);
   const [newGenerator, setNewGenerator] = useState<Partial<VehicleEquipment>>({
     branch: '',
     company: '',
     cost_code: '',
     ip_address: '',
     notes: '',
+    volume: '',
+    plate: '',
     is_active: true,
   });
   const { toast } = useToast();
+  
+  // Get all cost centers flattened for dropdown
+  const getAllCostCenters = () => {
+    const allCenters: HierarchicalCostCenter[] = [];
+    const flatten = (centers: HierarchicalCostCenter[]) => {
+      centers.forEach(center => {
+        allCenters.push(center);
+        if (center.children && center.children.length > 0) {
+          flatten(center.children);
+        }
+      });
+    };
+    flatten(costCenters);
+    return allCenters;
+  };
+  
+  const allCostCenters = getAllCostCenters();
 
   // Fetch real-time dashboard data (same as dashboard)
   const fetchRealtimeData = async (costCenter?: HierarchicalCostCenter) => {
@@ -373,40 +395,50 @@ export function StoreEquipmentView() {
   
   // Handle equipment deletion
   const handleDeleteEquipment = async (equipment: VehicleEquipment) => {
-    if (!equipment.id) {
+    if (!equipment.plate) {
       toast({
         title: "Error",
-        description: "Cannot delete: Missing equipment ID",
+        description: "Cannot delete: Missing site name",
         variant: "destructive"
       });
       return;
     }
     
-    if (confirm(`Are you sure you want to delete ${equipment.branch}?`)) {
-      try {
-        const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${equipment.id}?confirm=true` : `/api/energy-rite/vehicles/${equipment.id}?confirm=true`, {
-          method: 'DELETE',
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to delete: ${response.status}`);
-        }
-        
-        toast({
-          title: "Equipment Deleted",
-          description: `${equipment.branch} has been successfully removed`,
-        });
-        
-        // Refresh equipment data to update the table
-        await fetchEquipmentData();
-      } catch (error) {
-        console.error('Error deleting equipment:', error);
-        toast({
-          title: "Error Deleting Equipment",
-          description: error instanceof Error ? error.message : "An unknown error occurred",
-          variant: "destructive"
-        });
+    setEquipmentToDelete(equipment);
+    setDeleteDialogOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!equipmentToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/energyrite-sites?plate=${encodeURIComponent(equipmentToDelete.plate!)}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete: ${response.status}`);
       }
+      
+      toast({
+        title: "Successfully Deleted",
+        description: `${equipmentToDelete.plate} has been removed`,
+      });
+      
+      await fetchEquipmentData();
+      setDeleteDialogOpen(false);
+      setEquipmentToDelete(null);
+    } catch (error) {
+      console.error('Error deleting equipment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete. Please try again later.",
+        variant: "destructive"
+      });
+      setDeleteDialogOpen(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -554,41 +586,56 @@ export function StoreEquipmentView() {
     try {
       setIsSaving(true);
       
-      // Validate required field (only branch is required according to API)
-      if (!newGenerator.branch) {
+      // Validate required fields
+      if (!newGenerator.cost_code) {
         toast({
           title: "Validation Error",
-          description: "Branch name is required",
+          description: "Cost centre is required",
           variant: "destructive"
         });
         return;
       }
       
-      // Create the payload for the API - include all available fields
-      const payload = {
-        branch: newGenerator.branch,
-        company: newGenerator.company || '',
-        cost_code: newGenerator.cost_code || '',
-        ip_address: newGenerator.ip_address || '',
-        notes: newGenerator.notes || '',
-        is_active: newGenerator.is_active === undefined ? true : newGenerator.is_active
-      };
-      
-      // Send the request to create a new generator
-      const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles` : '/api/energy-rite/vehicles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to add generator: ${response.status}`);
+      if (!newGenerator.volume) {
+        toast({
+          title: "Validation Error",
+          description: "Tank capacity/size is required",
+          variant: "destructive"
+        });
+        return;
       }
       
-      // Get the response data
-      const responseData = await response.json();
+      if (!newGenerator.plate) {
+        toast({
+          title: "Validation Error",
+          description: "Site name is required",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Call API route with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch('/api/energyrite-sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plate: newGenerator.plate,
+          ip_address: newGenerator.ip_address || '',
+          cost_code: newGenerator.cost_code,
+          tank_size: newGenerator.volume
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to add generator: ${response.status}`);
+      }
       
       // Refresh equipment data
       await fetchEquipmentData();
@@ -600,6 +647,8 @@ export function StoreEquipmentView() {
         cost_code: '',
         ip_address: '',
         notes: '',
+        volume: '',
+        plate: '',
         is_active: true,
       });
       setAddDialogOpen(false);
@@ -610,11 +659,19 @@ export function StoreEquipmentView() {
       });
     } catch (error) {
       console.error('Error adding generator:', error);
-      toast({
-        title: "Error Adding Generator",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive"
-      });
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Request Timeout",
+          description: "The request took too long. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error Adding Generator",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -980,32 +1037,54 @@ export function StoreEquipmentView() {
               
               <div className="grid gap-3 py-3">
                 <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="branch" className="text-right font-medium text-gray-700 col-span-1">Branch*</Label>
+                  <Label htmlFor="cost_code_v" className="text-right font-medium text-gray-700 col-span-1">Cost Centre*</Label>
+                  <Select value={newGenerator.cost_code || ''} onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}>
+                    <SelectTrigger className="col-span-3 h-9">
+                      <SelectValue placeholder="Select cost centre (required)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allCostCenters.filter(cc => cc.costCode !== 'ENERGYRITE').map((cc) => (
+                        <SelectItem key={cc.id} value={cc.costCode}>
+                          {cc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-2">
+                  <Label htmlFor="site_name_v" className="text-right font-medium text-gray-700 col-span-1">Site Name*</Label>
                   <Input
-                    id="branch"
+                    id="site_name_v"
                     className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                    placeholder="Enter branch name (required)"
-                    value={newGenerator.branch || ''}
-                    onChange={(e) => handleNewGeneratorChange('branch', e.target.value)}
+                    placeholder="Enter site name (required)"
+                    value={newGenerator.plate || ''}
+                    onChange={(e) => handleNewGeneratorChange('plate', e.target.value)}
                     required
                   />
                 </div>
                 
                 <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="company" className="text-right font-medium text-gray-700 col-span-1">Company</Label>
-                  <Input
-                    id="company"
-                    className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                    placeholder="Enter company name"
-                    value={newGenerator.company || ''}
-                    onChange={(e) => handleNewGeneratorChange('company', e.target.value)}
-                  />
+                  <Label htmlFor="tank_size_v" className="text-right font-medium text-gray-700 col-span-1">Tank Capacity*</Label>
+                  <div className="col-span-3 flex items-center gap-2">
+                    <Input
+                      id="tank_size_v"
+                      type="number"
+                      step="0.1"
+                      className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                      placeholder="Enter tank capacity (required)"
+                      value={newGenerator.volume || ''}
+                      onChange={(e) => handleNewGeneratorChange('volume', e.target.value)}
+                      required
+                    />
+                    <span className="text-sm text-gray-500">Litres</span>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="ip_address" className="text-right font-medium text-gray-700 col-span-1">IP Address</Label>
+                  <Label htmlFor="ip_address_v" className="text-right font-medium text-gray-700 col-span-1">IP Address</Label>
                   <Input
-                    id="ip_address"
+                    id="ip_address_v"
                     className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
                     placeholder="Enter IP address"
                     value={newGenerator.ip_address || ''}
@@ -1014,28 +1093,14 @@ export function StoreEquipmentView() {
                 </div>
                 
                 <div className="grid grid-cols-4 items-start gap-2">
-                  <Label htmlFor="notes" className="text-right font-medium text-gray-700 col-span-1 pt-2">Notes</Label>
+                  <Label htmlFor="notes_v" className="text-right font-medium text-gray-700 col-span-1 pt-2">Notes</Label>
                   <Textarea
-                    id="notes"
+                    id="notes_v"
                     className="col-span-3 min-h-[80px]"
                     placeholder="Enter notes about this generator"
                     value={newGenerator.notes || ''}
                     onChange={(e) => handleNewGeneratorChange('notes', e.target.value)}
                   />
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="is_active" className="text-right font-medium text-gray-700 col-span-1">Status</Label>
-                  <div className="flex items-center gap-2 col-span-3">
-                    <Switch
-                      id="is_active"
-                      checked={newGenerator.is_active !== false}
-                      onCheckedChange={(checked) => handleNewGeneratorChange('is_active', checked)}
-                    />
-                    <Label htmlFor="is_active" className="text-sm text-gray-600">
-                      {newGenerator.is_active !== false ? "Active" : "Inactive"}
-                    </Label>
-                  </div>
                 </div>
               </div>
               
@@ -1058,6 +1123,46 @@ export function StoreEquipmentView() {
                       Saving...
                     </>
                   ) : "Add Generator"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold">Delete Equipment</DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-6">
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to delete <span className="font-semibold text-gray-900">{equipmentToDelete?.plate}</span>?
+                </p>
+              </div>
+              
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setDeleteDialogOpen(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={confirmDelete}
+                  variant="destructive"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : "Delete"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1136,26 +1241,48 @@ export function StoreEquipmentView() {
             
             <div className="grid gap-3 py-3">
               <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="branch" className="text-right font-medium text-gray-700 col-span-1">Branch*</Label>
+                <Label htmlFor="cost_code" className="text-right font-medium text-gray-700 col-span-1">Cost Centre*</Label>
+                <Select value={newGenerator.cost_code || ''} onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}>
+                  <SelectTrigger className="col-span-3 h-9">
+                    <SelectValue placeholder="Select cost centre (required)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allCostCenters.filter(cc => cc.costCode !== 'ENERGYRITE').map((cc) => (
+                      <SelectItem key={cc.id} value={cc.costCode}>
+                        {cc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-2">
+                <Label htmlFor="site_name" className="text-right font-medium text-gray-700 col-span-1">Site Name*</Label>
                 <Input
-                  id="branch"
+                  id="site_name"
                   className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                  placeholder="Enter branch name (required)"
-                  value={newGenerator.branch || ''}
-                  onChange={(e) => handleNewGeneratorChange('branch', e.target.value)}
+                  placeholder="Enter site name (required)"
+                  value={newGenerator.plate || ''}
+                  onChange={(e) => handleNewGeneratorChange('plate', e.target.value)}
                   required
                 />
               </div>
               
               <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="company" className="text-right font-medium text-gray-700 col-span-1">Company</Label>
-                <Input
-                  id="company"
-                  className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                  placeholder="Enter company name"
-                  value={newGenerator.company || ''}
-                  onChange={(e) => handleNewGeneratorChange('company', e.target.value)}
-                />
+                <Label htmlFor="tank_size" className="text-right font-medium text-gray-700 col-span-1">Tank Capacity*</Label>
+                <div className="col-span-3 flex items-center gap-2">
+                  <Input
+                    id="tank_size"
+                    type="number"
+                    step="0.1"
+                    className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                    placeholder="Enter tank capacity (required)"
+                    value={newGenerator.volume || ''}
+                    onChange={(e) => handleNewGeneratorChange('volume', e.target.value)}
+                    required
+                  />
+                  <span className="text-sm text-gray-500">Litres</span>
+                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-2">
@@ -1179,20 +1306,6 @@ export function StoreEquipmentView() {
                   onChange={(e) => handleNewGeneratorChange('notes', e.target.value)}
                 />
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="is_active" className="text-right font-medium text-gray-700 col-span-1">Status</Label>
-                <div className="flex items-center gap-2 col-span-3">
-                  <Switch
-                    id="is_active"
-                    checked={newGenerator.is_active !== false}
-                    onCheckedChange={(checked) => handleNewGeneratorChange('is_active', checked)}
-                  />
-                  <Label htmlFor="is_active" className="text-sm text-gray-600">
-                    {newGenerator.is_active !== false ? "Active" : "Inactive"}
-                  </Label>
-                </div>
-              </div>
             </div>
             
             <DialogFooter className="pt-2 border-t border-gray-100">
@@ -1214,6 +1327,46 @@ export function StoreEquipmentView() {
                     Saving...
                   </>
                 ) : "Add Generator"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">Delete Equipment</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-6">
+              <p className="text-sm text-gray-600">
+                Are you sure you want to delete <span className="font-semibold text-gray-900">{equipmentToDelete?.plate}</span>?
+              </p>
+            </div>
+            
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmDelete}
+                variant="destructive"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : "Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>

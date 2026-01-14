@@ -190,11 +190,28 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       const dashboardData = await dashboardRes.json();
       
       console.log('✅ Executive dashboard data received:', dashboardData);
-      setDashboardData(dashboardData.data);
+      const enhancedData = dashboardData.data;
+      setDashboardData(enhancedData);
       
       // Update score cards using enhanced executive dashboard data
-      const enhancedData = dashboardData.data;
       console.log('Enhanced data for score cards:', enhancedData);
+      
+      // Extract and store fuel tracking data for potential fallback use
+      if (enhancedData?.fuel_tracking) {
+        const fallbackMorning = parseFloat(enhancedData.fuel_tracking.morning_usage) || 0;
+        const fallbackAfternoon = parseFloat(enhancedData.fuel_tracking.afternoon_usage) || 0;
+        const fallbackEvening = parseFloat(enhancedData.fuel_tracking.evening_usage) || 0;
+        console.log('📊 Extracted fuel tracking from enhanced dashboard:', { fallbackMorning, fallbackAfternoon, fallbackEvening });
+        
+        // If cumulative API fails, we can use this as fallback
+        if (fallbackMorning > 0 || fallbackAfternoon > 0 || fallbackEvening > 0) {
+          setPeriodFuelUsageData([
+            { label: 'Morning (7AM-12PM)', value: fallbackMorning, color: '#10B981' },
+            { label: 'Afternoon (12PM-5PM)', value: fallbackAfternoon, color: '#A0A0A0' },
+            { label: 'Evening (5PM-12AM)', value: fallbackEvening, color: '#87CEEB' }
+          ]);
+        }
+      }
       
       // Extract key metrics from enhanced endpoint
       const totalSites = enhancedData?.key_metrics?.total_sites_operated || 0;
@@ -419,43 +436,39 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           const afternoonValue = parseFloat(monthlyUsage?.afternoon_12_17) || 0;
           const eveningValue = parseFloat(monthlyUsage?.evening_17_24) || 0;
           
-          setPeriodFuelUsageData([
-            { label: 'Morning (7AM-12PM)', value: morningValue, color: '#10B981' }, // Green
-            { label: 'Afternoon (12PM-5PM)', value: afternoonValue, color: '#A0A0A0' }, // Light grey
-            { label: 'Evening (5PM-12AM)', value: eveningValue, color: '#87CEEB' }  // Light blue
-          ]);
-          
           console.log('📊 Monthly fuel usage by period:', { morningValue, afternoonValue, eveningValue });
+          
+          // Only update if cumulative API returns non-zero data
+          // (Otherwise, keep the fallback data from enhanced dashboard)
+          if (morningValue > 0 || afternoonValue > 0 || eveningValue > 0) {
+            setPeriodFuelUsageData([
+              { label: 'Morning (7AM-12PM)', value: morningValue, color: '#10B981' },
+              { label: 'Afternoon (12PM-5PM)', value: afternoonValue, color: '#A0A0A0' },
+              { label: 'Evening (5PM-12AM)', value: eveningValue, color: '#87CEEB' }
+            ]);
+            console.log('✅ Using cumulative snapshot data for fuel period chart');
+          } else if (costCodeFilter) {
+            console.warn('⚠️ Cumulative API returned zeros with cost_code filter. Keeping fallback data from enhanced dashboard.');
+          }
         }
       } else {
-        console.warn('⚠️ Could not fetch cumulative snapshot data');
-        setPeriodFuelUsageData([
-          { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' },
-          { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' },
-          { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }
-        ]);
+        console.warn('⚠️ Could not fetch cumulative snapshot data, using fallback from enhanced dashboard');
       }
       
     } catch (err) {
       console.error('❌ Error fetching cumulative fuel consumption data:', err);
-      setPeriodFuelUsageData([
-        { label: 'Morning (6AM-12PM)', value: 0, color: '#10B981' },
-        { label: 'Afternoon (12PM-6PM)', value: 0, color: '#A0A0A0' },
-        { label: 'Evening (6PM-10PM)', value: 0, color: '#87CEEB' }
-      ]);
+      console.log('Using fallback data from enhanced dashboard');
     }
   }, [selectedRoute, userCostCode, userSiteId, selectedMonth]);
 
   useEffect(() => {
-    // Auto-fetch overall data on load
-    fetchDashboardData();
-    fetchPreviousDayFuelConsumption();
-  }, []);
-
-  // Auto-fetch data when month changes or filters change
-  useEffect(() => {
-    fetchDashboardData();
-    fetchPreviousDayFuelConsumption();
+    // Auto-fetch overall data on load and when filters/month change
+    const loadData = async () => {
+      await fetchDashboardData();
+      // Fetch fuel consumption after dashboard data is loaded
+      await fetchPreviousDayFuelConsumption();
+    };
+    loadData();
   }, [selectedMonth, selectedRoute, userCostCode, userSiteId]);
 
   if (loading) {
