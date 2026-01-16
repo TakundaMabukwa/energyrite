@@ -421,12 +421,14 @@ export function StoreEquipmentView() {
         throw new Error(`Failed to delete: ${response.status}`);
       }
       
+      // Remove from UI immediately
+      setEquipmentData(prev => prev.filter(eq => eq.plate !== equipmentToDelete.plate));
+      
       toast({
         title: "Successfully Deleted",
         description: `${equipmentToDelete.plate} has been removed`,
       });
       
-      await fetchEquipmentData();
       setDeleteDialogOpen(false);
       setEquipmentToDelete(null);
     } catch (error) {

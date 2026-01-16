@@ -218,7 +218,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   };
 
   // Generate Excel report using new endpoints
-  const handleGenerateReport = async (reportType: 'daily' | 'weekly' | 'monthly') => {
+  const handleGenerateReport = async (reportType: 'daily' | 'month-to-date' | 'monthly') => {
     try {
       setLoading(true);
       
@@ -233,23 +233,37 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       let costCode = selectedRoute?.costCode || userCostCode || null;
       let siteId = userSiteId || null;
       
-      // For daily reports, use yesterday's date
-      const reportDate = reportType === 'daily' 
-        ? (() => {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            return yesterday.toISOString().split('T')[0];
-          })()
-        : selectedDate;
+      // Calculate dates based on report type
+      let startDate, endDate;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (reportType === 'daily') {
+        // Yesterday only
+        startDate = yesterday.toISOString().split('T')[0];
+        endDate = startDate;
+      } else if (reportType === 'month-to-date') {
+        // 1st of current month to yesterday
+        const firstOfMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
+        startDate = firstOfMonth.toISOString().split('T')[0];
+        endDate = yesterday.toISOString().split('T')[0];
+      } else {
+        // Previous complete month (1st to last day)
+        const firstOfPrevMonth = new Date(yesterday.getFullYear(), yesterday.getMonth() - 1, 1);
+        const lastOfPrevMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 0);
+        startDate = firstOfPrevMonth.toISOString().split('T')[0];
+        endDate = lastOfPrevMonth.toISOString().split('T')[0];
+      }
       
       console.log('📊 Excel Report - Final cost code:', costCode);
       console.log('📊 Excel Report - Site ID:', siteId);
       console.log('📊 Excel Report - Report type:', reportType);
-      console.log('📊 Excel Report - Date:', reportDate);
+      console.log('📊 Excel Report - Date range:', { startDate, endDate });
       
       const requestBody = {
-        report_type: reportType,
-        ...(reportType === 'daily' && { date: reportDate, target_date: reportDate }),
+        report_type: reportType === 'month-to-date' ? 'monthly' : reportType,
+        start_date: startDate,
+        end_date: endDate,
         ...(siteId && { site_id: siteId }),
         ...(costCode && !siteId && { cost_code: costCode })
       };
@@ -282,8 +296,10 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       // Open the download URL
       window.open(data.data.download_url, '_blank');
       
+      const reportLabel = reportType === 'month-to-date' ? 'Month to Date' : reportType.charAt(0).toUpperCase() + reportType.slice(1);
+      
       toast({
-        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Excel Report Ready`,
+        title: `${reportLabel} Excel Report Ready`,
         description: `File: ${data.data.file_name} - Click to download`
       });
       
@@ -369,60 +385,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </p>
         </div>
 
-
-
-        {/* Custom Report Generator */}
-        <Card className="shadow-sm border border-gray-200 mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-semibold text-gray-900 text-lg">Custom Report Generator</CardTitle>
-            <p className="text-gray-600 text-sm">Select date and period to generate a custom report</p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">Date:</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Period:</label>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value as 'day' | 'week' | 'month')}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="day">Daily</option>
-                  <option value="week">Weekly</option>
-                  <option value="month">Monthly</option>
-                </select>
-              </div>
-              <Button 
-                onClick={handleGenerateCustomReport}
-                disabled={loading}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Download className="mr-2 w-4 h-4" />
-                {loading ? 'Generating...' : 'Generate Report'}
-              </Button>
-              {showDailyReport && (
-                <Button 
-                  onClick={() => setShowDailyReport(false)}
-                  variant="outline"
-                  className="border-gray-300"
-                >
-                  Back to Reports
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reports Cards - Always show all three types */}
+        {/* Reports Cards - Daily, Month to Date, and Monthly */}
         <div className="gap-6 grid grid-cols-1 md:grid-cols-3">
           {/* Daily Report */}
           <Card className="shadow-sm border border-gray-200">
@@ -434,7 +397,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             <CardContent>
               <div className="text-center py-6">
                 <Download className="mx-auto mb-4 w-12 h-12 text-blue-500" />
-                <p className="mb-4 text-gray-600 text-sm">Generate daily Excel report</p>
+                <p className="mb-4 text-gray-600 text-sm">Yesterday's report</p>
                 <Button 
                   onClick={() => handleGenerateReport('daily')}
                   disabled={loading}
@@ -447,30 +410,30 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             </CardContent>
           </Card>
 
-          {/* Weekly Report */}
+          {/* Month to Date Report */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <CardTitle className="font-semibold text-gray-900 text-lg">Weekly Report</CardTitle>
+                <CardTitle className="font-semibold text-gray-900 text-lg">Month to Date</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-center py-6">
                 <Download className="mx-auto mb-4 w-12 h-12 text-green-500" />
-                <p className="mb-4 text-gray-600 text-sm">Generate weekly Excel report</p>
+                <p className="mb-4 text-gray-600 text-sm">1st of month to yesterday</p>
                 <Button 
-                  onClick={() => handleGenerateReport('weekly')}
+                  onClick={() => handleGenerateReport('month-to-date')}
                   disabled={loading}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Download className="mr-2 w-4 h-4" />
-                  Generate Weekly Report
+                  Generate MTD Report
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Monthly Report */}
+          {/* Monthly Report (Previous Month) */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
@@ -480,7 +443,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
             <CardContent>
               <div className="text-center py-6">
                 <Download className="mx-auto mb-4 w-12 h-12 text-purple-500" />
-                <p className="mb-4 text-gray-600 text-sm">Generate monthly Excel report</p>
+                <p className="mb-4 text-gray-600 text-sm">Previous complete month</p>
                 <Button 
                   onClick={() => handleGenerateReport('monthly')}
                   disabled={loading}

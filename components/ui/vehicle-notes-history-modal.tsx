@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { History, User, Clock, FileText, X } from 'lucide-react';
+import { History, User, Clock, FileText, X, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
 
@@ -16,6 +16,7 @@ interface NoteLog {
   new_note: string | null;
   action: string;
   created_at: string;
+  note_type?: string;
 }
 
 interface VehicleNotesHistoryModalProps {
@@ -33,34 +34,86 @@ export function VehicleNotesHistoryModal({
 }: VehicleNotesHistoryModalProps) {
   const [noteLogs, setNoteLogs] = useState<NoteLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
 
   const fetchVehicleNotesHistory = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const userEmail = user?.email?.toLowerCase().trim() || '';
-      const isInternal = userEmail.includes('@soltrack.co.za');
+      const email = user?.email?.toLowerCase().trim() || '';
+      const internal = email.includes('@soltrack.co.za');
+      setUserEmail(email);
+      setIsInternal(internal);
       
       let query = supabase
         .from('note_logs')
-        .select('*')
+        .select('id,vehicle_id,user_email,new_note,created_at,note_type')
         .eq('vehicle_id', vehicleId.toString())
         .order('created_at', { ascending: false })
         .limit(10);
       
-      if (!isInternal) {
+      if (!internal) {
         query = query.eq('note_type', 'external');
       }
       
-      const { data, error } = await query;
+      const { data, error: queryError } = await query;
 
-      if (error) throw error;
-      setNoteLogs(data || []);
-    } catch (error) {
-      console.error('Failed to fetch vehicle notes history:', error);
+      if (queryError) {
+        console.error('Query error:', queryError);
+        setError(queryError.message);
+        setNoteLogs([]);
+      } else {
+        setNoteLogs(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch vehicle notes history:', err);
+      setError('Failed to load notes');
+      setNoteLogs([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string, noteLog: NoteLog) => {
+    if (!confirm('Are you sure you want to delete this note? This will remove it from history and clear the current note if this is the latest one.')) return;
+    
+    try {
+      const supabase = createClient();
+      
+      // Delete the note log entry
+      const { error: deleteError } = await supabase
+        .from('note_logs')
+        .delete()
+        .eq('id', noteId);
+      
+      if (deleteError) throw deleteError;
+      
+      // If this was the latest note, add a deletion log entry
+      const isLatestNote = noteLogs[0]?.id === noteId;
+      if (isLatestNote && noteLog.new_note) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('note_logs').insert({
+            vehicle_id: vehicleId.toString(),
+            user_id: user.id,
+            user_email: user.email,
+            old_note: noteLog.new_note,
+            new_note: null,
+            action: 'delete',
+            note_type: noteLog.note_type || 'external'
+          });
+        }
+      }
+      
+      // Refresh the notes list
+      await fetchVehicleNotesHistory();
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+      alert('Failed to delete note. Please try again.');
     }
   };
 
@@ -90,6 +143,14 @@ export function VehicleNotesHistoryModal({
                 <span className="text-gray-600 text-sm">Loading history...</span>
               </div>
             </div>
+          ) : error ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="text-center">
+                <X className="mx-auto mb-4 w-12 h-12 text-red-400" />
+                <p className="text-red-500 text-lg">Error loading notes</p>
+                <p className="text-gray-400 text-sm mt-2">{error}</p>
+              </div>
+            </div>
           ) : noteLogs.length === 0 ? (
             <div className="flex justify-center items-center py-12">
               <div className="text-center">
@@ -106,6 +167,7 @@ export function VehicleNotesHistoryModal({
                     <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">User</th>
                     <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">Note</th>
                     <th className="px-4 py-2.5 font-medium text-xs text-left uppercase tracking-wide">Date</th>
+                    {isInternal && <th className="px-4 py-2.5 font-medium text-xs text-center uppercase tracking-wide">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -133,6 +195,19 @@ export function VehicleNotesHistoryModal({
                           <span>{formatForDisplay(log.created_at)}</span>
                         </div>
                       </td>
+                      {isInternal && (
+                        <td className="px-4 py-3 text-xs align-top text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600"
+                            onClick={() => handleDeleteNote(log.id, log)}
+                            title="Delete note"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

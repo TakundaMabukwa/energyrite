@@ -247,7 +247,7 @@ export function formatSouthAfricanTime(timestamp: string): string {
 }
 
 /**
- * Formats timestamp with 2 hours added (for Last Location Update)
+ * Formats timestamp with 2 hours added (for Status Update)
  * @param timestamp - ISO 8601 timestamp string
  * @returns Formatted string with 2 hours added
  */

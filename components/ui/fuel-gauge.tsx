@@ -136,23 +136,27 @@ export function FuelGauge({
       <div className="mb-1 text-center">
         <h3 className="mb-1 font-semibold text-gray-900 text-base">{location}</h3>
 
-        {currentNote && (
+        <div className={cn(
+          "mb-1 p-1.5 rounded border",
+          currentNote 
+            ? (anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200")
+            : "bg-transparent border-transparent"
+        )}>
           <div className={cn(
-            "mb-1 p-1.5 rounded border",
-            anomaly ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"
+            "flex items-start gap-1",
+            currentNote 
+              ? (anomaly ? "text-red-800" : "text-blue-800")
+              : "text-transparent"
           )}>
-            <div className={cn(
-              "flex items-start gap-1",
-              anomaly ? "text-red-800" : "text-blue-800"
-            )}>
-              <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
-              <span className={cn(
-                "text-xs text-left break-words line-clamp-1 leading-tight",
-                anomaly ? "text-red-700" : "text-blue-700"
-              )}>{currentNote}</span>
-            </div>
+            <NotebookPen className="w-2.5 h-2.5 flex-shrink-0 mt-0.5" />
+            <span className={cn(
+              "text-xs text-left break-words line-clamp-1 leading-tight",
+              currentNote 
+                ? (anomaly ? "text-red-700" : "text-blue-700")
+                : "text-transparent"
+            )}>{currentNote || 'No note'}</span>
           </div>
-        )}
+        </div>
         {status && (
           <TooltipProvider>
             <Tooltip>
@@ -171,7 +175,7 @@ export function FuelGauge({
                 sideOffset={5}
               >
                 <div className="flex flex-col items-center py-1 px-2">
-                  <p className="text-sm text-black font-medium">Last Location Update</p>
+                  <p className="text-sm text-black font-medium">Status Update</p>
                   <p className="text-xs text-gray-700">{formatLocationUpdate(vehicleData?.loctime || lastUpdated)}</p>
                 </div>
               </TooltipContent>
@@ -247,14 +251,23 @@ export function FuelGauge({
           <span className="text-xs text-gray-900">Comm: {formatForDisplay(updated_at || lastUpdated)}</span>
         </div>
         
-        {currentClientNote && (
-          <div className="bg-blue-50 px-2 py-1.5 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-1">
-              <NotebookPen className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              <span className="text-xs text-blue-800 leading-tight">{currentClientNote}</span>
-            </div>
+        <div className={cn(
+          "px-2 py-1.5 border rounded-lg",
+          currentClientNote 
+            ? "bg-blue-50 border-blue-200" 
+            : "bg-transparent border-transparent"
+        )}>
+          <div className="flex items-start gap-1">
+            <NotebookPen className={cn(
+              "w-3 h-3 flex-shrink-0 mt-0.5",
+              currentClientNote ? "text-blue-600" : "text-transparent"
+            )} />
+            <span className={cn(
+              "text-xs leading-tight",
+              currentClientNote ? "text-blue-800" : "text-transparent"
+            )}>{currentClientNote || 'No note'}</span>
           </div>
-        )}
+        </div>
 
         <div className="mt-2">
           <Button 
