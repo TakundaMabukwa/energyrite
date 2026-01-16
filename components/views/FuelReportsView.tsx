@@ -270,6 +270,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       console.log('📊 Excel Report - Site ID:', siteId);
       console.log('📊 Excel Report - Report type:', reportType);
       console.log('📊 Excel Report - Date range:', { startDate, endDate });
+      console.log('🚨 VERIFY DATES - Today:', formatDate(now), 'Start:', startDate, 'End:', endDate);
       
       const requestBody = {
         report_type: reportType === 'month-to-date' ? 'monthly' : reportType,

@@ -308,30 +308,42 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     try {
       setGeneratingExcel(true);
       
-      const baseUrl = getReportsApiUrl('');
-      const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
-      const params = new URLSearchParams();
-      if (costCodeFilter) {
-        params.append('cost_code', costCodeFilter);
-      }
-      if (selectedDate) {
-        params.append('date', selectedDate);
-      }
-      params.append('format', 'excel');
+      const costCode = selectedRoute?.costCode || userCostCode || null;
+      const siteId = userSiteId || null;
       
-      const downloadUrl = `${baseUrl}/api/energy-rite/reports/activity/download?${params.toString()}`;
+      const requestBody = {
+        report_type: 'daily',
+        start_date: selectedDate,
+        end_date: selectedDate,
+        ...(siteId && { site_id: siteId }),
+        ...(costCode && !siteId && { cost_code: costCode })
+      };
       
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `activity-report-${costCodeFilter}-${selectedDate}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const apiUrl = getReportsApiUrl('/api/energy-rite/excel-reports/generate');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate report: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success || !data.data?.download_url) {
+        throw new Error(data.message || 'Failed to generate Excel report');
+      }
+      
+      window.open(data.data.download_url, '_blank');
       
       toast({
-        title: 'Excel Report Downloaded',
-        description: `Activity report for ${selectedDate} downloaded successfully.`
+        title: 'Daily Excel Report Ready',
+        description: `File: ${data.data.file_name} - Click to download`
       });
     } catch (error) {
       console.error('❌ Error generating Excel report:', error);
