@@ -235,24 +235,35 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
       
       // Calculate dates based on report type
       let startDate, endDate;
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const now = new Date();
+      
+      // Helper to format date as YYYY-MM-DD in local timezone
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
       
       if (reportType === 'daily') {
         // Yesterday only
-        startDate = yesterday.toISOString().split('T')[0];
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        startDate = formatDate(yesterday);
         endDate = startDate;
       } else if (reportType === 'month-to-date') {
-        // 1st of current month to yesterday
-        const firstOfMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
-        startDate = firstOfMonth.toISOString().split('T')[0];
-        endDate = yesterday.toISOString().split('T')[0];
+        // 1st of CURRENT month to yesterday
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        startDate = formatDate(firstOfMonth);
+        endDate = formatDate(yesterday);
       } else {
         // Previous complete month (1st to last day)
-        const firstOfPrevMonth = new Date(yesterday.getFullYear(), yesterday.getMonth() - 1, 1);
-        const lastOfPrevMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 0);
-        startDate = firstOfPrevMonth.toISOString().split('T')[0];
-        endDate = lastOfPrevMonth.toISOString().split('T')[0];
+        const firstOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        startDate = formatDate(firstOfPrevMonth);
+        endDate = formatDate(lastOfPrevMonth);
       }
       
       console.log('📊 Excel Report - Final cost code:', costCode);
