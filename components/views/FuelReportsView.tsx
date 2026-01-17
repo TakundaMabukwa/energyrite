@@ -364,7 +364,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   // Show ActivityReportView when daily report is requested
   if (showDailyReport) {
     return (
-      <div className="bg-gray-50 h-full">
+      <div className="bg-white min-h-screen">
         <ActivityReportView 
           onBack={() => setShowDailyReport(false)} 
           initialDate={selectedDate}
@@ -374,7 +374,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
   }
 
   return (
-    <div className="bg-gray-50 h-full">
+    <div className="bg-white min-h-screen">
 
       {/* Fuel Reports Section */}
       <div className="space-y-6 p-6">
