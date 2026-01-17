@@ -74,52 +74,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [periodFuelUsageData, setPeriodFuelUsageData] = useState<ChartData[]>([]);
   const [morningAfternoonData, setMorningAfternoonData] = useState<ChartData[]>([]);
   const [siteUsageData, setSiteUsageData] = useState<ChartData[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
   const [selectedCostCode, setSelectedCostCode] = useState('');
-
-  // Helper functions for date picker
-  const getMonthOptions = () => {
-    const months = [
-      { value: '01', label: 'January' },
-      { value: '02', label: 'February' },
-      { value: '03', label: 'March' },
-      { value: '04', label: 'April' },
-      { value: '05', label: 'May' },
-      { value: '06', label: 'June' },
-      { value: '07', label: 'July' },
-      { value: '08', label: 'August' },
-      { value: '09', label: 'September' },
-      { value: '10', label: 'October' },
-      { value: '11', label: 'November' },
-      { value: '12', label: 'December' }
-    ];
-    return months;
-  };
-
-  const getYearOptions = () => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let year = currentYear - 2; year <= currentYear + 1; year++) {
-      years.push({ value: year.toString(), label: year.toString() });
-    }
-    return years;
-  };
-
-  const getSelectedMonthValue = () => selectedMonth.split('-')[1];
-  const getSelectedYearValue = () => selectedMonth.split('-')[0];
-
-  const handleMonthChange = (month: string) => {
-    const year = getSelectedYearValue();
-    setSelectedMonth(`${year}-${month}`);
-  };
-
-  const handleYearChange = (year: string) => {
-    const month = getSelectedMonthValue();
-    setSelectedMonth(`${year}-${month}`);
-  };
 
   const getCostCenterDisplayName = (costCode: string) => {
     const costCenterNames: Record<string, string> = {
@@ -130,13 +85,15 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   };
 
   const getDashboardTitle = () => {
-    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-    return `Executive Dashboard (${monthName})`;
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return `Executive Dashboard (${monthName} - Month to Date)`;
   };
 
   const getBreadcrumbPath = () => {
-    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-    return `Energyrite => Executive Dashboard - ${monthName}`;
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return `Energyrite => Executive Dashboard - ${monthName} (MTD)`;
   };
 
   // Fetch data from new monitoring endpoints
@@ -156,16 +113,17 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('🔍 isAdmin:', isAdmin, 'selectedCostCode:', selectedCostCode);
       console.log('🔍 selectedRoute:', selectedRoute);
       console.log('🔍 userCostCode:', userCostCode);
-      console.log('🔍 Selected month for filtering:', selectedMonth);
       
-      // Calculate date range from selectedMonth
-      const [year, month] = selectedMonth.split('-');
-      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const endDate = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
+      // Month-to-date: 1st of current month to yesterday
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       const startDateString = startDate.toISOString().split('T')[0];
-      const endDateString = endDate.toISOString().split('T')[0];
+      const endDateString = yesterday.toISOString().split('T')[0];
       
-      console.log('🔍 Date range for filtering:', startDateString, 'to', endDateString);
+      console.log('🔍 Month-to-date range:', startDateString, 'to', endDateString, '(yesterday)');
       
       // Fetch from new executive dashboard endpoint
       const baseUrl = getReportsApiUrl('');
@@ -279,7 +237,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         setActivityData([]);
       }
 
-      // Update continuous operations for long running chart (sites over 24 hours)
+      // Update continuous operations for long running chart (sites over 12 hours)
       if (enhancedData?.continuous_operations?.sites_over_24_hours?.length > 0) {
         const longRunningData = enhancedData.continuous_operations.sites_over_24_hours
           .slice(0, 5)
@@ -287,7 +245,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             label: (site.site || `Site ${index + 1}`).length > 12 
               ? (site.site || `Site ${index + 1}`).substring(0, 12) + '...' 
               : site.site || `Site ${index + 1}`,
-            value: Math.max(1, Math.round(site.hours || 0)),
+            value: Math.max(1, Math.round(site.total_hours || site.hours || 0)),
             color: ['#D97706', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'][index]
           }))
           .filter(site => site.value > 0);
@@ -405,10 +363,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     try {
       console.log('⛽ Fetching cumulative fuel consumption data...');
       
-      // Get selected month and year from selectedMonth state
-      const [yearStr, monthStr] = selectedMonth.split('-');
-      const currentYear = parseInt(yearStr);
-      const currentMonth = parseInt(monthStr);
+      // Get current month and year for month-to-date
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
       
       // Priority: site_id > selectedRoute.costCode > userCostCode
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
@@ -459,7 +417,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.error('❌ Error fetching cumulative fuel consumption data:', err);
       console.log('Using fallback data from enhanced dashboard');
     }
-  }, [selectedRoute, userCostCode, userSiteId, selectedMonth]);
+  }, [selectedRoute, userCostCode, userSiteId]);
 
   useEffect(() => {
     // Auto-fetch overall data on load and when filters/month change
@@ -469,7 +427,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       await fetchPreviousDayFuelConsumption();
     };
     loadData();
-  }, [selectedMonth, selectedRoute, userCostCode, userSiteId]);
+  }, [selectedRoute, userCostCode, userSiteId]);
 
   if (loading) {
     return (
@@ -509,38 +467,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                 <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
                 <p className="text-gray-600">{getBreadcrumbPath()}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Select value={getSelectedMonthValue()} onValueChange={handleMonthChange}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getMonthOptions().map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={getSelectedYearValue()} onValueChange={handleYearChange}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue placeholder="Year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getYearOptions().map((year) => (
-                        <SelectItem key={year.value} value={year.value}>
-                          {year.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={fetchDashboardData} size="sm">
-                  <RefreshCw className="mr-2 w-4 h-4" />
-                  Update
-                </Button>
-              </div>
+              <Button onClick={fetchDashboardData} size="sm">
+                <RefreshCw className="mr-2 w-4 h-4" />
+                Refresh
+              </Button>
             </div>
           </div>
         </div>
@@ -586,14 +516,14 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Fuel Consumption by Time Period (Current Month)">
+          <ChartCard title="Fuel Consumption by Time Period">
             {periodFuelUsageData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <BarChart
-                  height={280}
+                  height={320}
                   xAxis={[{ 
                     scaleType: 'band', 
-                    data: ['Morning', 'Afternoon', 'Evening']
+                    data: ['Morn\n(12am-8am)', 'Aft\n(8am-4pm)', 'Eve\n(4pm-12am)']
                   }]}
                   series={[
                     { 
@@ -606,7 +536,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                       valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
                     }
                   ]}
-                  margin={{ left: 60, right: 30, top: 30, bottom: 60 }}
+                  margin={{ left: 60, right: 30, top: 30, bottom: 80 }}
                   tooltip={{
                     valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
                   }}
@@ -619,17 +549,25 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Ran longer than 24 hours">
+          <ChartCard title="Continuous Operations (12+ hours)">
             {longRunningData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <PieChart
                   height={280}
                   series={[{
-                    data: longRunningData.map((d, index) => ({ id: `long-running-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
+                    data: longRunningData.map((d, index) => ({ 
+                      id: `long-running-${Date.now()}-${index}`, 
+                      label: d.label, 
+                      value: d.value, 
+                      color: d.color 
+                    })),
                     innerRadius: 15,
                     outerRadius: 65,
                   }]}
                   slotProps={{ legend: { hidden: false } }}
+                  tooltip={{
+                    valueFormatter: (value: number) => `${value}h`
+                  }}
                 />
               </div>
             ) : (
