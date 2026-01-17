@@ -457,7 +457,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   }
 
   return (
-    <div className="bg-gray-50 h-full">
+    <div className="bg-white min-h-screen">
 
       <div className="space-y-6 p-6">
         <div className="bg-white shadow-sm border-b px-6 py-6">

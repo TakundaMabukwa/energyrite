@@ -491,10 +491,10 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              <Button onClick={fetchActivityData} size="sm">
-                <RefreshCw className="mr-2 w-4 h-4" />
-                Update
-              </Button>
+              // <Button onClick={fetchActivityData} size="sm">
+              //   <RefreshCw className="mr-2 w-4 h-4" />
+              //   Update
+              // </Button>
               <Button 
                 onClick={generateActivityExcelReport} 
                 size="sm" 
