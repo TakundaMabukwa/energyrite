@@ -356,7 +356,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         });
       }
     }
-  }, [toast, isAdmin, selectedRoute, userCostCode, selectedMonth]);
+  }, [toast, isAdmin, selectedRoute, userCostCode]);
 
   // Fetch fuel consumption data using cumulative snapshots for current month
   const fetchPreviousDayFuelConsumption = useCallback(async () => {
