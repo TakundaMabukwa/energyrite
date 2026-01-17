@@ -713,7 +713,7 @@ export function StoreEquipmentView() {
     return;
   };
 
-  // Initialize data (same as dashboard)
+  // Initialize data - refetch when tab becomes active
   useEffect(() => {
     const initializeData = async () => {
       try {
@@ -728,8 +728,11 @@ export function StoreEquipmentView() {
       }
     };
 
-    initializeData();
-  }, []); // Initialize once on mount
+    // Only fetch if equipment tab is active
+    if (activeTab === 'equipment') {
+      initializeData();
+    }
+  }, [activeTab]); // Refetch when tab becomes active
   
   // Get unique cost codes from cost centers for the dropdown
   const getUniqueCostCodes = () => {

@@ -100,33 +100,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get the vehicle data by plate to find the ID
-    const getResponse = await fetch(`${EXTERNAL_API_URL}/${encodeURIComponent(plate)}`);
-    
-    if (!getResponse.ok) {
-      console.error('Failed to get vehicle:', getResponse.status);
-      return NextResponse.json(
-        { success: false, error: 'Vehicle not found' },
-        { status: 404 }
-      );
-    }
-
-    const vehicleData = await getResponse.json();
-    const vehicleId = vehicleData.Id;
-
-    // Delete from external API using ID
-    const deleteResponse = await fetch(`${EXTERNAL_API_URL}/${vehicleId}`, {
-      method: 'DELETE'
-    });
-
-    if (!deleteResponse.ok) {
-      console.error('External API delete failed:', deleteResponse.status);
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete from external API' },
-        { status: 500 }
-      );
-    }
-
     // Create Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -134,17 +107,25 @@ export async function DELETE(request: NextRequest) {
       { auth: { persistSession: false } }
     );
 
-    // Delete from Supabase lookup table
-    await supabase
-      .from('energyrite_vehicle_lookup')
-      .delete()
-      .eq('plate', plate);
+    // Delete from Supabase first (fast)
+    const [lookupResult, settingsResult] = await Promise.all([
+      supabase.from('energyrite_vehicle_lookup').delete().eq('plate', plate),
+      supabase.from('vehicle_settings').delete().eq('vehicle_id', plate)
+    ]);
 
-    // Delete from vehicle_settings
-    await supabase
-      .from('vehicle_settings')
-      .delete()
-      .eq('vehicle_id', plate);
+    // Delete from external API with timeout (async, don't wait)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    fetch(`${EXTERNAL_API_URL}/${encodeURIComponent(plate)}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        if (data?.Id) {
+          return fetch(`${EXTERNAL_API_URL}/${data.Id}`, { method: 'DELETE' });
+        }
+      })
+      .catch(err => console.error('Background delete failed:', err));
 
     return NextResponse.json({ success: true });
   } catch (error) {
