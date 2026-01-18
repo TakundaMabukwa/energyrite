@@ -257,118 +257,89 @@ export function StoreEquipmentView() {
       setEquipmentLoading(true);
       setError(null);
       
-      // Use internal API route (not proxied by nginx)
-      const response = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
+      const supabase = createClient();
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch vehicles: ${response.status}`);
+      // Fetch all data in parallel
+      const [vehiclesResponse, notesData, tankData] = await Promise.all([
+        fetch(getApiUrl('/api/internal/dashboard-vehicles')),
+        supabase.from('note_logs').select('vehicle_id, new_note').not('new_note', 'is', null).order('created_at', { ascending: false }),
+        supabase.from('vehicle_settings').select('vehicle_id, tank_size')
+      ]);
+      
+      if (!vehiclesResponse.ok) {
+        throw new Error(`Failed to fetch vehicles: ${vehiclesResponse.status}`);
       }
       
-      const json = await response.json();
+      const json = await vehiclesResponse.json();
       const source = json?.success && Array.isArray(json.data) ? json.data : [];
       
-      const equipment: VehicleEquipment[] = source.map((vehicle: any) => ({
-        id: vehicle.id,
-        branch: vehicle.branch || 'Unknown Branch',
-        company: vehicle.company || 'Unknown Company',
-        plate: vehicle.plate,
-        ip_address: vehicle.quality || vehicle.ip_address || '',
-        cost_code: vehicle.cost_code || '',
-        speed: vehicle.speed || '0',
-        latitude: vehicle.latitude || '0',
-        longitude: vehicle.longitude || '0',
-        loctime: vehicle.loctime || '',
-        quality: vehicle.quality || '',
-        mileage: vehicle.mileage || '0',
-        pocsagstr: vehicle.pocsagstr,
-        head: vehicle.head,
-        geozone: vehicle.geozone || '',
-        drivername: vehicle.drivername,
-        nameevent: vehicle.nameevent,
-        temperature: vehicle.temperature || '0',
-        address: vehicle.address || '',
-        fuel_probe_1_level: vehicle.fuel_probe_1_level || '0',
-        fuel_probe_1_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank || '0',
-        fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature || '0',
-        fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage || '0',
-        fuel_probe_2_level: vehicle.fuel_probe_2_level,
-        fuel_probe_2_volume_in_tank: vehicle.fuel_probe_2_volume_in_tank,
-        fuel_probe_2_temperature: vehicle.fuel_probe_2_temperature,
-        fuel_probe_2_level_percentage: vehicle.fuel_probe_2_level_percentage,
-        status: vehicle.status,
-        last_message_date: vehicle.last_message_date || new Date().toISOString(),
-        updated_at: vehicle.updated_at || new Date().toISOString(),
-        volume: '0', // Will be fetched from Supabase vehicle_settings
-        theft: vehicle.theft || false,
-        theft_time: vehicle.theft_time,
-        previous_fuel_level: vehicle.previous_fuel_level,
-        previous_fuel_time: vehicle.previous_fuel_time,
-        activity_start_time: vehicle.activity_start_time,
-        activity_duration_hours: vehicle.activity_duration_hours,
-        total_usage_hours: vehicle.total_usage_hours || '0',
-        daily_usage_hours: vehicle.daily_usage_hours || '0',
-        is_active: vehicle.is_active !== false,
-        last_activity_time: vehicle.last_activity_time,
-        fuel_anomaly: vehicle.fuel_anomaly,
-        fuel_anomaly_note: vehicle.fuel_anomaly_note,
-        last_anomaly_time: vehicle.last_anomaly_time,
-        created_at: vehicle.created_at || new Date().toISOString(),
-        notes: '' // Will be fetched from Supabase
-      }));
+      // Build lookup maps
+      const latestNotes = new Map<string, string>();
+      notesData.data?.forEach(note => {
+        if (!latestNotes.has(note.vehicle_id)) {
+          latestNotes.set(note.vehicle_id, note.new_note);
+        }
+      });
       
-      // Fetch notes and tank sizes from Supabase for all vehicles
-      try {
-        const supabase = createClient();
-        const vehicleIds = equipment.map(e => e.id.toString());
+      const tankSizes = new Map<string, number>();
+      tankData.data?.forEach(tank => {
+        tankSizes.set(tank.vehicle_id, tank.tank_size);
+      });
+      
+      // Map equipment with all data
+      const equipment: VehicleEquipment[] = source.map((vehicle: any) => {
+        const vehicleId = vehicle.id.toString();
+        const tankSize = tankSizes.get(vehicleId);
         
-        // Fetch notes
-        const { data: notesData } = await supabase
-          .from('note_logs')
-          .select('vehicle_id, new_note')
-          .in('vehicle_id', vehicleIds)
-          .not('new_note', 'is', null)
-          .order('created_at', { ascending: false });
-        
-        // Fetch tank sizes
-        const { data: tankData, error: tankError } = await supabase
-          .from('vehicle_settings')
-          .select('vehicle_id, tank_size')
-          .in('vehicle_id', vehicleIds);
-        
-        if (tankError) {
-          console.error('❌ Error fetching tank sizes from Supabase:', tankError);
-        }
-        
-        // Map latest notes and tank sizes to equipment
-        if (notesData) {
-          const latestNotes = new Map<string, string>();
-          notesData.forEach(note => {
-            if (!latestNotes.has(note.vehicle_id)) {
-              latestNotes.set(note.vehicle_id, note.new_note);
-            }
-          });
-          
-          equipment.forEach(eq => {
-            eq.notes = latestNotes.get(eq.id.toString()) || null;
-          });
-        }
-        
-        if (tankData) {
-          const tankSizes = new Map<string, number>();
-          tankData.forEach(tank => {
-            tankSizes.set(tank.vehicle_id, tank.tank_size);
-          });
-          
-          equipment.forEach(eq => {
-            const tankSize = tankSizes.get(eq.id.toString());
-            if (tankSize !== undefined && tankSize !== null) {
-              eq.volume = tankSize.toString();
-            }
-          });
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch data from Supabase:', err);
-      }
+        return {
+          id: vehicle.id,
+          branch: vehicle.branch || 'Unknown Branch',
+          company: vehicle.company || 'Unknown Company',
+          plate: vehicle.plate,
+          ip_address: vehicle.quality || vehicle.ip_address || '',
+          cost_code: vehicle.cost_code || '',
+          speed: vehicle.speed || '0',
+          latitude: vehicle.latitude || '0',
+          longitude: vehicle.longitude || '0',
+          loctime: vehicle.loctime || '',
+          quality: vehicle.quality || '',
+          mileage: vehicle.mileage || '0',
+          pocsagstr: vehicle.pocsagstr,
+          head: vehicle.head,
+          geozone: vehicle.geozone || '',
+          drivername: vehicle.drivername,
+          nameevent: vehicle.nameevent,
+          temperature: vehicle.temperature || '0',
+          address: vehicle.address || '',
+          fuel_probe_1_level: vehicle.fuel_probe_1_level || '0',
+          fuel_probe_1_volume_in_tank: vehicle.fuel_probe_1_volume_in_tank || '0',
+          fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature || '0',
+          fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage || '0',
+          fuel_probe_2_level: vehicle.fuel_probe_2_level,
+          fuel_probe_2_volume_in_tank: vehicle.fuel_probe_2_volume_in_tank,
+          fuel_probe_2_temperature: vehicle.fuel_probe_2_temperature,
+          fuel_probe_2_level_percentage: vehicle.fuel_probe_2_level_percentage,
+          status: vehicle.status,
+          last_message_date: vehicle.last_message_date || new Date().toISOString(),
+          updated_at: vehicle.updated_at || new Date().toISOString(),
+          volume: tankSize ? tankSize.toString() : '0',
+          theft: vehicle.theft || false,
+          theft_time: vehicle.theft_time,
+          previous_fuel_level: vehicle.previous_fuel_level,
+          previous_fuel_time: vehicle.previous_fuel_time,
+          activity_start_time: vehicle.activity_start_time,
+          activity_duration_hours: vehicle.activity_duration_hours,
+          total_usage_hours: vehicle.total_usage_hours || '0',
+          daily_usage_hours: vehicle.daily_usage_hours || '0',
+          is_active: vehicle.is_active !== false,
+          last_activity_time: vehicle.last_activity_time,
+          fuel_anomaly: vehicle.fuel_anomaly,
+          fuel_anomaly_note: vehicle.fuel_anomaly_note,
+          last_anomaly_time: vehicle.last_anomaly_time,
+          created_at: vehicle.created_at || new Date().toISOString(),
+          notes: latestNotes.get(vehicleId) || null
+        };
+      });
       
       setEquipmentData(equipment);
     } catch (error) {
