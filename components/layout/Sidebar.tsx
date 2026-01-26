@@ -57,15 +57,15 @@ export function Sidebar() {
         <div className="flex justify-center items-center">
           {!sidebarCollapsed ? (
             <Image
-              src="https://upload.wikimedia.org/wikipedia/commons/9/91/KFC_Logo.svg"
-              alt="KFC Logo"
-              width={30}
-              height={20}
-              className="w-auto h-6"
+              src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg"
+              alt="Energyrite Logo"
+              width={150}
+              height={40}
+              className="w-auto h-8"
             />
           ) : (
-            <div className="flex justify-center items-center bg-gradient-to-br from-red-500 to-red-600 rounded-lg w-8 h-8">
-              <span className="font-bold text-white text-sm">K</span>
+            <div className="flex justify-center items-center bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg w-8 h-8">
+              <span className="font-bold text-white text-sm">E</span>
             </div>
           )}
         </div>

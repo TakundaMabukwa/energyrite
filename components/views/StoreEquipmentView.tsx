@@ -102,6 +102,7 @@ export function StoreEquipmentView() {
   const [editedEquipment, setEditedEquipment] = useState<VehicleEquipment | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCostCode, setSelectedCostCode] = useState<string>('all');
+  const hasInitialized = React.useRef(false);
   
   // Add generator dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -257,36 +258,33 @@ export function StoreEquipmentView() {
       setEquipmentLoading(true);
       setError(null);
       
-      const supabase = createClient();
+      const response = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
       
-      // Fetch all data in parallel
-      const [vehiclesResponse, notesData, tankData] = await Promise.all([
-        fetch(getApiUrl('/api/internal/dashboard-vehicles')),
+      if (!response.ok) {
+        throw new Error(`Failed to fetch vehicles: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      const source = json?.success && Array.isArray(json.data) ? json.data : [];
+      
+      const supabase = createClient();
+      const [notesResult, tankResult] = await Promise.all([
         supabase.from('note_logs').select('vehicle_id, new_note').not('new_note', 'is', null).order('created_at', { ascending: false }),
         supabase.from('vehicle_settings').select('vehicle_id, tank_size')
       ]);
       
-      if (!vehiclesResponse.ok) {
-        throw new Error(`Failed to fetch vehicles: ${vehiclesResponse.status}`);
-      }
-      
-      const json = await vehiclesResponse.json();
-      const source = json?.success && Array.isArray(json.data) ? json.data : [];
-      
-      // Build lookup maps
       const latestNotes = new Map<string, string>();
-      notesData.data?.forEach(note => {
+      notesResult.data?.forEach(note => {
         if (!latestNotes.has(note.vehicle_id)) {
           latestNotes.set(note.vehicle_id, note.new_note);
         }
       });
       
       const tankSizes = new Map<string, number>();
-      tankData.data?.forEach(tank => {
+      tankResult.data?.forEach(tank => {
         tankSizes.set(tank.vehicle_id, tank.tank_size);
       });
       
-      // Map equipment with all data
       const equipment: VehicleEquipment[] = source.map((vehicle: any) => {
         const vehicleId = vehicle.id.toString();
         const tankSize = tankSizes.get(vehicleId);
@@ -382,7 +380,16 @@ export function StoreEquipmentView() {
   const confirmDelete = async () => {
     if (!equipmentToDelete) return;
     
-    setIsDeleting(true);
+    // Close dialog and update UI immediately
+    setDeleteDialogOpen(false);
+    setEquipmentData(prev => prev.filter(eq => eq.plate !== equipmentToDelete.plate));
+    
+    toast({
+      title: "Deleting...",
+      description: `Removing ${equipmentToDelete.plate}`,
+    });
+    
+    // Delete in background
     try {
       const response = await fetch(`/api/energyrite-sites?plate=${encodeURIComponent(equipmentToDelete.plate!)}`, {
         method: 'DELETE',
@@ -392,26 +399,21 @@ export function StoreEquipmentView() {
         throw new Error(`Failed to delete: ${response.status}`);
       }
       
-      // Remove from UI immediately
-      setEquipmentData(prev => prev.filter(eq => eq.plate !== equipmentToDelete.plate));
-      
       toast({
         title: "Successfully Deleted",
         description: `${equipmentToDelete.plate} has been removed`,
       });
-      
-      setDeleteDialogOpen(false);
-      setEquipmentToDelete(null);
     } catch (error) {
       console.error('Error deleting equipment:', error);
+      // Revert UI on error
+      setEquipmentData(prev => [...prev, equipmentToDelete]);
       toast({
         title: "Error",
-        description: "Failed to delete. Please try again later.",
+        description: "Failed to delete. Changes reverted.",
         variant: "destructive"
       });
-      setDeleteDialogOpen(false);
     } finally {
-      setIsDeleting(false);
+      setEquipmentToDelete(null);
     }
   };
   
@@ -665,8 +667,10 @@ export function StoreEquipmentView() {
       setSelectedCostCode(costCenter.costCode);
     }
     
-    // Fetch real-time data for this cost center
-    await fetchRealtimeData(costCenter);
+    // Fetch equipment data if not already loaded
+    if (equipmentData.length === 0) {
+      await fetchEquipmentData();
+    }
     
     // Show vehicles view
     setShowVehicles(true);
@@ -687,9 +691,11 @@ export function StoreEquipmentView() {
   // Initialize data - refetch when tab becomes active
   useEffect(() => {
     const initializeData = async () => {
+      if (hasInitialized.current) return;
+      hasInitialized.current = true;
+      
       try {
         setLoading(true);
-        await fetchRealtimeData();
         await fetchEquipmentData();
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -699,11 +705,10 @@ export function StoreEquipmentView() {
       }
     };
 
-    // Only fetch if equipment tab is active
-    if (activeTab === 'equipment') {
+    if (activeTab === 'equipment' || activeTab === 'store-equipment') {
       initializeData();
     }
-  }, [activeTab]); // Refetch when tab becomes active
+  }, [activeTab]);
   
   // Get unique cost codes from cost centers for the dropdown
   const getUniqueCostCodes = () => {
