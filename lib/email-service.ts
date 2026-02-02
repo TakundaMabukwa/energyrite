@@ -21,12 +21,12 @@ export async function sendWelcomeEmail(options: any) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background-color: #1e3a5f; color: white; padding: 30px 20px; text-align: center;">
           <img src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg" alt="EnergyRite Logo" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
-          <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Welcome to EnergyRite</h1>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Welcome to your Generator Fuel Management APP</h1>
           <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your account has been created</p>
         </div>
         <div style="padding: 30px 20px; background-color: #f8f9fa; color: #333;">
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Hello,</p>
-          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">Your EnergyRite account has been successfully created. Please use the credentials below to access the system. A link to the platform will be provided shortly.</p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">Your Generator Fuel Management APP account has been successfully created. Please use the credentials below to access the system. A link to the platform will be provided shortly.</p>
           
           <div style="background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #1e3a5f; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <p style="margin: 0 0 12px 0; font-size: 15px;"><strong>Email:</strong> ${email}</p>
@@ -55,7 +55,7 @@ export async function sendWelcomeEmail(options: any) {
         email: email
       },
       email: {
-        subject: 'Welcome to EnergyRite - Your Account Credentials',
+        subject: 'Welcome to your Generator Fuel Management APP - Your Account Credentials',
         html: emailHTML
       }
     });

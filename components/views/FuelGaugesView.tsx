@@ -34,8 +34,9 @@ interface FuelConsumptionData {
   fuel_anomaly_note?: string;
   notes?: string | null;
   client_notes?: string | null;
+  volume?: number;
+  fuel_probe_1_temperature?: number;
   lastFuelFill?: FuelFill;
-
 }
 
 
@@ -103,14 +104,10 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       
       const costCode = (selectedRoute as any)?.costCode;
       const source = Array.isArray(vehicles) ? vehicles : [];
-      console.log('🚗 Total vehicles in context:', source.length);
-      console.log('🔍 Selected route cost code:', costCode);
       
       let filtered = costCode 
         ? source.filter((v: any) => v.cost_code === costCode || v.cost_code?.startsWith(costCode + '-')) 
         : source; // Show ALL vehicles when no cost code selected
-      
-      console.log('✅ Filtered vehicles:', filtered.length);
       
       // Apply single site filtering if user has site_id and is not admin
       if (userSiteId && !isAdmin) {
@@ -119,9 +116,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
         );
       }
 
-      if (!filtered.length) {
-        console.log('⚠️ No vehicles available from SSE/context; using dummy data');
-      }
+
       
 
 
@@ -142,7 +137,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           fuel_anomaly_note: vehicle.fuel_anomaly_note,
           notes: vehicle.notes,
           client_notes: vehicle.client_notes,
-          volume: 0, // Will be fetched from Supabase vehicle_settings
+          volume: 0,
           fuel_probe_1_temperature: parseFloat(vehicle.fuel_probe_1_temperature),
           lastFuelFill: undefined
         };
@@ -155,7 +150,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
           const supabase = createClient();
           const vehicleIds = mapped.map(v => v.id?.toString()).filter(Boolean);
           
-          const { data: tankData } = await supabase
+          const { data: tankData, error: tankError } = await supabase
             .from('vehicle_settings')
             .select('vehicle_id, tank_size')
             .in('vehicle_id', vehicleIds);
@@ -168,8 +163,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
             
             mapped.forEach(vehicle => {
               const vid = vehicle.id?.toString();
-              if (vid) {
-                vehicle.volume = tankSizes.get(vid) || 0;
+              if (vid && tankSizes.has(vid)) {
+                vehicle.volume = tankSizes.get(vid);
               }
             });
           }
@@ -186,7 +181,6 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
             ? `/api/energy-rite/reports/activity?date=${today}&site_id=${userSiteId}`
             : `/api/energy-rite/reports/activity?date=${today}&cost_code=${costCode}`;
           
-          console.log('🔍 Fetching activity report for fuel fill detection:', activityUrl);
           const activityResponse = await fetch(activityUrl);
           
           if (activityResponse.ok) {
@@ -210,8 +204,6 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                   vehicle.lastFuelFill = siteData.lastFill;
                 }
               });
-
-              console.log('✅ Fuel fills detected:', sitesWithFills.filter(s => s.lastFill).length);
             }
           }
         } catch (err) {
@@ -220,7 +212,6 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       }
 
       setFuelConsumptionData(mapped);
-      console.log('✅ Fuel data built from context vehicles:', mapped.length);
       
       // Batch fetch all notes from Supabase in one query
       if (mapped.length > 0) {
@@ -350,7 +341,6 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       ];
       
       setFuelConsumptionData(dummyFuelData);
-      console.log('🔄 Using dummy fuel consumption data due to API error');
     } finally {
       setLoading(false);
     }
@@ -358,12 +348,8 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
 
   useEffect(() => {
     // Wait for AppContext to finish loading vehicles
-    if (contextLoading) {
-      console.log('⏳ Waiting for AppContext to load vehicles...');
-      return;
-    }
+    if (contextLoading) return;
     
-    console.log('✅ AppContext loaded, fetching fuel data');
     fetchColorCodes();
     fetchFuelData();
   }, [selectedRoute, vehicles, contextLoading]);
