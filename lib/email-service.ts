@@ -18,30 +18,28 @@ export async function sendWelcomeEmail(options: any) {
 
     // HTML email template
     const emailHTML = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #1e3a5f; color: white; padding: 20px; text-align: center;">
-          <h1>Welcome to EnergyRite</h1>
-          <p>Your account has been created</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background-color: #1e3a5f; color: white; padding: 30px 20px; text-align: center;">
+          <img src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg" alt="EnergyRite Logo" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
+          <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Welcome to EnergyRite</h1>
+          <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your account has been created</p>
         </div>
-        <div style="padding: 20px; background-color: #f8f9fa; color: #333;">
-          <p><strong>Hello,</strong></p>
-          <p>Your EnergyRite account has been successfully created. Please use the credentials below to access the system:</p>
+        <div style="padding: 30px 20px; background-color: #f8f9fa; color: #333;">
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Hello,</p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">Your EnergyRite account has been successfully created. Please use the credentials below to access the system. A link to the platform will be provided shortly.</p>
           
-          <div style="background: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #1e3a5f;">
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Password:</strong> ${password}</p>
-            <p><strong>Role:</strong> ${role}</p>
-            <p><strong>Company:</strong> ${company}</p>
-            ${cost_code ? `<p><strong>Cost Code:</strong> ${cost_code}</p>` : ''}
-            ${site_id ? `<p><strong>Site:</strong> ${site_id}</p>` : ''}
+          <div style="background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #1e3a5f; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="margin: 0 0 12px 0; font-size: 15px;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px;"><strong>Password:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${password}</code></p>
+            <p style="margin: 0; font-size: 15px;"><strong>Company:</strong> ${company}</p>
           </div>
           
-          <div style="background: #fff3cd; padding: 10px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #ffc107;">
-            <p style="margin: 0; font-size: 14px;"><strong>Security Notice:</strong> Please change your password after your first login for security purposes.</p>
+          <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; font-size: 14px; line-height: 1.5;"><strong>Security Notice:</strong> Please change your password after your first login for security purposes.</p>
           </div>
           
-          <hr style="border: 1px solid #ddd; margin: 20px 0;">
-          <p style="font-size: 12px; color: #666; text-align: center;">
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          <p style="font-size: 12px; color: #666; text-align: center; line-height: 1.5; margin: 0;">
             This is an automated message from the EnergyRite system.<br>
             © ${new Date().getFullYear()} EnergyRite - Smart Energy Management
           </p>
