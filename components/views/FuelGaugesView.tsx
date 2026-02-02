@@ -156,15 +156,24 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
             .in('vehicle_id', vehicleIds);
           
           if (tankData) {
+            console.log('Tank data sample:', tankData.slice(0, 3));
             const tankSizes = new Map<string, number>();
             tankData.forEach(tank => {
-              tankSizes.set(tank.vehicle_id, tank.tank_size);
+              const size = parseFloat(tank.tank_size);
+              if (!isNaN(size)) {
+                tankSizes.set(tank.vehicle_id, size);
+              }
             });
+            console.log('Tank sizes map size:', tankSizes.size);
             
             mapped.forEach(vehicle => {
               const vid = vehicle.id?.toString();
-              if (vid && tankSizes.has(vid)) {
-                vehicle.volume = tankSizes.get(vid);
+              if (vid) {
+                const tankSize = tankSizes.get(vid);
+                if (tankSize !== undefined) {
+                  vehicle.volume = tankSize;
+                  console.log(`Set tank for ${vid}:`, tankSize);
+                }
               }
             });
           }
