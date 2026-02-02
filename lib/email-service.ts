@@ -21,8 +21,8 @@ export async function sendWelcomeEmail(options: any) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background-color: #1e3a5f; color: white; padding: 30px 20px; text-align: center;">
           <img src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg" alt="EnergyRite Logo" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
-          <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Welcome to your Generator Fuel Management APP</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your account has been created</p>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: white;">Welcome to your Generator Fuel Management APP</h1>
+          <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9; color: white;">Your account has been created</p>
         </div>
         <div style="padding: 30px 20px; background-color: #f8f9fa; color: #333;">
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Hello,</p>
