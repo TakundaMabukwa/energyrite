@@ -233,12 +233,11 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
             .from('note_logs')
             .select('vehicle_id, new_note, note_type')
             .in('vehicle_id', vehicleIds)
-            .not('new_note', 'is', null)
             .order('created_at', { ascending: false });
           
           if (notesData) {
-            const internalNotes = new Map<string, string>();
-            const externalNotes = new Map<string, string>();
+            const internalNotes = new Map<string, string | null>();
+            const externalNotes = new Map<string, string | null>();
             
             notesData.forEach(note => {
               if (note.note_type === 'internal' && !internalNotes.has(note.vehicle_id)) {

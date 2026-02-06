@@ -269,11 +269,11 @@ export function StoreEquipmentView() {
       
       const supabase = createClient();
       const [notesResult, tankResult] = await Promise.all([
-        supabase.from('note_logs').select('vehicle_id, new_note').not('new_note', 'is', null).order('created_at', { ascending: false }),
+        supabase.from('note_logs').select('vehicle_id, new_note').order('created_at', { ascending: false }),
         supabase.from('vehicle_settings').select('vehicle_id, tank_size')
       ]);
       
-      const latestNotes = new Map<string, string>();
+      const latestNotes = new Map<string, string | null>();
       notesResult.data?.forEach(note => {
         if (!latestNotes.has(note.vehicle_id)) {
           latestNotes.set(note.vehicle_id, note.new_note);

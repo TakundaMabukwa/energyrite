@@ -521,6 +521,7 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                 {reportData?.site_reports && reportData.site_reports.length > 0 ? (
                   reportData.site_reports
                     .filter(site => !selectedCostCode || site.cost_code === selectedCostCode)
+                    .filter(site => site.total_operating_hours > 0)
                     .sort((a, b) => (a.branch || a.generator || '').localeCompare(b.branch || b.generator || ''))
                     .map((site, index) => {
                       const peakPeriodName = site.peak_time_slot === 'morning_to_afternoon' ? 'Morning' : 'Afternoon';
