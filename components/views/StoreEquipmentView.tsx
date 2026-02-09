@@ -8,7 +8,7 @@ import { useUser } from '@/contexts/UserContext';
 import { Badge } from '@/components/ui/badge';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Activity, Fuel, AlertTriangle, Clock, Wifi, Building2, PenSquare, Save, X, PlusCircle, Trash2, Filter } from 'lucide-react';
+import { RefreshCw, Activity, Fuel, AlertTriangle, Clock, Wifi, Building2, PenSquare, Save, X, PlusCircle, Trash2, Filter, Search } from 'lucide-react';
 import { HierarchicalCostCenter } from '@/lib/supabase/cost-centers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,6 +102,7 @@ export function StoreEquipmentView() {
   const [editedEquipment, setEditedEquipment] = useState<VehicleEquipment | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCostCode, setSelectedCostCode] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const hasInitialized = React.useRef(false);
   
   // Add generator dialog state
@@ -761,6 +762,17 @@ export function StoreEquipmentView() {
       );
     }
     
+    // Finally, filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(equipment =>
+        (equipment.plate?.toLowerCase().includes(query)) ||
+        (equipment.branch?.toLowerCase().includes(query)) ||
+        (equipment.ip_address?.toLowerCase().includes(query)) ||
+        (equipment.cost_code?.toLowerCase().includes(query))
+      );
+    }
+    
     return filtered;
   };
   
@@ -805,6 +817,16 @@ export function StoreEquipmentView() {
                   Equipment Details
                 </CardTitle>
                 <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search sites..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 w-64 h-9"
+                    />
+                  </div>
                   <Button 
                     variant="default" 
                     size="sm"
