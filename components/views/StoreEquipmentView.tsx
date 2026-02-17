@@ -479,7 +479,7 @@ export function StoreEquipmentView() {
           cost_code: editedEquipment.cost_code || ''
         };
         
-        const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
+        const response = await fetch(getApiUrl(`/api/energy-rite/vehicles/${editedEquipment.id}`), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatePayload)
