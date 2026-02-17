@@ -471,15 +471,16 @@ export function StoreEquipmentView() {
       
       // Save other fields to external API
       if (otherFieldsChanged) {
-        const updatePayload: any = {};
-        
-        if (editedEquipment.branch !== originalEquipment?.branch) updatePayload.branch = editedEquipment.branch;
-        if (editedEquipment.company !== originalEquipment?.company) updatePayload.company = editedEquipment.company;
-        if (editedEquipment.cost_code !== originalEquipment?.cost_code) updatePayload.cost_code = editedEquipment.cost_code;
-        if (editedEquipment.ip_address !== originalEquipment?.ip_address) updatePayload.ip_address = editedEquipment.ip_address;
+        const siteName = (editedEquipment.branch || editedEquipment.plate || '').trim();
+        const updatePayload: any = {
+          plate: siteName,
+          reg: siteName,
+          ip_address: editedEquipment.ip_address || '',
+          cost_code: editedEquipment.cost_code || ''
+        };
         
         const response = await fetch(process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST ? `http://${process.env.NEXT_PUBLIC_EQUIPMENT_API_HOST}:${process.env.NEXT_PUBLIC_EQUIPMENT_API_PORT}/api/energy-rite/vehicles/${editedEquipment.id}` : `/api/energy-rite/vehicles/${editedEquipment.id}`, {
-          method: 'PUT',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatePayload)
         });
