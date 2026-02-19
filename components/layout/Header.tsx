@@ -20,16 +20,24 @@ export function Header() {
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
-  
   // Memoize cost centers to prevent re-computation on every render
   const energyriteCostCenters = React.useMemo(() => {
-    const flattened = costCenters.flatMap(cc => cc.children ? cc.children : [cc]);
+    const flattenAll = (centers: any[]): any[] => {
+      return centers.flatMap((center) => [
+        center,
+        ...(center.children ? flattenAll(center.children) : [])
+      ]);
+    };
+
+    const flattened = flattenAll(costCenters)
+      .filter((cc) => cc?.costCode)
+      .filter((cc, index, arr) => index === arr.findIndex((item) => item.costCode === cc.costCode));
 
     if (isAdmin) {
       // Admin sees all cost centers
       return flattened;
     } else if (userCostCode) {
-      // Non-admin users can switch among their scoped cost centers.
+      // Non-admin users can switch among all scoped descendants.
       return flattened;
     }
     return [];
