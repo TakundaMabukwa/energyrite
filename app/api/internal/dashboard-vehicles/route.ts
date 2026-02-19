@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
       branch: vehicle.Plate || vehicle.branch,
       company: vehicle.company,
       cost_code: vehicle.cost_code,
+      ip_address: vehicle.ip_address || vehicle.IPAddress || vehicle.ip || '',
+      quality: vehicle.quality || vehicle.Quality || '',
       speed: vehicle.Speed,
       latitude: vehicle.Latitude,
       longitude: vehicle.Longitude,

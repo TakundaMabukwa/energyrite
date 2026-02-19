@@ -17,7 +17,7 @@ import Image from 'next/image';
 
 export function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed, activeTab, setActiveTab } = useApp();
-  const { isAdmin } = useUser();
+  const { isAdmin, isSecondLevelAdmin } = useUser();
 
   const sidebarItems = [
     {
@@ -74,6 +74,11 @@ export function Sidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 space-y-2 p-4">
         {sidebarItems.map((item) => {
+          // Second level admins do not have access to these tabs
+          if (isSecondLevelAdmin && (item.id === 'store-equipment' || item.id === 'add-user')) {
+            return null;
+          }
+
           // Skip admin-only items if user is not admin
           if (item.adminOnly && !isAdmin) {
             return null;

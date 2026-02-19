@@ -295,7 +295,7 @@ export function StoreEquipmentView() {
           branch: vehicle.branch || 'Unknown Branch',
           company: vehicle.company || 'Unknown Company',
           plate: vehicle.plate,
-          ip_address: vehicle.quality || vehicle.ip_address || '',
+          ip_address: vehicle.ip_address || vehicle.IPAddress || vehicle.ip || '',
           cost_code: vehicle.cost_code || '',
           speed: vehicle.speed || '0',
           latitude: vehicle.latitude || '0',

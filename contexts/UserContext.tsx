@@ -10,6 +10,7 @@ interface User {
   cost_code: string | null;
   company: string | null;
   tech_admin: boolean | null;
+  second_level_admin: boolean | null;
   first_login: boolean | null;
   site_id: string | null;
 }
@@ -18,6 +19,7 @@ interface UserContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  isSecondLevelAdmin: boolean;
   userCostCode: string | null;
   userSiteId: string | null;
   signOut: () => Promise<void>;
@@ -67,6 +69,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               cost_code: metaData.cost_code || null,
               company: metaData.company || null,
               tech_admin: metaData.tech_admin || false,
+              second_level_admin: metaData.second_level_admin || false,
               first_login: metaData.first_login || false,
               site_id: metaData.site_id || null
             });
@@ -80,6 +83,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               cost_code: null,
               company: null,
               tech_admin: false,
+              second_level_admin: false,
               first_login: false,
               site_id: null
             });
@@ -93,6 +97,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             cost_code: userData.cost_code,
             company: userData.company,
             tech_admin: userData.tech_admin,
+            second_level_admin: userData.second_level_admin,
             first_login: userData.first_login,
             site_id: userData.site_id
           });
@@ -120,6 +125,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                   cost_code: userData.cost_code,
                   company: userData.company,
                   tech_admin: userData.tech_admin,
+                  second_level_admin: userData.second_level_admin,
                   first_login: userData.first_login,
                   site_id: userData.site_id
                 });
@@ -135,6 +141,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     cost_code: metaData.cost_code || null,
                     company: metaData.company || null,
                     tech_admin: metaData.tech_admin || false,
+                    second_level_admin: metaData.second_level_admin || false,
                     first_login: metaData.first_login || false,
                     site_id: metaData.site_id || null
                   });
@@ -193,6 +200,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user?.role === 'admin' || user?.role === 'energyrite_admin';
+  const isSecondLevelAdmin = user?.second_level_admin === true;
   const userCostCode = user?.cost_code || null;
   const userSiteId = user?.site_id || null;
 
@@ -202,6 +210,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         isAdmin,
+        isSecondLevelAdmin,
         userCostCode,
         userSiteId,
         signOut

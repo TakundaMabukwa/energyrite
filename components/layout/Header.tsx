@@ -23,13 +23,14 @@ export function Header() {
   
   // Memoize cost centers to prevent re-computation on every render
   const energyriteCostCenters = React.useMemo(() => {
+    const flattened = costCenters.flatMap(cc => cc.children ? cc.children : [cc]);
+
     if (isAdmin) {
       // Admin sees all cost centers
-      return costCenters.flatMap(cc => cc.children ? cc.children : [cc]);
+      return flattened;
     } else if (userCostCode) {
-      // Non-admin users only see their cost center
-      return costCenters.flatMap(cc => cc.children ? cc.children : [cc])
-        .filter(cc => cc.costCode === userCostCode);
+      // Non-admin users can switch among their scoped cost centers.
+      return flattened;
     }
     return [];
   }, [costCenters, isAdmin, userCostCode]);

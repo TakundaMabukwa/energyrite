@@ -61,6 +61,46 @@ interface FuelData {
 // Use the HierarchicalCostCenter from the service
 type CostCenter = HierarchicalCostCenter;
 
+function flattenCostCenters(centers: CostCenter[]): CostCenter[] {
+  return centers.flatMap((center) => [
+    center,
+    ...(center.children ? flattenCostCenters(center.children as CostCenter[]) : []),
+  ]);
+}
+
+function normalizeCode(code?: string | null): string {
+  return (code || '').trim().toLowerCase();
+}
+
+function getScopedCostCenters(allCostCenters: CostCenter[], userCostCode: string): CostCenter[] {
+  const scopeCode = normalizeCode(userCostCode);
+  if (!scopeCode) return [];
+
+  const flat = flattenCostCenters(allCostCenters).filter(
+    (center) => center.costCode && normalizeCode(center.costCode) !== 'energyrite'
+  );
+  const byCode = new Map(flat.map((center) => [normalizeCode(center.costCode), center]));
+
+  const isInScope = (center: CostCenter) => {
+    const centerCode = normalizeCode(center.costCode);
+    if (!centerCode) return false;
+    if (centerCode === scopeCode) return true;
+    if (centerCode.startsWith(`${scopeCode}-`)) return true;
+
+    let currentParent = normalizeCode(center.parentId);
+    while (currentParent) {
+      if (currentParent === scopeCode) return true;
+      const parent = byCode.get(currentParent);
+      if (!parent) break;
+      currentParent = normalizeCode(parent.parentId);
+    }
+
+    return false;
+  };
+
+  return flat.filter(isInScope);
+}
+
 interface AppContextType {
   routes: Route[];
   fuelData: FuelData[];
@@ -176,47 +216,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           console.error('❌ Fetch failed:', resp.status, resp.statusText);
         }
       } else if (userCostCode) {
-        // Non-admin users see only their cost code data
-        console.log('👤 Regular user - loading data for cost code:', userCostCode);
-        
-        // Load vehicles filtered by cost code
-        const resp = await fetch(getApiUrl(`/api/energy-rite/vehicles?cost_code=${userCostCode}`));
+        // Non-admin users can access their assigned cost center and descendants.
+        console.log('Regular user - loading scoped data for cost code:', userCostCode);
+
+        const allCostCenters = await costCenterService.fetchAllCostCenters();
+        const scopedCostCenters = getScopedCostCenters(allCostCenters, userCostCode);
+        const scopedCodes = new Set(
+          scopedCostCenters.map((cc) => cc.costCode).filter((code): code is string => Boolean(code))
+        );
+        const defaultCostCode = scopedCodes.has(userCostCode)
+          ? userCostCode
+          : (scopedCostCenters[0]?.costCode || userCostCode);
+
+        setCostCenters(scopedCostCenters);
+
+        // Load vehicles once, then restrict to scoped cost centers.
+        const resp = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
         if (resp.ok) {
           const json = await resp.json();
-          const transformedData = Array.isArray(json) ? json.map(transformVehicleData) : 
+          const transformedData = Array.isArray(json) ? json.map(transformVehicleData) :
             (json?.success && Array.isArray(json.data)) ? json.data.map(transformVehicleData) : [];
-          
-          setVehicles(transformedData);
+
+          const scopedVehicles = transformedData.filter((vehicle: any) => scopedCodes.has(vehicle.cost_code));
+          setVehicles(scopedVehicles);
           setLastSseUpdate(new Date().toISOString());
-          console.log('✅ Loaded vehicles for user cost code:', transformedData.length);
-          
-          // Automatically set fuel data for the user's cost code
-          await updateFuelDataForCostCode(userCostCode);
+          console.log('Loaded vehicles for scoped cost centers:', scopedVehicles.length);
+
+          await updateFuelDataForCostCode(defaultCostCode);
         }
-        
-        // Set a single cost center for the user
-        const userCostCenter: CostCenter = {
-          id: userCostCode,
-          name: user?.company || 'User Cost Center',
-          costCode: userCostCode,
-          company: user?.company || 'Unknown Company',
-          branch: user?.company || 'User Branch',
-          subBranch: null,
-          level: 1,
-          children: [],
-          path: user?.company || 'User Cost Center',
-          newAccountNumber: 'ENER-0001',
-          parentId: null,
-          hasChildren: false
-        };
-        setCostCenters([userCostCenter]);
-        
-        // Set the selected route to the user's cost center
+
+        const defaultCostCenter =
+          scopedCostCenters.find((cc) => cc.costCode === defaultCostCode) || scopedCostCenters[0];
+
         setSelectedRoute({
-          id: userCostCode,
-          route: userCostCenter.name,
-          locationCode: userCostCode,
-          costCode: userCostCode
+          id: defaultCostCenter?.id || defaultCostCode,
+          route: defaultCostCenter?.name || user?.company || 'User Cost Center',
+          locationCode: defaultCostCode,
+          costCode: defaultCostCode
         });
       } else {
         console.log('⚠️ User has no cost code - setting empty data');

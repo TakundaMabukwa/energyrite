@@ -15,9 +15,13 @@ import { useUser } from '@/contexts/UserContext';
 
 export function MainLayout() {
   const { activeTab } = useApp();
-  const { isAdmin } = useUser();
+  const { isSecondLevelAdmin } = useUser();
 
   const renderMainContent = () => {
+    if (isSecondLevelAdmin && (activeTab === 'store-equipment' || activeTab === 'add-user')) {
+      return <DashboardView />;
+    }
+
     switch (activeTab) {
       case 'cost-centres':
         // Show fuel gauges instead of cost centers table
