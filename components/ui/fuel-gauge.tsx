@@ -78,10 +78,20 @@ export function FuelGauge({
 
   const getStatusColor = (status: string) => {
     if (!status) return 'bg-gray-100 text-gray-700 border-gray-200';
-    if (status.includes('PTO ON') || status.includes('ENGINE ON')) return 'bg-green-100 text-green-700 border-green-200';
-    if (status.includes('PTO OFF') || status.includes('ENGINE OFF')) return 'bg-gray-100 text-gray-700 border-gray-200';
-    if (status.includes('Possible Fuel Fill')) return 'bg-orange-100 text-orange-700 border-orange-200';
+    const normalized = status.toUpperCase();
+    if ((normalized.includes('PTO') || normalized.includes('ENGINE')) && normalized.includes('ON')) return 'bg-green-100 text-green-700 border-green-200';
+    if ((normalized.includes('PTO') || normalized.includes('ENGINE')) && normalized.includes('OFF')) return 'bg-gray-100 text-gray-700 border-gray-200';
+    if (normalized.includes('POSSIBLE FUEL FILL')) return 'bg-orange-100 text-orange-700 border-orange-200';
     return 'bg-gray-100 text-gray-700 border-gray-200';
+  };
+
+  const getDisplayStatus = (status: string) => {
+    if (!status) return status;
+    const normalized = status.toUpperCase();
+    if ((normalized.includes('PTO') || normalized.includes('ENGINE')) && normalized.includes('ON')) return 'Generator ON';
+    if ((normalized.includes('PTO') || normalized.includes('ENGINE')) && normalized.includes('OFF')) return 'Generator OFF';
+    if (normalized.includes('PTO') || normalized.includes('ENGINE')) return 'Generator';
+    return status;
   };
 
   const getFuelColor = (level: number) => {
@@ -165,7 +175,7 @@ export function FuelGauge({
                   variant="outline" 
                   className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
                 >
-                  {status}
+                  {getDisplayStatus(status)}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent 

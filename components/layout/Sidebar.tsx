@@ -57,8 +57,8 @@ export function Sidebar() {
         <div className="flex justify-center items-center">
           {!sidebarCollapsed ? (
             <Image
-              src="https://energyrite.co.za/wp-content/uploads/energyrite_logo.svg"
-              alt="Energyrite Logo"
+              src="/energyease_logo_green_orange_1m.png"
+              alt="Energyease Logo"
               width={150}
               height={40}
               className="w-auto h-8"

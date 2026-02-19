@@ -70,9 +70,9 @@ export function LoginForm({
       {/* Logo above the form */}
       <div className="flex justify-center mb-6">
         <Image
-          src="https://upload.wikimedia.org/wikipedia/commons/9/91/KFC_Logo.svg"
-          alt="KFC Logo"
-          width={80}
+          src="/energyease_logo_green_orange_1m.png"
+          alt="Energyease Logo"
+          width={180}
           height={40}
           className="w-auto h-12"
         />
