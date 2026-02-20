@@ -64,10 +64,12 @@ const toDateInputValue = (date: Date) => {
 
 const getDefaultDateRange = () => {
   const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0);
   return {
     start: toDateInputValue(monthStart),
-    end: toDateInputValue(now),
+    end: toDateInputValue(yesterday),
   };
 };
 
@@ -107,9 +109,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   };
 
   const getDashboardTitle = () => {
-    const start = toDateOnly(appliedStartDateTime);
-    const end = toDateOnly(appliedEndDateTime);
-    return `Executive Dashboard (${start} to ${end})`;
+    return 'Executive Dashboard';
   };
 
   const getBreadcrumbPath = () => {
