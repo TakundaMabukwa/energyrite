@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import { RefreshCw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
@@ -12,7 +13,6 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useToast } from '@/hooks/use-toast';
 import { formatForDisplay } from '@/lib/utils/date-formatter';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getReportsApiUrl } from '@/lib/utils/api-url';
 
 interface ExecutiveDashboardViewProps {
@@ -58,7 +58,27 @@ interface ExecutiveDashboardData {
   }>;
 }
 
+const toDateInputValue = (date: Date) => {
+  const pad = (num: number) => String(num).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const getDefaultDateRange = () => {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0);
+  return {
+    start: toDateInputValue(monthStart),
+    end: toDateInputValue(now),
+  };
+};
+
+const toDateOnly = (dateTimeValue: string) => {
+  if (!dateTimeValue) return '';
+  return dateTimeValue.split('T')[0];
+};
+
 export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) {
+  const YUM_COST_CODE_ROOT = 'KFC-0001-0001-0003';
   const { selectedRoute } = useApp();
   const { userCostCode, userSiteId, isAdmin } = useUser();
   const { toast } = useToast();
@@ -74,7 +94,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [periodFuelUsageData, setPeriodFuelUsageData] = useState<ChartData[]>([]);
   const [morningAfternoonData, setMorningAfternoonData] = useState<ChartData[]>([]);
   const [siteUsageData, setSiteUsageData] = useState<ChartData[]>([]);
+  const [continuousOpsThresholdHours, setContinuousOpsThresholdHours] = useState(12);
   const [selectedCostCode, setSelectedCostCode] = useState('');
+  const [filterStartDateTime, setFilterStartDateTime] = useState(() => getDefaultDateRange().start);
+  const [filterEndDateTime, setFilterEndDateTime] = useState(() => getDefaultDateRange().end);
+  const [appliedStartDateTime, setAppliedStartDateTime] = useState(() => getDefaultDateRange().start);
+  const [appliedEndDateTime, setAppliedEndDateTime] = useState(() => getDefaultDateRange().end);
 
   const getCostCenterDisplayName = (costCode: string) => {
     const costCenterNames: Record<string, string> = {
@@ -85,15 +110,41 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   };
 
   const getDashboardTitle = () => {
-    const now = new Date();
-    const monthName = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-    return `Executive Dashboard (${monthName} - Month to Date)`;
+    const start = toDateOnly(appliedStartDateTime);
+    const end = toDateOnly(appliedEndDateTime);
+    return `Executive Dashboard (${start} to ${end})`;
   };
 
   const getBreadcrumbPath = () => {
-    const now = new Date();
-    const monthName = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-    return `Energyrite => Executive Dashboard - ${monthName} (MTD)`;
+    const start = toDateOnly(appliedStartDateTime);
+    const end = toDateOnly(appliedEndDateTime);
+    return `Energyrite => Executive Dashboard - ${start} to ${end}`;
+  };
+
+  const applyDateFilter = () => {
+    const start = new Date(filterStartDateTime);
+    const end = new Date(filterEndDateTime);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      toast({
+        title: 'Invalid date range',
+        description: 'Please enter valid start and end date/time values.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (start > end) {
+      toast({
+        title: 'Invalid date range',
+        description: 'Start date/time must be before end date/time.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setAppliedStartDateTime(filterStartDateTime);
+    setAppliedEndDateTime(filterEndDateTime);
   };
 
   // Fetch data from new monitoring endpoints
@@ -114,20 +165,13 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.log('🔍 selectedRoute:', selectedRoute);
       console.log('🔍 userCostCode:', userCostCode);
       
-      // Month-to-date: 1st of current month to yesterday
-      const now = new Date();
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
+      const startDateString = toDateOnly(appliedStartDateTime);
+      const endDateString = toDateOnly(appliedEndDateTime);
       
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startDateString = startDate.toISOString().split('T')[0];
-      const endDateString = yesterday.toISOString().split('T')[0];
-      
-      console.log('🔍 Month-to-date range:', startDateString, 'to', endDateString, '(yesterday)');
+      console.log('Date range:', startDateString, 'to', endDateString);
       
       // Fetch from new executive dashboard endpoint
       const baseUrl = getReportsApiUrl('');
-      const params = new URLSearchParams();
       // Build enhanced dashboard parameters
       const enhancedParams = new URLSearchParams();
       enhancedParams.append('start_date', startDateString);
@@ -238,8 +282,27 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       }
 
       // Update continuous operations for long running chart (sites over 12 hours)
-      if (enhancedData?.continuous_operations?.sites_over_24_hours?.length > 0) {
-        const longRunningData = enhancedData.continuous_operations.sites_over_24_hours
+      const continuousOperationSites =
+        enhancedData?.continuous_operations?.sites_over_threshold_hours ||
+        enhancedData?.continuous_operations?.sites_over_24_hours ||
+        [];
+
+      const isYumScope =
+        Boolean(costCodeFilter) &&
+        (
+          costCodeFilter === YUM_COST_CODE_ROOT ||
+          costCodeFilter.startsWith(`${YUM_COST_CODE_ROOT}-`) ||
+          costCodeFilter.toUpperCase().includes('YUM')
+        );
+
+      const apiThreshold = continuousOperationSites.find((site: any) =>
+        typeof site?.threshold_hours === 'number'
+      )?.threshold_hours;
+
+      setContinuousOpsThresholdHours(apiThreshold ?? (isYumScope ? 4 : 12));
+
+      if (continuousOperationSites.length > 0) {
+        const longRunningData = continuousOperationSites
           .slice(0, 5)
           .map((site: any, index: number) => ({
             label: (site.site || `Site ${index + 1}`).length > 12 
@@ -356,17 +419,17 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         });
       }
     }
-  }, [toast, isAdmin, selectedRoute, userCostCode]);
+  }, [toast, isAdmin, selectedRoute, userCostCode, userSiteId, selectedCostCode, appliedStartDateTime, appliedEndDateTime]);
 
   // Fetch fuel consumption data using cumulative snapshots for current month
   const fetchPreviousDayFuelConsumption = useCallback(async () => {
     try {
       console.log('⛽ Fetching cumulative fuel consumption data...');
       
-      // Get current month and year for month-to-date
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
+      // Use selected start date month for monthly cumulative endpoint
+      const selectedStartDate = new Date(appliedStartDateTime);
+      const currentYear = selectedStartDate.getFullYear();
+      const currentMonth = selectedStartDate.getMonth() + 1;
       
       // Priority: site_id > selectedRoute.costCode > userCostCode
       const costCodeFilter = selectedRoute?.costCode || userCostCode || '';
@@ -417,7 +480,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       console.error('❌ Error fetching cumulative fuel consumption data:', err);
       console.log('Using fallback data from enhanced dashboard');
     }
-  }, [selectedRoute, userCostCode, userSiteId]);
+  }, [selectedRoute, userCostCode, userSiteId, appliedStartDateTime]);
 
   useEffect(() => {
     // Auto-fetch overall data on load and when filters/month change
@@ -427,7 +490,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
       await fetchPreviousDayFuelConsumption();
     };
     loadData();
-  }, [selectedRoute, userCostCode, userSiteId]);
+  }, [fetchDashboardData, fetchPreviousDayFuelConsumption]);
+
+  const handleRefresh = async () => {
+    await fetchDashboardData();
+    await fetchPreviousDayFuelConsumption();
+  };
 
   if (loading) {
     return (
@@ -447,7 +515,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
           <div className="mx-auto mb-4 text-gray-400 text-6xl">📊</div>
           <p className="mb-4 font-medium text-gray-600 text-lg">No Data Available</p>
           <p className="mb-4 text-gray-500 text-sm">Unable to load dashboard data at this time</p>
-          <Button onClick={fetchDashboardData} variant="outline">
+          <Button onClick={handleRefresh} variant="outline">
             <RefreshCw className="mr-2 w-4 h-4" />
             Retry
           </Button>
@@ -467,10 +535,33 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                 <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
                 <p className="text-gray-600">{getBreadcrumbPath()}</p>
               </div>
-              <Button onClick={fetchDashboardData} size="sm">
-                <RefreshCw className="mr-2 w-4 h-4" />
-                Refresh
-              </Button>
+              <div className="flex items-end gap-2">
+                <div>
+                  <label className="block mb-1 text-gray-500 text-xs">Start</label>
+                  <Input
+                    type="datetime-local"
+                    value={filterStartDateTime}
+                    onChange={(e) => setFilterStartDateTime(e.target.value)}
+                    className="w-52"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 text-gray-500 text-xs">End</label>
+                  <Input
+                    type="datetime-local"
+                    value={filterEndDateTime}
+                    onChange={(e) => setFilterEndDateTime(e.target.value)}
+                    className="w-52"
+                  />
+                </div>
+                <Button onClick={applyDateFilter} size="sm">
+                  Apply
+                </Button>
+                <Button onClick={handleRefresh} size="sm" variant="outline">
+                  <RefreshCw className="mr-2 w-4 h-4" />
+                  Refresh
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -549,7 +640,7 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
             )}
           </ChartCard>
 
-          <ChartCard title="Continuous Operations (12+ hours)">
+          <ChartCard title={`Continuous Operations (${continuousOpsThresholdHours}+ hours)`}>
             {longRunningData.length > 0 ? (
               <div className="w-full overflow-hidden">
                 <PieChart

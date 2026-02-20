@@ -6,12 +6,19 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || '30';
     const costCode = searchParams.get('cost_code');
     const costCodes = searchParams.get('cost_codes');
+    const startDate = searchParams.get('start_date');
+    const endDate = searchParams.get('end_date');
 
     console.log('🚀 Enhanced Executive Dashboard Request:', { period, costCode, costCodes });
 
     // Build parameters for external API call
     const params = new URLSearchParams();
-    params.append('period', period);
+    if (startDate && endDate) {
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+    } else {
+      params.append('period', period);
+    }
     
     if (costCode) {
       params.append('costCode', costCode);

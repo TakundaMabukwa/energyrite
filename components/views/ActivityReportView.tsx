@@ -24,6 +24,8 @@ interface SiteReport {
   cost_code: string;
   company: string;
   branch: string;
+  start_time?: string | null;
+  end_time?: string | null;
   morning_to_afternoon_usage: number;
   afternoon_to_evening_usage: number;
   morning_to_evening_usage: number;
@@ -130,6 +132,17 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     }
   };
 
+  const formatSiteTime = (timestamp?: string | null): string => {
+    if (!timestamp) return '-';
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleTimeString('en-ZA', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
+
   // Fetch activity reports data
   const fetchActivityData = useCallback(async () => {
     try {
@@ -178,8 +191,23 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
         if (apiData.sessions && Array.isArray(apiData.sessions)) {
           console.log('🆕 Using sessions-based API structure');
           
-          // Group sessions by branch to create site reports
-          const sessionsByBranch = apiData.sessions.reduce((acc, session) => {
+          const allSessions = apiData.sessions as any[];
+          const operatingSessions = allSessions.filter((session: any) =>
+            session?.status === 'COMPLETED' || session?.status === 'ONGOING'
+          );
+
+          // Group operating sessions by branch to create site reports
+          const sessionsByBranch = operatingSessions.reduce((acc: Record<string, any[]>, session: any) => {
+            const branch = session.branch || 'Unknown';
+            if (!acc[branch]) {
+              acc[branch] = [];
+            }
+            acc[branch].push(session);
+            return acc;
+          }, {});
+
+          // Group all sessions for site fill totals
+          const allSessionsByBranch = allSessions.reduce((acc: Record<string, any[]>, session: any) => {
             const branch = session.branch || 'Unknown';
             if (!acc[branch]) {
               acc[branch] = [];
@@ -192,8 +220,19 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
           const siteReports = Object.entries(sessionsByBranch).map(([branch, sessions]: [string, any[]]) => {
             const totalOperatingHours = sessions.reduce((sum, s) => sum + (s.duration_hours || 0), 0);
             const totalFuelUsage = sessions.reduce((sum, s) => sum + (s.fuel_usage || 0), 0);
-            const totalFuelFilled = sessions.reduce((sum, s) => sum + (s.fuel_filled || 0), 0);
+            const branchSessionsAll = allSessionsByBranch[branch] || [];
+            const totalFuelFilled = branchSessionsAll.reduce((sum, s) => sum + (s.fuel_filled || 0), 0);
             const totalSessions = sessions.length;
+            const validStartTimes = sessions
+              .map(s => s.start_time)
+              .filter(Boolean)
+              .map((t: string) => new Date(t).getTime())
+              .filter((t: number) => !Number.isNaN(t));
+            const validEndTimes = sessions
+              .map(s => s.end_time)
+              .filter(Boolean)
+              .map((t: string) => new Date(t).getTime())
+              .filter((t: number) => !Number.isNaN(t));
             
             // Find peak usage session
             const peakSession = sessions.reduce((max, s) => 
@@ -205,6 +244,8 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
               generator: branch,
               company: sessions[0]?.company || 'Unknown',
               cost_code: sessions[0]?.cost_code || '',
+              start_time: validStartTimes.length > 0 ? new Date(Math.min(...validStartTimes)).toISOString() : null,
+              end_time: validEndTimes.length > 0 ? new Date(Math.max(...validEndTimes)).toISOString() : null,
               total_operating_hours: totalOperatingHours,
               total_fuel_usage: totalFuelUsage,
               total_fuel_filled: totalFuelFilled,
@@ -220,10 +261,15 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
           const transformedData = {
             summary: {
               total_sites: siteReports.length,
-              total_sessions: apiData.sessions.length,
+              total_sessions: apiData.summary?.total_sessions || operatingSessions.length,
               total_operating_hours: apiData.summary?.total_operating_hours || 0,
               total_fuel_usage: apiData.summary?.total_fuel_usage || 0,
-              total_fuel_filled: parseFloat(apiData.fuel_fills?.total_fuel_filled || apiData.summary?.total_fuel_filled || 0)
+              total_fuel_filled: parseFloat(
+                apiData?.fuel_analysis?.fuel_fills?.total_fuel_filled ||
+                apiData?.summary?.total_fuel_filled_amount ||
+                apiData?.summary?.total_fuel_filled ||
+                0
+              )
             },
             site_reports: siteReports,
             time_slot_totals: {
@@ -233,25 +279,41 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
             }
           };
           setReportData(transformedData);
-        } else if (apiData.fuel_analysis && apiData.sites) {
-          console.log('🆕 Using sites-based API structure');
+                } else if (apiData.fuel_analysis && apiData.sites) {
+          console.log('Using sites-based API structure');
+          const morningUsage = parseFloat(
+            apiData?.fuel_analysis?.period_breakdown?.morning?.fuel_usage ??
+            apiData?.fuel_analysis?.period_breakdown?.morning ??
+            0
+          );
+          const afternoonUsage = parseFloat(
+            apiData?.fuel_analysis?.period_breakdown?.afternoon?.fuel_usage ??
+            apiData?.fuel_analysis?.period_breakdown?.afternoon ??
+            0
+          );
+          const fullDayUsage = parseFloat(
+            apiData?.fuel_analysis?.daily_total_consumption ??
+            apiData?.summary?.total_fuel_usage ??
+            0
+          );
+
           const transformedData = {
             summary: apiData.summary,
             fuel_analysis: apiData.fuel_analysis,
             site_reports: (apiData.sites || []).map(site => ({
               ...site,
               generator: site.branch,
-              morning_to_afternoon_usage: parseFloat(apiData.fuel_analysis?.period_breakdown?.morning || 0),
-              afternoon_to_evening_usage: parseFloat(apiData.fuel_analysis?.period_breakdown?.afternoon || 0),
+              morning_to_afternoon_usage: morningUsage,
+              afternoon_to_evening_usage: afternoonUsage,
               peak_time_slot: apiData.fuel_analysis?.peak_usage_period?.period === 'morning' ? 'morning_to_afternoon' : 'afternoon_to_evening',
               peak_fuel_usage: site.peak_usage_amount || 0,
               total_fuel_usage: site.total_fuel_usage || 0,
               total_operating_hours: site.total_operating_hours || 0
             })),
             time_slot_totals: {
-              morning_to_afternoon: parseFloat(apiData.fuel_analysis?.period_breakdown?.morning || 0),
-              afternoon_to_evening: parseFloat(apiData.fuel_analysis?.period_breakdown?.afternoon || 0),
-              morning_to_evening: parseFloat(apiData.fuel_analysis?.daily_total_consumption || 0)
+              morning_to_afternoon: morningUsage,
+              afternoon_to_evening: afternoonUsage,
+              morning_to_evening: fullDayUsage
             }
           };
           setReportData(transformedData);
@@ -511,6 +573,8 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
               <TableHeader>
                 <TableRow>
             <TableHead className="font-medium">Site</TableHead>
+            <TableHead className="font-medium">Start Time</TableHead>
+            <TableHead className="font-medium">End Time</TableHead>
             <TableHead className="font-medium">Operating Hours</TableHead>
             <TableHead className="font-medium">Fuel Usage</TableHead>
             <TableHead className="font-medium">Fuel Fills</TableHead>
@@ -535,6 +599,12 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                             </div>
                           </TableCell>
                           <TableCell className="py-2">
+                            <span className="font-medium text-gray-700">{formatSiteTime(site.start_time)}</span>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <span className="font-medium text-gray-700">{site.end_time ? formatSiteTime(site.end_time) : 'Ongoing'}</span>
+                          </TableCell>
+                          <TableCell className="py-2">
                             <span className="font-medium text-sky-700">{formatHours(site.total_operating_hours || 0)}</span>
                           </TableCell>
                           <TableCell className="py-2">
@@ -551,7 +621,7 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                     })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       No activity data available for the selected date range
                     </TableCell>
                   </TableRow>
@@ -564,3 +634,4 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     </div>
   );
 }
+
