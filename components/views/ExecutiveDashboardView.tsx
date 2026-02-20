@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 import { RefreshCw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
@@ -96,8 +95,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [siteUsageData, setSiteUsageData] = useState<ChartData[]>([]);
   const [continuousOpsThresholdHours, setContinuousOpsThresholdHours] = useState(12);
   const [selectedCostCode, setSelectedCostCode] = useState('');
-  const [filterStartDateTime, setFilterStartDateTime] = useState(() => getDefaultDateRange().start);
-  const [filterEndDateTime, setFilterEndDateTime] = useState(() => getDefaultDateRange().end);
   const [appliedStartDateTime, setAppliedStartDateTime] = useState(() => getDefaultDateRange().start);
   const [appliedEndDateTime, setAppliedEndDateTime] = useState(() => getDefaultDateRange().end);
 
@@ -119,32 +116,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
     const start = toDateOnly(appliedStartDateTime);
     const end = toDateOnly(appliedEndDateTime);
     return `Energyrite => Executive Dashboard - ${start} to ${end}`;
-  };
-
-  const applyDateFilter = () => {
-    const start = new Date(filterStartDateTime);
-    const end = new Date(filterEndDateTime);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      toast({
-        title: 'Invalid date range',
-        description: 'Please enter valid start and end date/time values.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (start > end) {
-      toast({
-        title: 'Invalid date range',
-        description: 'Start date/time must be before end date/time.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setAppliedStartDateTime(filterStartDateTime);
-    setAppliedEndDateTime(filterEndDateTime);
   };
 
   // Fetch data from new monitoring endpoints
@@ -536,27 +507,6 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                 <p className="text-gray-600">{getBreadcrumbPath()}</p>
               </div>
               <div className="flex items-end gap-2">
-                <div>
-                  <label className="block mb-1 text-gray-500 text-xs">Start</label>
-                  <Input
-                    type="datetime-local"
-                    value={filterStartDateTime}
-                    onChange={(e) => setFilterStartDateTime(e.target.value)}
-                    className="w-52"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-gray-500 text-xs">End</label>
-                  <Input
-                    type="datetime-local"
-                    value={filterEndDateTime}
-                    onChange={(e) => setFilterEndDateTime(e.target.value)}
-                    className="w-52"
-                  />
-                </div>
-                <Button onClick={applyDateFilter} size="sm">
-                  Apply
-                </Button>
                 <Button onClick={handleRefresh} size="sm" variant="outline">
                   <RefreshCw className="mr-2 w-4 h-4" />
                   Refresh

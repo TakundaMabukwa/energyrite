@@ -117,8 +117,10 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
   const formatPeakTime = (timestamp: string): string => {
     if (!timestamp) return "-";
     try {
-      const date = new Date(timestamp);
-      const hour = date.getHours();
+      // Read hour directly from backend timestamp (no timezone conversion on frontend).
+      const match = timestamp.match(/T(\d{2}):(\d{2})/);
+      if (!match) return "-";
+      const hour = parseInt(match[1], 10);
       
       if (hour >= 0 && hour < 8) {
         return "Morning";
@@ -134,13 +136,10 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
 
   const formatSiteTime = (timestamp?: string | null): string => {
     if (!timestamp) return '-';
-    const parsed = new Date(timestamp);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleTimeString('en-ZA', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+    // Use backend-provided time component as-is.
+    const match = timestamp.match(/T(\d{2}):(\d{2})/);
+    if (!match) return '-';
+    return `${match[1]}:${match[2]}`;
   };
 
   // Fetch activity reports data
