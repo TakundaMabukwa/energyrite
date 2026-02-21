@@ -29,13 +29,23 @@ function isIOSDevice() {
   return /iphone|ipad|ipod/.test(ua);
 }
 
+function isAndroidDevice() {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent.toLowerCase();
+  return /android/.test(ua);
+}
+
 export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isSecureContextState, setIsSecureContextState] = useState(true);
+  const [hasSWController, setHasSWController] = useState(false);
+  const [isLikelyInAppBrowser, setIsLikelyInAppBrowser] = useState(false);
 
   const ios = useMemo(() => (typeof window !== 'undefined' ? isIOSDevice() : false), []);
+  const android = useMemo(() => (typeof window !== 'undefined' ? isAndroidDevice() : false), []);
   
   const hidePrompt = () => {
     setVisible(false);
@@ -43,6 +53,11 @@ export function InstallPrompt() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    setIsSecureContextState(window.isSecureContext);
+    setHasSWController(Boolean(navigator.serviceWorker?.controller));
+    const ua = navigator.userAgent.toLowerCase();
+    const inApp = ua.includes(' wv') || ua.includes('fbav') || ua.includes('instagram') || ua.includes('line/');
+    setIsLikelyInAppBrowser(inApp);
 
     const installed = isStandaloneMode();
 
@@ -104,6 +119,14 @@ export function InstallPrompt() {
 
   if (!visible || isStandaloneMode()) return null;
 
+  const installCtaLabel = ios
+    ? 'Install'
+    : deferredPrompt
+      ? 'Install'
+      : android
+        ? 'Add to Home Screen'
+        : 'Install';
+
   return (
     <>
       <div className="right-3 bottom-3 left-3 z-[60] fixed bg-white shadow-lg px-3 py-3 border border-gray-200 rounded-xl">
@@ -117,7 +140,7 @@ export function InstallPrompt() {
               Not now
             </Button>
             <Button size="sm" onClick={onInstallClick}>
-              Install
+              {installCtaLabel}
             </Button>
           </div>
         </div>
@@ -142,9 +165,14 @@ export function InstallPrompt() {
           <DialogHeader>
             <DialogTitle>Install on Android</DialogTitle>
             <DialogDescription>
-              If the popup did not appear, tap the browser menu (three dots), then choose Install app or Add to Home screen.
+              Tap the browser menu (three dots), then choose Add to Home screen. If available, Install app is the full PWA option.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-1 text-xs text-gray-600">
+            {!isSecureContextState && <p>Blocked: insecure context. Open over HTTPS.</p>}
+            {isLikelyInAppBrowser && <p>Blocked: in-app browser detected. Open this link in Chrome app.</p>}
+            {!hasSWController && <p>Tip: refresh once to activate service worker, then try again.</p>}
+          </div>
           <DialogFooter>
             <Button onClick={() => setShowAndroidInstructions(false)}>Got it</Button>
           </DialogFooter>
