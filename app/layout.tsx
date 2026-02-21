@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { PWARegister } from "@/components/pwa/PWARegister";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -58,6 +59,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <PWARegister />
+          <InstallPrompt />
           {children}
           <Toaster />
         </ThemeProvider>

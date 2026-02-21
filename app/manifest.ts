@@ -2,11 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "Energy Rite",
     short_name: "EnergyRite",
     description: "Comprehensive fleet management and fuel monitoring system",
     start_url: "/auth/login",
-    display: "standalone",
+    scope: "/",
+    display: "fullscreen",
+    display_override: ["fullscreen", "standalone", "minimal-ui"],
     background_color: "#ffffff",
     theme_color: "#1e3a5f",
     orientation: "portrait",
@@ -30,4 +33,3 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
   };
 }
-
