@@ -24,8 +24,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/energyease_logo_green_orange_1m.png",
-    apple: "/energyease_logo_green_orange_1m.png",
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
   },
 };
 

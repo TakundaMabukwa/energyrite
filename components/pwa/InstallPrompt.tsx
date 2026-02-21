@@ -32,6 +32,7 @@ function isIOSDevice() {
 export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   const ios = useMemo(() => (typeof window !== 'undefined' ? isIOSDevice() : false), []);
@@ -53,6 +54,10 @@ export function InstallPrompt() {
       setVisible(true);
       return;
     }
+
+    // Always show install banner on Android/desktop web when not installed.
+    // If native install prompt is available we'll use it, otherwise show manual steps.
+    setVisible(true);
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -85,9 +90,13 @@ export function InstallPrompt() {
       try {
         await deferredPrompt.prompt();
         await deferredPrompt.userChoice;
+        setShowAndroidInstructions(false);
       } catch (error) {
         console.warn('Install prompt failed:', error);
       }
+    } else {
+      setShowAndroidInstructions(true);
+      return;
     }
 
     hidePrompt();
@@ -124,6 +133,20 @@ export function InstallPrompt() {
           </DialogHeader>
           <DialogFooter>
             <Button onClick={() => setShowIOSInstructions(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAndroidInstructions} onOpenChange={setShowAndroidInstructions}>
+        <DialogContent className="w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Install on Android</DialogTitle>
+            <DialogDescription>
+              If the popup did not appear, tap the browser menu (three dots), then choose Install app or Add to Home screen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowAndroidInstructions(false)}>Got it</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

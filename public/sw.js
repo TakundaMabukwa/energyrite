@@ -1,8 +1,11 @@
-const CACHE_NAME = 'energyrite-v1';
+const CACHE_NAME = 'energyrite-v2';
 const STATIC_ASSETS = [
   '/',
   '/auth/login',
-  '/energyease_logo_green_orange_1m.png',
+  '/icon.png',
+  '/apple-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -59,8 +62,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           return response;
         })
-        .catch(() => caches.match('/energyease_logo_green_orange_1m.png'));
+        .catch(() => caches.match('/icon-192.png'));
     })
   );
 });
-
