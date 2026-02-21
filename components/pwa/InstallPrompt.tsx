@@ -131,7 +131,7 @@ export function InstallPrompt() {
       <div className="right-3 bottom-3 left-3 z-[60] fixed bg-white shadow-lg px-3 py-3 border border-gray-200 rounded-xl">
         <div className="flex sm:flex-row flex-col sm:items-center gap-2 sm:gap-3">
           <div className="text-sm">
-            <div className="font-semibold text-gray-900">Install Energy Rite</div>
+            <div className="font-semibold text-gray-900">Install Energy Ease</div>
             <div className="text-gray-600">Get an app-like full-screen experience.</div>
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">

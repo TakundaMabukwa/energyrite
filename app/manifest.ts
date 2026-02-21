@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Energy Rite",
-    short_name: "EnergyRite",
+    name: "Energy Ease",
+    short_name: "EnergyEase",
     description: "Comprehensive fleet management and fuel monitoring system",
     start_url: "/auth/login",
     scope: "/",
