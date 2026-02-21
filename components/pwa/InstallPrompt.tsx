@@ -16,8 +16,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-const HIDE_INSTALL_PROMPT_KEY = 'hideInstallPrompt';
-
 function isStandaloneMode() {
   if (typeof window === 'undefined') return false;
   const viaMedia = window.matchMedia('(display-mode: standalone)').matches;
@@ -35,28 +33,21 @@ export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [hasDismissed, setHasDismissed] = useState(true);
 
   const ios = useMemo(() => (typeof window !== 'undefined' ? isIOSDevice() : false), []);
-
-  const hidePromptForever = () => {
-    localStorage.setItem(HIDE_INSTALL_PROMPT_KEY, '1');
-    setHasDismissed(true);
+  
+  const hidePrompt = () => {
     setVisible(false);
   };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const wasHidden = localStorage.getItem(HIDE_INSTALL_PROMPT_KEY) === '1';
     const installed = isStandaloneMode();
 
-    if (wasHidden || installed) {
-      setHasDismissed(true);
+    if (installed) {
       return;
     }
-
-    setHasDismissed(false);
 
     if (isIOSDevice()) {
       setVisible(true);
@@ -70,7 +61,7 @@ export function InstallPrompt() {
     };
 
     const onAppInstalled = () => {
-      hidePromptForever();
+      hidePrompt();
       setDeferredPrompt(null);
     };
 
@@ -86,7 +77,7 @@ export function InstallPrompt() {
   const onInstallClick = async () => {
     if (ios) {
       setShowIOSInstructions(true);
-      hidePromptForever();
+      hidePrompt();
       return;
     }
 
@@ -99,10 +90,10 @@ export function InstallPrompt() {
       }
     }
 
-    hidePromptForever();
+    hidePrompt();
   };
 
-  if (hasDismissed || !visible || isStandaloneMode()) return null;
+  if (!visible || isStandaloneMode()) return null;
 
   return (
     <>
@@ -113,7 +104,7 @@ export function InstallPrompt() {
             <div className="text-gray-600">Get an app-like full-screen experience.</div>
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">
-            <Button variant="outline" size="sm" onClick={hidePromptForever}>
+            <Button variant="outline" size="sm" onClick={hidePrompt}>
               Not now
             </Button>
             <Button size="sm" onClick={onInstallClick}>
@@ -139,4 +130,3 @@ export function InstallPrompt() {
     </>
   );
 }
-
