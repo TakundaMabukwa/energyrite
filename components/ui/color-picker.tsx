@@ -111,10 +111,10 @@ export function ColorPicker({ onColorChange }: ColorPickerProps) {
         variant="outline" 
         size="sm" 
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2"
+        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
       >
         <Palette className="w-4 h-4" />
-        Colors
+        <span className="hidden sm:inline">Colors</span>
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

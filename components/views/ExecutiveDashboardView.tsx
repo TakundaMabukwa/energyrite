@@ -99,6 +99,14 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   const [selectedCostCode, setSelectedCostCode] = useState('');
   const [appliedStartDateTime, setAppliedStartDateTime] = useState(() => getDefaultDateRange().start);
   const [appliedEndDateTime, setAppliedEndDateTime] = useState(() => getDefaultDateRange().end);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const getCostCenterDisplayName = (costCode: string) => {
     const costCenterNames: Record<string, string> = {
@@ -498,16 +506,16 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
   return (
     <div className="bg-white min-h-screen">
 
-      <div className="space-y-6 p-6">
-        <div className="bg-white shadow-sm border-b px-6 py-6">
+      <div className="space-y-6 p-3 sm:p-4 lg:p-6">
+        <div className="bg-white shadow-sm border-b px-3 sm:px-6 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
-                <p className="text-gray-600">{getBreadcrumbPath()}</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{getDashboardTitle()}</h1>
+                <p className="text-gray-600 text-sm sm:text-base break-words">{getBreadcrumbPath()}</p>
               </div>
-              <div className="flex items-end gap-2">
-                <Button onClick={handleRefresh} size="sm" variant="outline">
+              <div className="flex items-end gap-2 w-full sm:w-auto">
+                <Button onClick={handleRefresh} size="sm" variant="outline" className="w-full sm:w-auto">
                   <RefreshCw className="mr-2 w-4 h-4" />
                   Refresh
                 </Button>
@@ -517,8 +525,8 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         </div>
 
         <div>
-          <h2 className="mb-4 font-semibold text-gray-900 text-xl">SCORE CARD</h2>
-          <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <h2 className="mb-4 font-semibold text-gray-900 text-lg sm:text-xl">SCORE CARD</h2>
+          <div className="gap-3 sm:gap-4 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4">
             {scoreCardData.map((card, index) => (
               <ScoreCard
                 key={index}
@@ -534,21 +542,23 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
         <div className="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           <ChartCard title="Top 10 sites by usage">
             {topSitesData.length > 0 ? (
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-x-auto overflow-y-hidden">
+                <div className="min-w-[320px]">
                 <PieChart
-                  height={280}
+                  height={isMobile ? 250 : 280}
                   series={[{
                     data: topSitesData.map((d, index) => ({ id: `top-site-${Date.now()}-${index}`, label: d.label, value: d.value, color: d.color })),
                     innerRadius: 15,
-                    outerRadius: 65
+                    outerRadius: isMobile ? 58 : 65
                   }]}
                   slotProps={{ 
-                    legend: { hidden: false }
+                    legend: { hidden: isMobile }
                   }}
                   tooltip={{
                     valueFormatter: (value: number) => `${value.toFixed(1)}L`
                   }}
                 />
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-72 text-gray-500">
@@ -559,12 +569,13 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
 
           <ChartCard title="Fuel Consumption by Time Period">
             {periodFuelUsageData.length > 0 ? (
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-x-auto overflow-y-hidden">
+                <div className="min-w-[360px]">
                 <BarChart
-                  height={320}
+                  height={isMobile ? 260 : 320}
                   xAxis={[{ 
                     scaleType: 'band', 
-                    data: ['Morn\n(12am-8am)', 'Aft\n(8am-4pm)', 'Eve\n(4pm-12am)']
+                    data: isMobile ? ['Morn', 'Aft', 'Eve'] : ['Morn\n(12am-8am)', 'Aft\n(8am-4pm)', 'Eve\n(4pm-12am)']
                   }]}
                   series={[
                     { 
@@ -577,11 +588,12 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                       valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
                     }
                   ]}
-                  margin={{ left: 60, right: 30, top: 30, bottom: 80 }}
+                  margin={isMobile ? { left: 40, right: 12, top: 16, bottom: 30 } : { left: 60, right: 30, top: 30, bottom: 80 }}
                   tooltip={{
                     valueFormatter: (value: number | null) => value ? `${value.toFixed(1)}L` : '0.0L'
                   }}
                 />
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-72 text-gray-500">
@@ -592,9 +604,10 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
 
           <ChartCard title={`Continuous Operations (${continuousOpsThresholdHours}+ hours)`}>
             {longRunningData.length > 0 ? (
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-x-auto overflow-y-hidden">
+                <div className="min-w-[320px]">
                 <PieChart
-                  height={280}
+                  height={isMobile ? 250 : 280}
                   series={[{
                     data: longRunningData.map((d, index) => ({ 
                       id: `long-running-${Date.now()}-${index}`, 
@@ -603,13 +616,14 @@ export function ExecutiveDashboardView({ onBack }: ExecutiveDashboardViewProps) 
                       color: d.color 
                     })),
                     innerRadius: 15,
-                    outerRadius: 65,
+                    outerRadius: isMobile ? 58 : 65,
                   }]}
-                  slotProps={{ legend: { hidden: false } }}
+                  slotProps={{ legend: { hidden: isMobile } }}
                   tooltip={{
                     valueFormatter: (value: number) => `${value}h`
                   }}
                 />
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-72 text-gray-500">

@@ -429,9 +429,9 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
     <div className="bg-gray-50 h-full">
       
       {/* Gauges Header */}
-      <div className="flex justify-between items-center px-4 pt-4 pb-2">
-        <h2 className="font-semibold text-gray-900 text-lg">Fuel Gauges</h2>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 px-3 sm:px-4 pt-4 pb-2">
+        <h2 className="font-semibold text-gray-900 text-base sm:text-lg">Fuel Gauges</h2>
+        <div className="flex items-center flex-wrap gap-2 sm:gap-3">
           <span className="bg-blue-100 px-3 py-1 rounded-full font-medium text-blue-800 text-sm">
             {activeSitesCount} Active Sites
           </span>
@@ -440,9 +440,9 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
       </div>
 
       {/* Gauges Grid */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {activeSitesCount > 0 ? (
-          <div className="gap-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 xl:grid-cols-5">
+          <div className="gap-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 xl:grid-cols-5">
             {fuelGaugeData.map((data) => (
               <FuelGauge
                 key={data.id}
@@ -463,7 +463,7 @@ export function FuelGaugesView({ onBack }: FuelGaugesViewProps) {
                 vehicleData={data.vehicleData}
                 onNoteUpdate={handleNoteUpdate}
                 colorCodes={fuelGaugeColors}
-                className="hover:scale-105 transition-transform duration-200 transform"
+                className="transition-transform duration-200 transform sm:hover:scale-105"
               />
             ))}
           </div>

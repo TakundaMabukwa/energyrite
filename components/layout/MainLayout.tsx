@@ -12,10 +12,12 @@ import { ActivitySnapshotsView } from '@/components/views/ActivitySnapshotsView'
 import { UrlIndicator } from '@/components/ui/url-indicator';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 export function MainLayout() {
   const { activeTab } = useApp();
   const { isSecondLevelAdmin } = useUser();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
 
   const renderMainContent = () => {
     if (isSecondLevelAdmin && (activeTab === 'store-equipment' || activeTab === 'add-user')) {
@@ -41,7 +43,7 @@ export function MainLayout() {
   return (
     <div className="flex bg-gray-100 h-screen">
       {/* Sidebar */}
-      <aside className="relative flex-shrink-0">
+      <aside className="hidden md:block relative flex-shrink-0">
         <Sidebar />
       </aside>
 
@@ -49,7 +51,7 @@ export function MainLayout() {
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Sticky Header Container */}
         <div className="sticky top-0 z-50">
-          <Header />
+          <Header onMenuClick={() => setMobileSidebarOpen(true)} />
           {['dashboard', 'reports', 'activity', 'executive'].includes(activeTab) && <TopNavigation />}
         </div>
         
@@ -57,6 +59,12 @@ export function MainLayout() {
           {renderMainContent()}
         </main>
       </div>
+
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-[280px] sm:w-[320px]">
+          <Sidebar mobile onNavigate={() => setMobileSidebarOpen(false)} />
+        </SheetContent>
+      </Sheet>
       
       {/* URL Indicator for testing */}
       <UrlIndicator />

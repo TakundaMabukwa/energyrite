@@ -3,12 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 
-import { RefreshCw, Calendar, Clock, Download } from 'lucide-react';
+import { RefreshCw, Calendar, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartCard } from '@/components/ui/chart-card';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { BarChart } from '@mui/x-charts/BarChart';
 import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +32,8 @@ interface SiteReport {
   total_sessions: number;
   session_count: number;
   total_operating_hours: number;
+  total_fuel_filled?: number;
+  peak_usage_session?: string;
   fuel_cost_per_liter?: number;
   estimated_fuel_cost?: number;
   period_breakdown: {
@@ -70,6 +69,9 @@ interface ActivityReportData {
     };
     total_sessions: number;
     total_operating_hours: number;
+    total_fuel_usage?: number;
+    total_fuel_filled?: number;
+    total_sites?: number;
   };
 }
 
@@ -418,27 +420,6 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     }
   };
 
-  const getTimeSlotCards = () => {
-    if (!reportData || !reportData.time_slot_totals) return [];
-    
-    const { time_slot_totals } = reportData;
-    
-    return [
-      {
-        title: 'Morning Period',
-        timeRange: '6AM - 12PM Usage',
-        totalFuel: time_slot_totals.morning_to_afternoon,
-        isOverallPeak: reportData.overall_peak_time_slot === 'morning_to_afternoon'
-      },
-      {
-        title: 'Afternoon Period', 
-        timeRange: '12PM - 6PM Usage',
-        totalFuel: time_slot_totals.afternoon_to_evening,
-        isOverallPeak: reportData.overall_peak_time_slot === 'afternoon_to_evening'
-      }
-    ];
-  };
-
   if (loading) {
     return (
       <div className="flex justify-start items-start bg-white min-h-screen p-6">
@@ -466,8 +447,6 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     );
   }
 
-  const timeSlotCards = getTimeSlotCards();
-
   // Use API summary data when available, fallback to calculated totals
   const totalFuelUsage = reportData?.summary?.total_fuel_usage ?? 
     (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_usage || 0), 0) ?? 0);
@@ -475,38 +454,38 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
     (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_operating_hours || 0), 0) ?? 0);
   const totalFuelFilled = reportData?.summary?.total_fuel_filled ?? 
     (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_fuel_filled || 0), 0) ?? 0);
-  const totalSessions = reportData?.summary?.total_sessions ?? 
-    (reportData?.site_reports?.reduce((sum, s) => sum + (s.total_sessions || 0), 0) ?? 0);
   const totalSites = reportData?.summary?.total_sites ?? 
     (reportData?.site_reports?.length ?? 0);
-  const avgOperatingHours = totalSites > 0 ? (totalOperatingHours / totalSites) : 0;
+  const filteredSiteReports = (reportData?.site_reports || [])
+    .filter(site => !selectedCostCode || site.cost_code === selectedCostCode)
+    .filter(site => site.total_operating_hours > 0)
+    .sort((a, b) => (a.branch || a.generator || '').localeCompare(b.branch || b.generator || ''));
 
   return (
     <div className="bg-white min-h-screen">
 
       {/* Main Content */}
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-3 sm:p-4 lg:p-6">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b px-6 py-6">
+        <div className="bg-white shadow-sm border-b px-3 sm:px-6 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">{getCostCenterName()}</h1>
-              <p className="text-gray-600">{getBreadcrumbPath()}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{getCostCenterName()}</h1>
+              <p className="text-gray-600 text-sm sm:text-base break-words">{getBreadcrumbPath()}</p>
             </div>
           </div>
         </div>
 
         {/* Summary Cards: Operating Hours, Fuel Usage, Fuel Fills */}
         {reportData && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             {/* Total Operating Hours */}
             <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
               <div className="h-1 bg-sky-600" />
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-sky-700">{formatHours(totalOperatingHours || 0)}</div>
-                  <div className="text-sm text-gray-500 mt-1">Total operating hours</div>
-                  <div className="text-xs text-gray-400 mt-2">For the day</div>
+                  <div className="text-xl sm:text-3xl font-extrabold text-sky-700">{formatHours(totalOperatingHours || 0)}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 mt-1">Operating Hours</div>
                 </div>
               </CardContent>
             </Card>
@@ -514,11 +493,10 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
             {/* Total Fuel Usage */}
             <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
               <div className="h-1 bg-blue-500" />
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-blue-700">{(totalFuelUsage || 0).toFixed(1)}L</div>
-                  <div className="text-sm text-gray-500 mt-1">Total fuel usage</div>
-                  <div className="text-xs text-gray-400 mt-2">For the day</div>
+                  <div className="text-xl sm:text-3xl font-extrabold text-blue-700">{(totalFuelUsage || 0).toFixed(1)}L</div>
+                  <div className="text-xs sm:text-sm text-gray-500 mt-1">Fuel Usage</div>
                 </div>
               </CardContent>
             </Card>
@@ -526,11 +504,20 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
             {/* Total Fuel Fills */}
             <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
               <div className="h-1 bg-green-500" />
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex flex-col items-start">
-                  <div className="text-3xl font-extrabold text-green-700">{(totalFuelFilled || 0).toFixed(1)}L</div>
-                  <div className="text-sm text-gray-500 mt-1">Total fills</div>
-                  <div className="text-xs text-gray-400 mt-2">For the day</div>
+                  <div className="text-xl sm:text-3xl font-extrabold text-green-700">{(totalFuelFilled || 0).toFixed(1)}L</div>
+                  <div className="text-xs sm:text-sm text-gray-500 mt-1">Fuel Fills</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg shadow-sm border-0 overflow-hidden">
+              <div className="h-1 bg-indigo-500" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col items-start">
+                  <div className="text-xl sm:text-3xl font-extrabold text-indigo-700">{totalSites}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 mt-1">Active Sites</div>
                 </div>
               </CardContent>
             </Card>
@@ -540,19 +527,19 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
 
         {/* Site Reports Table */}
         <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold text-gray-900 text-xl">ALL SITES ({reportData?.site_reports?.length || 0})</h2>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+            <h2 className="font-semibold text-gray-900 text-lg sm:text-xl">ALL SITES ({reportData?.site_reports?.length || 0})</h2>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
                 />
               </div>
-              <Button onClick={fetchActivityData} size="sm">
+              <Button onClick={fetchActivityData} size="sm" className="w-full sm:w-auto sm:min-w-[100px]">
                 <RefreshCw className="mr-2 w-4 h-4" />
                 Update
               </Button>
@@ -561,14 +548,48 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                 size="sm" 
                 variant="outline"
                 disabled={generatingExcel}
+                className="w-full sm:w-auto sm:min-w-[120px]"
               >
                 <Download className="mr-2 w-4 h-4" />
                 {generatingExcel ? 'Generating...' : 'Excel Report'}
               </Button>
             </div>
           </div>
-          <div className="rounded-md border">
-            <Table>
+
+          <div className="sm:hidden space-y-3">
+            {filteredSiteReports.length > 0 ? (
+              filteredSiteReports.map((site, index) => (
+                <Card key={`${site.branch || site.generator}-${index}`} className="border border-gray-200 shadow-sm">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="font-semibold text-gray-900">{site.branch || site.generator}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="text-gray-500">Start</div>
+                      <div className="font-medium text-gray-800">{formatSiteTime(site.start_time)}</div>
+                      <div className="text-gray-500">End</div>
+                      <div className="font-medium text-gray-800">{site.end_time ? formatSiteTime(site.end_time) : 'Ongoing'}</div>
+                      <div className="text-gray-500">Op Hours</div>
+                      <div className="font-medium text-sky-700">{formatHours(site.total_operating_hours || 0)}</div>
+                      <div className="text-gray-500">Fuel Usage</div>
+                      <div className="font-medium text-blue-600">{(site.total_fuel_usage || 0).toFixed(1)}L</div>
+                      <div className="text-gray-500">Fuel Fills</div>
+                      <div className="font-medium text-green-600">{(site.total_fuel_filled || 0).toFixed(1)}L</div>
+                      <div className="text-gray-500">Peak Time</div>
+                      <div className="font-medium text-orange-600">{formatPeakTime(site.peak_usage_session || '')}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card className="border border-gray-200">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  No activity data available for the selected date range
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="hidden sm:block rounded-md border overflow-x-auto">
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
             <TableHead className="font-medium">Site</TableHead>
@@ -581,16 +602,8 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reportData?.site_reports && reportData.site_reports.length > 0 ? (
-                  reportData.site_reports
-                    .filter(site => !selectedCostCode || site.cost_code === selectedCostCode)
-                    .filter(site => site.total_operating_hours > 0)
-                    .sort((a, b) => (a.branch || a.generator || '').localeCompare(b.branch || b.generator || ''))
-                    .map((site, index) => {
-                      const peakPeriodName = site.peak_time_slot === 'morning_to_afternoon' ? 'Morning' : 'Afternoon';
-                      const estimatedCost = (site.total_fuel_usage || 0) * 21.50;
-
-                      return (
+                {filteredSiteReports.length > 0 ? (
+                  filteredSiteReports.map((site, index) => (
                         <TableRow key={index} className="h-12">
                           <TableCell className="font-medium py-2">
                             <div>
@@ -616,8 +629,7 @@ export function ActivityReportView({ onBack, initialDate }: ActivityReportViewPr
                             <span className="font-medium text-orange-600">{formatPeakTime(site.peak_usage_session)}</span>
                           </TableCell>
                         </TableRow>
-                      );
-                    })
+                    ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">

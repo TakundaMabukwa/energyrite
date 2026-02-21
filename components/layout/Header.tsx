@@ -10,7 +10,11 @@ import { useUser } from '@/contexts/UserContext';
 import { useApp } from '@/contexts/AppContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { user, signOut } = useUser();
   const { costCenters, selectedRoute, setSelectedRoute } = useApp();
   const { isAdmin, userCostCode } = useUser();
@@ -54,20 +58,31 @@ export function Header() {
     return name.charAt(0).toUpperCase();
   };
 
+  const formatCostCenterLabel = (name?: string) => {
+    if (!name) return '';
+    return name.split('-')[0].trim();
+  };
+
   return (
-    <header className="flex justify-between items-center bg-[#1e3a5f] px-6 border-gray-700 border-b h-16">
+    <header className="flex justify-between items-center gap-2 bg-[#1e3a5f] px-2 sm:px-6 border-gray-700 border-b min-h-14 sm:min-h-16">
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" className="hover:bg-white/10 text-white">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="md:hidden hover:bg-white/10 text-white"
+          onClick={onMenuClick}
+          aria-label="Open navigation menu"
+        >
           <Menu className="w-5 h-5" />
         </Button>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-4">
-        <div className="w-48">
+      <div className="flex items-center gap-1 sm:gap-4">
+        <div className="w-32 sm:w-48">
           {!isMounted ? (
-            <div className="w-48 bg-white/10 border-white/20 text-white border rounded-md px-3 py-2 text-sm">
+            <div className="bg-white/10 border-white/20 text-white border rounded-md px-3 py-2 text-sm">
               Loading...
             </div>
           ) : (
@@ -89,17 +104,31 @@ export function Header() {
                 }
               }}
             >
-            <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+            <SelectTrigger className="w-32 sm:w-48 bg-white/10 border-white/20 text-white h-9 sm:h-10 text-xs sm:text-sm">
               <SelectValue placeholder={energyriteCostCenters.length === 0 ? "Loading..." : "Select Cost Center"} />
             </SelectTrigger>
-            <SelectContent>
-              {isAdmin && <SelectItem value="all">All Energyrite Centers</SelectItem>}
+            <SelectContent
+              position="popper"
+              align="end"
+              className="max-w-[calc(100vw-1rem)] sm:max-w-[28rem]"
+            >
+              {isAdmin && (
+                <SelectItem value="all" className="max-w-[calc(100vw-2rem)] sm:max-w-[26rem]">
+                  <span className="block truncate" title="All Energyrite Centers">All Energyrite Centers</span>
+                </SelectItem>
+              )}
               {energyriteCostCenters.length === 0 ? (
                 <SelectItem value="loading" disabled>Loading cost centers...</SelectItem>
               ) : (
                 energyriteCostCenters.map((costCenter) => (
-                  <SelectItem key={costCenter.id} value={costCenter.costCode || costCenter.id}>
-                    {costCenter.name}
+                  <SelectItem
+                    key={costCenter.id}
+                    value={costCenter.costCode || costCenter.id}
+                    className="max-w-[calc(100vw-2rem)] sm:max-w-[26rem]"
+                  >
+                    <span className="block truncate" title={costCenter.name}>
+                      {formatCostCenterLabel(costCenter.name)}
+                    </span>
                   </SelectItem>
                 ))
               )}
@@ -107,7 +136,7 @@ export function Header() {
             </Select>
           )}
         </div>
-        <span className="hidden md:block text-white/80 text-sm">
+        <span className="hidden lg:block text-white/80 text-sm">
           Good evening, {getUserDisplayName()}
         </span>
         
@@ -121,20 +150,20 @@ export function Header() {
           <History className="w-5 h-5" />
         </Button> */}
 
-        <Button variant="ghost" size="sm" className="relative hover:bg-white/10 text-white">
-          <Bell className="w-5 h-5" />
+        <Button variant="ghost" size="sm" className="hidden min-[390px]:inline-flex relative hover:bg-white/10 text-white px-2">
+          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
           <span className="-top-1 -right-1 absolute bg-orange-500 rounded-full w-3 h-3"></span>
         </Button>
 
-        <Avatar className="w-8 h-8">
+        <Avatar className="hidden min-[430px]:flex w-8 h-8">
           <AvatarFallback className="bg-white/20 font-medium text-white text-sm">
             {getUserInitials()}
           </AvatarFallback>
         </Avatar>
 
-        <LogoutButton variant="ghost" size="sm" className="hover:bg-white/10 text-white">
-          <LogOut className="mr-2 w-4 h-4" />
-          Logout
+        <LogoutButton variant="ghost" size="sm" className="hover:bg-white/10 text-white px-2">
+          <LogOut className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Logout</span>
         </LogoutButton>
       </div>
       

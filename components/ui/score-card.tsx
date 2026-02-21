@@ -18,9 +18,9 @@ export function ScoreCard({
 }: ScoreCardProps) {
   return (
     <Card className={`${backgroundColor} text-white border-0 shadow-sm`}>
-      <CardContent className="p-6">
+      <CardContent className="p-4 sm:p-6">
         <div className="text-center">
-          <div className="mb-2 font-bold text-3xl">
+          <div className="mb-2 font-bold text-2xl sm:text-3xl">
             {typeof value === 'number' ? value.toLocaleString() : value}
           </div>
           <div className="mb-4 text-white/90 text-sm">

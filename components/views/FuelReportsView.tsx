@@ -377,15 +377,15 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
     <div className="bg-white min-h-screen">
 
       {/* Fuel Reports Section */}
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-3 sm:p-4 lg:p-6">
         {/* Show reports for user's cost center or all reports for admin */}
         {(userCostCode || isAdmin) && (
           <>
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <Fuel className="w-6 h-6 text-gray-700" />
-              <h2 className="font-semibold text-gray-900 text-2xl">Engine Sessions Reports</h2>
+              <Fuel className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+              <h2 className="font-semibold text-gray-900 text-xl sm:text-2xl">Engine Sessions Reports</h2>
             </div>
 
           </div>
@@ -398,7 +398,7 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
         </div>
 
         {/* Reports Cards - Daily, Month to Date, and Monthly */}
-        <div className="gap-6 grid grid-cols-1 md:grid-cols-3">
+        <div className="gap-4 sm:gap-6 grid grid-cols-1 md:grid-cols-3">
           {/* Daily Report */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader className="pb-3">
@@ -407,8 +407,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6">
-                <Download className="mx-auto mb-4 w-12 h-12 text-blue-500" />
+              <div className="text-center py-4 sm:py-6">
+                <Download className="mx-auto mb-4 w-10 h-10 sm:w-12 sm:h-12 text-blue-500" />
                 <p className="mb-4 text-gray-600 text-sm">Yesterday's report</p>
                 <Button 
                   onClick={() => handleGenerateReport('daily')}
@@ -430,8 +430,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6">
-                <Download className="mx-auto mb-4 w-12 h-12 text-green-500" />
+              <div className="text-center py-4 sm:py-6">
+                <Download className="mx-auto mb-4 w-10 h-10 sm:w-12 sm:h-12 text-green-500" />
                 <p className="mb-4 text-gray-600 text-sm">1st of month to yesterday</p>
                 <Button 
                   onClick={() => handleGenerateReport('month-to-date')}
@@ -453,8 +453,8 @@ export function FuelReportsView({ onBack }: FuelReportsViewProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6">
-                <Download className="mx-auto mb-4 w-12 h-12 text-purple-500" />
+              <div className="text-center py-4 sm:py-6">
+                <Download className="mx-auto mb-4 w-10 h-10 sm:w-12 sm:h-12 text-purple-500" />
                 <p className="mb-4 text-gray-600 text-sm">Previous complete month</p>
                 <Button 
                   onClick={() => handleGenerateReport('monthly')}

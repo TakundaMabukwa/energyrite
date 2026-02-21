@@ -98,17 +98,17 @@ export function HierarchicalTable({
   return (
     <div className="bg-white shadow-sm border border-gray-200 rounded-lg">
       {/* Header */}
-      <div className="px-6 py-4 border-gray-200 border-b">
-        <div className="flex justify-between items-start">
+      <div className="px-3 sm:px-6 py-4 border-gray-200 border-b">
+        <div className="flex justify-between items-start gap-3">
           <div>
-            <h2 className="font-semibold text-gray-900 text-xl">{title}</h2>
+            <h2 className="font-semibold text-gray-900 text-lg sm:text-xl">{title}</h2>
             <p className="mt-1 text-gray-600 text-sm">{subtitle}</p>
           </div>
         </div>
         
         {/* Search and Filters */}
         {(showSearch || showFilters) && (
-          <div className="flex gap-4 mt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
             {showSearch && (
               <div className="flex-1">
                 <input
@@ -121,11 +121,11 @@ export function HierarchicalTable({
               </div>
             )}
             {showFilters && (
-              <div>
+              <div className="w-full sm:w-auto">
                 <select
                   value={filterLevel}
                   onChange={(e) => setFilterLevel(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
                 >
                   <option value="all">All Levels</option>
                   <option value="1">Level 1</option>
@@ -141,7 +141,7 @@ export function HierarchicalTable({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-[900px]">
            <thead className="bg-gray-50">
              <tr>
                <th className="px-6 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">

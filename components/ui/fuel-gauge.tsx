@@ -129,10 +129,10 @@ export function FuelGauge({
 
   return (
     <div className={cn(
-      "shadow-sm hover:shadow-md p-3 border rounded-lg transition-all duration-300 relative overflow-visible flex flex-col",
+      "shadow-sm hover:shadow-md p-2.5 sm:p-3 border rounded-lg transition-all duration-300 relative overflow-visible flex flex-col min-h-[360px] sm:min-h-[420px]",
       isEngineOn ? "bg-green-200 border-green-400" : "bg-white border-gray-300",
       className
-    )} style={{ minHeight: '420px' }}>
+    )}>
       {/* History Button */}
       <Button
         variant="ghost"
@@ -195,7 +195,7 @@ export function FuelGauge({
       </div>
 
       <div className="flex justify-center mb-1">
-        <div className="relative">
+        <div className="relative scale-90 sm:scale-100">
           <svg
             height={radius * 2}
             width={radius * 2}
@@ -226,7 +226,7 @@ export function FuelGauge({
           <div className="absolute inset-0 flex flex-col justify-center items-center">
             <Gauge className="mb-0.5 w-5 h-5 text-gray-400" />
             <span className="font-medium text-gray-500 text-sm">Fuel</span>
-            <span className="font-bold text-gray-900 text-2xl">{fuelLevel}</span>
+            <span className="font-bold text-gray-900 text-xl sm:text-2xl">{fuelLevel}</span>
             <span className="text-gray-500 text-xs">%</span>
           </div>
         </div>

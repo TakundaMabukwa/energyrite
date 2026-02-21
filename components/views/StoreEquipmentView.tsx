@@ -807,31 +807,31 @@ export function StoreEquipmentView() {
           <TopNavigation />
         </div>
         
-        <div className="flex-1 space-y-6 p-6">
+        <div className="flex-1 space-y-6 p-3 sm:p-4 lg:p-6">
           {/* Equipment Details Section */}
 
           {/* Equipment Details */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <CardTitle className="font-semibold text-gray-900 text-lg">
                   Equipment Details
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
                       type="text"
                       placeholder="Search sites..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 w-64 h-9"
+                      className="pl-9 w-full sm:w-64 h-9"
                     />
                   </div>
                   <Button 
                     variant="default" 
                     size="sm"
-                    className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+                    className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     onClick={() => setAddDialogOpen(true)}
                   >
                     <PlusCircle className="w-4 h-4" /> Add Generator
@@ -867,7 +867,7 @@ export function StoreEquipmentView() {
                   {/* Equipment Table */}
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full min-w-[860px]">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 font-medium text-gray-500 text-xs text-left uppercase tracking-wider">BRANCH</th>
@@ -1031,19 +1031,19 @@ export function StoreEquipmentView() {
           
           {/* Add Generator Dialog */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogContent className="sm:max-w-lg bg-white border border-gray-200">
-              <DialogHeader className="pb-2 border-b border-gray-100">
-                <DialogTitle className="text-xl font-semibold text-blue-800">Add New Generator</DialogTitle>
-                <DialogDescription className="text-gray-600 text-sm">
+            <DialogContent className="w-[calc(100vw-1rem)] max-w-[420px] sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-xl bg-white border border-gray-200 p-4 sm:p-6">
+              <DialogHeader className="pb-1 sm:pb-2">
+                <DialogTitle className="text-xl sm:text-2xl font-semibold text-blue-800">Add New Generator</DialogTitle>
+                <DialogDescription className="text-gray-600 text-sm sm:text-base">
                   Enter the details for the new generator. All fields are required.
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="grid gap-3 py-3">
-                <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="cost_code_v" className="text-right font-medium text-gray-700 col-span-1">Cost Centre*</Label>
+              <div className="space-y-3 py-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cost_code_v" className="font-medium text-gray-800 text-sm">Cost Centre*</Label>
                   <Select value={newGenerator.cost_code || ''} onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}>
-                    <SelectTrigger className="col-span-3 h-9">
+                    <SelectTrigger className="h-11 w-full">
                       <SelectValue placeholder="Select cost centre (required)" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1056,51 +1056,51 @@ export function StoreEquipmentView() {
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="site_name_v" className="text-right font-medium text-gray-700 col-span-1">Site Name*</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="site_name_v" className="font-medium text-gray-800 text-sm">Site Name*</Label>
                   <Input
                     id="site_name_v"
-                    className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                    placeholder="Enter site name (required)"
+                    className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                    placeholder="Enter site name"
                     value={newGenerator.plate || ''}
                     onChange={(e) => handleNewGeneratorChange('plate', e.target.value)}
                     required
                   />
                 </div>
                 
-                <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="tank_size_v" className="text-right font-medium text-gray-700 col-span-1">Tank Capacity*</Label>
-                  <div className="col-span-3 flex items-center gap-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tank_size_v" className="font-medium text-gray-800 text-sm">Tank Capacity*</Label>
+                  <div className="flex items-center gap-2">
                     <Input
                       id="tank_size_v"
                       type="number"
                       step="0.1"
-                      className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                      placeholder="Enter tank capacity (required)"
+                      className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                      placeholder="Enter tank capacity"
                       value={newGenerator.volume || ''}
                       onChange={(e) => handleNewGeneratorChange('volume', e.target.value)}
                       required
                     />
-                    <span className="text-sm text-gray-500">Litres</span>
+                    <span className="text-sm text-gray-600 whitespace-nowrap">Litres</span>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-4 items-center gap-2">
-                  <Label htmlFor="ip_address_v" className="text-right font-medium text-gray-700 col-span-1">IP Address</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ip_address_v" className="font-medium text-gray-800 text-sm">IP Address</Label>
                   <Input
                     id="ip_address_v"
-                    className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                    className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
                     placeholder="Enter IP address"
                     value={newGenerator.ip_address || ''}
                     onChange={(e) => handleNewGeneratorChange('ip_address', e.target.value)}
                   />
                 </div>
                 
-                <div className="grid grid-cols-4 items-start gap-2">
-                  <Label htmlFor="notes_v" className="text-right font-medium text-gray-700 col-span-1 pt-2">Notes</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="notes_v" className="font-medium text-gray-800 text-sm">Notes</Label>
                   <Textarea
                     id="notes_v"
-                    className="col-span-3 min-h-[80px]"
+                    className="min-h-[100px]"
                     placeholder="Enter notes about this generator"
                     value={newGenerator.notes || ''}
                     onChange={(e) => handleNewGeneratorChange('notes', e.target.value)}
@@ -1108,18 +1108,18 @@ export function StoreEquipmentView() {
                 </div>
               </div>
               
-              <DialogFooter className="pt-2 border-t border-gray-100">
+              <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
                 <Button 
                   variant="outline" 
                   onClick={() => setAddDialogOpen(false)}
-                  className="mr-2 h-9 px-4 text-sm border-gray-300 hover:bg-gray-50"
+                  className="h-10 px-4 text-sm border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleAddGenerator}
                   disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700 h-9 px-5 text-sm font-medium"
+                  className="bg-blue-600 hover:bg-blue-700 h-10 px-5 text-sm font-medium w-full sm:w-auto"
                 >
                   {isSaving ? (
                     <>
@@ -1134,7 +1134,7 @@ export function StoreEquipmentView() {
           
           {/* Delete Confirmation Dialog */}
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">Delete Equipment</DialogTitle>
                 <DialogDescription>
@@ -1148,11 +1148,12 @@ export function StoreEquipmentView() {
                 </p>
               </div>
               
-              <DialogFooter className="gap-2">
+              <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
                 <Button 
                   variant="outline" 
                   onClick={() => setDeleteDialogOpen(false)}
                   disabled={isDeleting}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
@@ -1160,6 +1161,7 @@ export function StoreEquipmentView() {
                   onClick={confirmDelete}
                   variant="destructive"
                   disabled={isDeleting}
+                  className="w-full sm:w-auto"
                 >
                   {isDeleting ? (
                     <>
@@ -1181,21 +1183,21 @@ export function StoreEquipmentView() {
     <div className="flex flex-col h-full">
       <TopNavigation />
       
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-3 sm:p-4 lg:p-6">
         {/* Removed Dashboard Statistics */}
 
         {/* Cost Code Filter for Main View */}
         <Card className="shadow-sm border border-gray-200">
           <CardHeader className="pb-3">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
                 <CardTitle className="font-semibold text-gray-900 text-lg">Equipment</CardTitle>
                 <p className="mt-1 text-gray-600 text-sm">Vehicle and equipment management by cost center</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                 <Filter className="w-4 h-4 text-gray-500" />
                 <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Filter by Cost Code" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1235,19 +1237,19 @@ export function StoreEquipmentView() {
         
         {/* Add Generator Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogContent className="sm:max-w-lg bg-white border border-gray-200">
-            <DialogHeader className="pb-2 border-b border-gray-100">
-              <DialogTitle className="text-xl font-semibold text-blue-800">Add New Generator</DialogTitle>
-              <DialogDescription className="text-gray-600 text-sm">
+            <DialogContent className="w-[calc(100vw-1rem)] max-w-[420px] sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-xl bg-white border border-gray-200 p-4 sm:p-6">
+            <DialogHeader className="pb-1 sm:pb-2">
+              <DialogTitle className="text-xl sm:text-2xl font-semibold text-blue-800">Add New Generator</DialogTitle>
+              <DialogDescription className="text-gray-600 text-sm sm:text-base">
                 Enter the details for the new generator. All fields are required.
               </DialogDescription>
             </DialogHeader>
             
-            <div className="grid gap-3 py-3">
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="cost_code" className="text-right font-medium text-gray-700 col-span-1">Cost Centre*</Label>
+              <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="cost_code" className="font-medium text-gray-800 text-sm">Cost Centre*</Label>
                 <Select value={newGenerator.cost_code || ''} onValueChange={(value) => handleNewGeneratorChange('cost_code', value)}>
-                  <SelectTrigger className="col-span-3 h-9">
+                  <SelectTrigger className="h-11 w-full">
                     <SelectValue placeholder="Select cost centre (required)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1260,51 +1262,51 @@ export function StoreEquipmentView() {
                 </Select>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="site_name" className="text-right font-medium text-gray-700 col-span-1">Site Name*</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="site_name" className="font-medium text-gray-800 text-sm">Site Name*</Label>
                 <Input
                   id="site_name"
-                  className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                  placeholder="Enter site name (required)"
+                  className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                  placeholder="Enter site name"
                   value={newGenerator.plate || ''}
                   onChange={(e) => handleNewGeneratorChange('plate', e.target.value)}
                   required
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="tank_size" className="text-right font-medium text-gray-700 col-span-1">Tank Capacity*</Label>
-                <div className="col-span-3 flex items-center gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="tank_size" className="font-medium text-gray-800 text-sm">Tank Capacity*</Label>
+                <div className="flex items-center gap-2">
                   <Input
                     id="tank_size"
                     type="number"
                     step="0.1"
-                    className="h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-                    placeholder="Enter tank capacity (required)"
+                    className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                    placeholder="Enter tank capacity"
                     value={newGenerator.volume || ''}
                     onChange={(e) => handleNewGeneratorChange('volume', e.target.value)}
                     required
                   />
-                  <span className="text-sm text-gray-500">Litres</span>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">Litres</span>
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-2">
-                <Label htmlFor="ip_address" className="text-right font-medium text-gray-700 col-span-1">IP Address</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="ip_address" className="font-medium text-gray-800 text-sm">IP Address</Label>
                 <Input
                   id="ip_address"
-                  className="col-span-3 h-9 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
+                  className="h-11 border-gray-200 focus:border-blue-300 focus:ring-blue-300"
                   placeholder="Enter IP address"
                   value={newGenerator.ip_address || ''}
                   onChange={(e) => handleNewGeneratorChange('ip_address', e.target.value)}
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-start gap-2">
-                <Label htmlFor="notes" className="text-right font-medium text-gray-700 col-span-1 pt-2">Notes</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="notes" className="font-medium text-gray-800 text-sm">Notes</Label>
                 <Textarea
                   id="notes"
-                  className="col-span-3 min-h-[80px]"
+                  className="min-h-[100px]"
                   placeholder="Enter notes about this generator"
                   value={newGenerator.notes || ''}
                   onChange={(e) => handleNewGeneratorChange('notes', e.target.value)}
@@ -1312,18 +1314,18 @@ export function StoreEquipmentView() {
               </div>
             </div>
             
-            <DialogFooter className="pt-2 border-t border-gray-100">
+            <DialogFooter className="pt-2 flex-col-reverse sm:flex-row gap-2">
               <Button 
                 variant="outline" 
                 onClick={() => setAddDialogOpen(false)}
-                className="mr-2 h-9 px-4 text-sm border-gray-300 hover:bg-gray-50"
+                className="h-10 px-4 text-sm border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleAddGenerator}
                 disabled={isSaving}
-                className="bg-blue-600 hover:bg-blue-700 h-9 px-5 text-sm font-medium"
+                className="bg-blue-600 hover:bg-blue-700 h-10 px-5 text-sm font-medium w-full sm:w-auto"
               >
                 {isSaving ? (
                   <>
@@ -1338,7 +1340,7 @@ export function StoreEquipmentView() {
         
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold">Delete Equipment</DialogTitle>
               <DialogDescription>
@@ -1352,11 +1354,12 @@ export function StoreEquipmentView() {
               </p>
             </div>
             
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
               <Button 
                 variant="outline" 
                 onClick={() => setDeleteDialogOpen(false)}
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
@@ -1364,6 +1367,7 @@ export function StoreEquipmentView() {
                 onClick={confirmDelete}
                 variant="destructive"
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 {isDeleting ? (
                   <>

@@ -88,7 +88,7 @@ export function EquipmentEditForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Edit Equipment
@@ -96,7 +96,7 @@ export function EquipmentEditForm({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Read-only fields */}
             <div className="space-y-2">
               <Label htmlFor="id">ID</Label>
@@ -219,12 +219,13 @@ export function EquipmentEditForm({
             />
           </div>
           
-          <DialogFooter className="pt-4">
+          <DialogFooter className="pt-4 flex-col-reverse sm:flex-row gap-2">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose}
               disabled={isSaving}
+              className="w-full sm:w-auto"
             >
               <X className="mr-2 h-4 w-4" />
               Cancel
@@ -232,6 +233,7 @@ export function EquipmentEditForm({
             <Button 
               type="submit" 
               disabled={isSaving}
+              className="w-full sm:w-auto"
             >
               {isSaving ? (
                 <>

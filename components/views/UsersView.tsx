@@ -367,15 +367,15 @@ export function UsersView({ onBack }: UsersViewProps) {
     <div className="bg-gray-50 h-full">
       <TopNavigation />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <UserPlus className="w-6 h-6 text-gray-700" />
-              <h2 className="font-semibold text-gray-900 text-2xl">User Management</h2>
+              <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+              <h2 className="font-semibold text-gray-900 text-xl sm:text-2xl">User Management</h2>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading} className="w-full sm:w-auto">
               <RefreshCw className={`mr-2 w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -386,7 +386,7 @@ export function UsersView({ onBack }: UsersViewProps) {
         </div>
 
         {/* Stats Cards */}
-        <div className="gap-6 grid grid-cols-1 md:grid-cols-3">
+        <div className="gap-4 sm:gap-6 grid grid-cols-1 md:grid-cols-3">
           <Card className="shadow-sm border border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -431,7 +431,7 @@ export function UsersView({ onBack }: UsersViewProps) {
         {/* Users Table */}
             <Card className="shadow-sm border border-gray-200">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <CardTitle className="font-semibold text-gray-900 text-lg">EnergyRite Users</CardTitle>
                     <p className="text-gray-500 text-sm">
@@ -439,7 +439,7 @@ export function UsersView({ onBack }: UsersViewProps) {
                     </p>
                   </div>
                   <Button 
-                    className="bg-[#1e3a5f] hover:bg-[#1a3454] text-white"
+                    className="bg-[#1e3a5f] hover:bg-[#1a3454] text-white w-full sm:w-auto"
                     onClick={() => {
                       setIsAddUserModalOpen(true);
                       // Auto-select cost center for non-admin users
@@ -513,7 +513,7 @@ export function UsersView({ onBack }: UsersViewProps) {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[680px]">
                   <thead className="bg-[#1e3a5f] text-white">
                     <tr>
                       <th className="px-4 py-2 font-medium text-xs text-left">Email</th>
@@ -559,7 +559,7 @@ export function UsersView({ onBack }: UsersViewProps) {
 
       {/* Add New User Modal */}
       <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
           </DialogHeader>
@@ -632,7 +632,7 @@ export function UsersView({ onBack }: UsersViewProps) {
                     }
                   }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a cost center" />
                     </SelectTrigger>
                     <SelectContent>
@@ -665,7 +665,7 @@ export function UsersView({ onBack }: UsersViewProps) {
                   value={newUserForm.site} 
                   onValueChange={(value) => setNewUserForm(prev => ({ ...prev, site: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a site" />
                   </SelectTrigger>
                   <SelectContent>
@@ -684,14 +684,14 @@ export function UsersView({ onBack }: UsersViewProps) {
               </div>
             )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleModalClose}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={handleModalClose} className="w-full sm:w-auto">
               Cancel
             </Button>
             <Button 
               onClick={handleAddUser} 
               disabled={isAddingUser}
-              className="bg-[#1e3a5f] hover:bg-[#1a3454] text-white"
+              className="bg-[#1e3a5f] hover:bg-[#1a3454] text-white w-full sm:w-auto"
             >
               {isAddingUser ? (
                 <>

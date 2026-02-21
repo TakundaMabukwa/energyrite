@@ -58,7 +58,7 @@ export function VehicleEditModal({ isOpen, onClose, onUpdate, vehicleData }: Veh
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full sm:max-w-[700px]">
+      <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Badge variant="secondary" className="flex justify-center items-center rounded-full w-8 h-8 text-sm">
@@ -68,7 +68,7 @@ export function VehicleEditModal({ isOpen, onClose, onUpdate, vehicleData }: Veh
           </DialogTitle>
         </DialogHeader>
         
-        <div className="gap-6 grid grid-cols-2 py-6">
+        <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 py-4 sm:py-6">
           <div className="space-y-3">
             <Label htmlFor="plate" className="font-medium text-sm">Plate *</Label>
             <Input
@@ -119,11 +119,11 @@ export function VehicleEditModal({ isOpen, onClose, onUpdate, vehicleData }: Veh
           </div>
         </div>
         
-        <div className="flex justify-end gap-3 pt-6">
-          <Button variant="outline" onClick={onClose} className="px-6 py-2">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6">
+          <Button variant="outline" onClick={onClose} className="px-6 py-2 w-full sm:w-auto">
             Close
           </Button>
-          <Button onClick={handleUpdate} className="px-6 py-2">
+          <Button onClick={handleUpdate} className="px-6 py-2 w-full sm:w-auto">
             Update
           </Button>
         </div>

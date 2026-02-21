@@ -15,9 +15,16 @@ import { useApp } from '@/contexts/AppContext';
 import { useUser } from '@/contexts/UserContext';
 import Image from 'next/image';
 
-export function Sidebar() {
+interface SidebarProps {
+  mobile?: boolean;
+  onNavigate?: () => void;
+  className?: string;
+}
+
+export function Sidebar({ mobile = false, onNavigate, className }: SidebarProps) {
   const { sidebarCollapsed, setSidebarCollapsed, activeTab, setActiveTab } = useApp();
   const { isAdmin, isSecondLevelAdmin } = useUser();
+  const isCollapsed = mobile ? false : sidebarCollapsed;
 
   const sidebarItems = [
     {
@@ -50,12 +57,13 @@ export function Sidebar() {
   return (
     <div className={cn(
       "flex flex-col bg-white border-gray-200 border-r h-full transition-all duration-300 ease-in-out",
-      sidebarCollapsed ? "w-16" : "w-64"
+      mobile ? "w-full" : (isCollapsed ? "w-16" : "w-64"),
+      className
     )}>
       {/* Logo Section */}
       <div className="p-4 border-gray-200 border-b">
         <div className="flex justify-center items-center">
-          {!sidebarCollapsed ? (
+          {!isCollapsed ? (
             <Image
               src="/energyease_logo_green_orange_1m.png"
               alt="Energyease Logo"
@@ -87,19 +95,22 @@ export function Sidebar() {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                onNavigate?.();
+              }}
               className={cn(
                 "flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left transition-all duration-200",
                 activeTab === item.id
                   ? "bg-green-50 text-green-700 border-l-4 border-green-500"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
               )}
-            >
-              <item.icon className="flex-shrink-0 w-5 h-5" />
-              {!sidebarCollapsed && (
-                <span className="font-medium">{item.label}</span>
-              )}
-            </button>
+              >
+                <item.icon className="flex-shrink-0 w-5 h-5" />
+                {!isCollapsed && (
+                  <span className="font-medium">{item.label}</span>
+                )}
+              </button>
           );
         })}
       </nav>
@@ -109,25 +120,27 @@ export function Sidebar() {
       <div className="p-4 border-gray-200 border-t">
         <div className="flex items-center gap-3 px-3 py-3 w-full text-gray-600">
           <div className="flex-shrink-0 bg-gray-200 rounded-full w-5 h-5"></div>
-          {!sidebarCollapsed && (
+          {!isCollapsed && (
             <span className="font-medium text-gray-500">Settings</span>
           )}
         </div>
       </div>
 
       {/* Collapse Toggle */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="top-20 -right-3 absolute bg-white shadow-sm hover:shadow-md border border-gray-200 rounded-full w-6 h-6"
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-      >
-        {sidebarCollapsed ? (
-          <ChevronRight className="w-3 h-3" />
-        ) : (
-          <ChevronLeft className="w-3 h-3" />
-        )}
-      </Button>
+      {!mobile && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="top-20 -right-3 absolute bg-white shadow-sm hover:shadow-md border border-gray-200 rounded-full w-6 h-6"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="w-3 h-3" />
+          ) : (
+            <ChevronLeft className="w-3 h-3" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }
