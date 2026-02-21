@@ -97,7 +97,6 @@ export function InstallPrompt() {
   const onInstallClick = async () => {
     if (ios) {
       setShowIOSInstructions(true);
-      hidePrompt();
       return;
     }
 
