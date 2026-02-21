@@ -12,13 +12,13 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Energy Rite - Fleet Management Dashboard",
-  description: "Comprehensive fleet management and fuel monitoring system",
-  applicationName: "Energy Rite",
+  title: "Energy Ease - Fuel Management App",
+  description: "Fuel Monitoring System",
+  applicationName: "Energy Ease",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Energy Rite",
+    title: "Energy Ease",
   },
   formatDetection: {
     telephone: false,
