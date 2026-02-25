@@ -63,6 +63,8 @@ export function FuelGauge({
 }: FuelGaugeProps) {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isStatusTooltipOpen, setIsStatusTooltipOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState(anomalyNote || '');
   const [currentClientNote, setCurrentClientNote] = useState(clientNote || '');
   const { user } = useUser();
@@ -118,6 +120,25 @@ export function FuelGauge({
     setCurrentClientNote(clientNote || '');
   }, [anomalyNote, clientNote]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(hover: none), (pointer: coarse)');
+    const updateTouchMode = () => {
+      setIsTouchDevice(mediaQuery.matches || navigator.maxTouchPoints > 0);
+    };
+
+    updateTouchMode();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateTouchMode);
+      return () => mediaQuery.removeEventListener('change', updateTouchMode);
+    }
+
+    mediaQuery.addListener(updateTouchMode);
+    return () => mediaQuery.removeListener(updateTouchMode);
+  }, []);
+
   const handleNoteAdded = (note: string) => {
     setCurrentClientNote(note);
     if (onNoteUpdate && id) {
@@ -169,11 +190,18 @@ export function FuelGauge({
         </div>
         {status && (
           <TooltipProvider>
-            <Tooltip>
+            <Tooltip
+              open={isTouchDevice ? isStatusTooltipOpen : undefined}
+              onOpenChange={isTouchDevice ? setIsStatusTooltipOpen : undefined}
+            >
               <TooltipTrigger asChild>
                 <Badge 
                   variant="outline" 
                   className={cn("font-medium text-xs px-2 py-0.5 cursor-help", getStatusColor(status))}
+                  onClick={() => {
+                    if (!isTouchDevice) return;
+                    setIsStatusTooltipOpen((open) => !open);
+                  }}
                 >
                   {getDisplayStatus(status)}
                 </Badge>
