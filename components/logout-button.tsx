@@ -1,33 +1,32 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ButtonProps } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
 import { useApp } from "@/contexts/AppContext";
 
-let isLoggingOut = false;
-
 export function LogoutButton({ children, ...props }: ButtonProps) {
+  const { signOut } = useUser();
   const { clearAllData } = useApp();
   const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const logout = async () => {
     if (isLoggingOut) return;
-    isLoggingOut = true;
+    setIsLoggingOut(true);
     
     try {
       console.log('🚪 Starting logout process...');
       
-      // Clear app data first
+      // Clear local app state immediately so protected UI disappears.
       clearAllData();
       
-      // Sign out from Supabase
-      const supabase = createClient();
-      await supabase.auth.signOut({ scope: 'global' });
+      // Use the shared auth sign-out flow from context.
+      await signOut();
       
-      // Clear all storage
+      // Clear browser storage in case stale state survives refreshes.
       localStorage.clear();
       sessionStorage.clear();
       
@@ -47,17 +46,17 @@ export function LogoutButton({ children, ...props }: ButtonProps) {
       
       console.log('✅ Logout completed, redirecting...');
       
-      // Force redirect to login
-      window.location.replace('/auth/login');
+      router.replace('/auth/login');
+      router.refresh();
       
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Force redirect even on error
-      window.location.replace('/auth/login');
+      router.replace('/auth/login');
+      router.refresh();
     } finally {
-      isLoggingOut = false;
+      setIsLoggingOut(false);
     }
   };
 
-  return <Button onClick={logout} {...props}>{children || "Logout"}</Button>;
+  return <Button onClick={logout} disabled={isLoggingOut} {...props}>{children || "Logout"}</Button>;
 }

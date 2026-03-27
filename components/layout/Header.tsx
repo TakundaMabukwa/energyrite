@@ -14,15 +14,41 @@ interface HeaderProps {
   onMenuClick?: () => void;
 }
 
+function getTimeBasedGreeting(date = new Date()) {
+  const hour = date.getHours();
+
+  if (hour < 12) {
+    return 'Good morning';
+  }
+
+  if (hour < 18) {
+    return 'Good afternoon';
+  }
+
+  return 'Good evening';
+}
+
 export function Header({ onMenuClick }: HeaderProps) {
-  const { user, signOut } = useUser();
+  const { user } = useUser();
   const { costCenters, selectedRoute, setSelectedRoute } = useApp();
   const { isAdmin, userCostCode } = useUser();
   const [isMounted, setIsMounted] = React.useState(false);
   const [showNotesHistory, setShowNotesHistory] = useState(false);
+  const [greeting, setGreeting] = React.useState('');
   
   React.useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    const updateGreeting = () => {
+      setGreeting(getTimeBasedGreeting());
+    };
+
+    updateGreeting();
+    const intervalId = window.setInterval(updateGreeting, 60000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
   // Memoize cost centers to prevent re-computation on every render
   const energyriteCostCenters = React.useMemo(() => {
@@ -137,7 +163,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           )}
         </div>
         <span className="hidden lg:block text-white/80 text-sm">
-          Good evening, {getUserDisplayName()}
+          {isMounted && greeting ? `${greeting}, ${getUserDisplayName()}` : getUserDisplayName()}
         </span>
         
         {/* <Button 

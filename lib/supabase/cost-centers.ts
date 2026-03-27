@@ -29,8 +29,19 @@ export interface HierarchicalCostCenter {
 
 export class CostCenterService {
   private supabase = createClient();
+  private cachedCostCenters: HierarchicalCostCenter[] | null = null;
+  private inFlightCostCenters: Promise<HierarchicalCostCenter[]> | null = null;
 
   async fetchAllCostCenters(): Promise<HierarchicalCostCenter[]> {
+    if (this.cachedCostCenters) {
+      return this.cachedCostCenters;
+    }
+
+    if (this.inFlightCostCenters) {
+      return this.inFlightCostCenters;
+    }
+
+    this.inFlightCostCenters = (async () => {
     try {
       console.log('🚀 Starting to fetch cost centers from Supabase...');
       console.log('🔧 Environment check:');
@@ -64,6 +75,7 @@ export class CostCenterService {
       console.log('🌳 Final hierarchical structure from Supabase:', hierarchicalData);
       console.log('🌳 Energyrite children:', hierarchicalData[0]?.children);
 
+      this.cachedCostCenters = hierarchicalData;
       return hierarchicalData;
     } catch (error) {
       console.error('❌ Error fetching cost centers from Supabase:', error);
@@ -73,12 +85,20 @@ export class CostCenterService {
       try {
         const apiData = await this.fetchFromEnergyRiteAPI();
         console.log('✅ Successfully fetched data from Energy Rite API:', apiData);
+        this.cachedCostCenters = apiData;
         return apiData;
       } catch (apiError) {
         console.error('❌ Error fetching from Energy Rite API:', apiError);
         console.warn('⚠️ No data available from either Supabase or API');
         return [];
       }
+    }
+    })();
+
+    try {
+      return await this.inFlightCostCenters;
+    } finally {
+      this.inFlightCostCenters = null;
     }
   }
 

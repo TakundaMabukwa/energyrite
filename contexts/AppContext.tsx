@@ -9,6 +9,8 @@ import { getApiUrl } from '@/lib/utils/api-url';
 
 // Transform API response with capitalized keys to lowercase
 function transformVehicleData(vehicle: any): any {
+  const locTime = vehicle.loctime || vehicle.LocTime || null;
+
   return {
     id: vehicle.id,
     plate: vehicle.Plate || vehicle.plate,
@@ -25,8 +27,9 @@ function transformVehicleData(vehicle: any): any {
     fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature,
     fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage,
     volume: vehicle.fuel_probe_1_volume_in_tank || vehicle.volume,
-    last_message_date: vehicle.last_message_date || new Date().toISOString(),
-    updated_at: vehicle.updated_at || new Date().toISOString(),
+    loctime: locTime,
+    last_message_date: locTime,
+    updated_at: vehicle.updated_at || null,
     color_codes: vehicle.color_codes || {},
     client_notes: vehicle.client_notes,
     ...vehicle
@@ -130,6 +133,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAdmin, userCostCode } = useUser();
+  const loadKeyRef = React.useRef<string | null>(null);
+  const inFlightLoadRef = React.useRef<Promise<void> | null>(null);
   
   const [routes, setRoutes] = useState<Route[]>([]);
   const [fuelData, setFuelData] = useState<FuelData[]>([]);
@@ -141,6 +146,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sseConnected, setSseConnected] = useState(false);
   const [lastSseUpdate, setLastSseUpdate] = useState<string | null>(null);
+
+  const fetchDashboardVehicles = async () => {
+    const resp = await fetch(getApiUrl('/api/internal/dashboard-vehicles'));
+
+    if (!resp.ok) {
+      throw new Error(`Dashboard vehicles request failed: ${resp.status}`);
+    }
+
+    const json = await resp.json();
+
+    return Array.isArray(json)
+      ? json.map(transformVehicleData)
+      : (json?.success && Array.isArray(json.data))
+        ? json.data.map(transformVehicleData)
+        : [];
+  };
 
   // Handle URL parameters for navigation
   useEffect(() => {
@@ -269,6 +290,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Clear all data when user logs out
   const clearAllData = () => {
+    loadKeyRef.current = null;
+    inFlightLoadRef.current = null;
     console.log('🧹 Clearing all AppContext data...');
     setRoutes([]);
     setFuelData([]);
@@ -306,7 +329,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             volume: Math.max(0, Number(capacity || 0)),
             remaining: `${Math.max(0, Number(capacity || 0)).toFixed(1)}L / ${Math.max(0, Number(remainingLiters || 0)).toFixed(1)}L`,
             status: vehicle.drivername || 'Unknown',
-            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+            lastUpdated: vehicle.loctime || '',
             lastFuelFill: undefined
           });
         });
@@ -403,7 +426,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             volume: Math.max(0, Number(capacity || 0)),
             remaining: `${Math.max(0, Number(capacity || 0)).toFixed(1)}L / ${Math.max(0, Number(remainingLiters || 0)).toFixed(1)}L`,
             status: vehicle.drivername || 'Unknown',
-            lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+            lastUpdated: vehicle.loctime || '',
             lastFuelFill: undefined // Will be populated below
           });
         });
@@ -463,7 +486,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               volume: Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0)),
               remaining: `${Number(typeof vehicle.volume === 'number' ? vehicle.volume : (vehicle.fuel_probe_1_volume_in_tank ?? vehicle.volume ?? 0))}L`,
               status: vehicle.drivername || 'Unknown',
-              lastUpdated: vehicle.last_message_date || vehicle.updated_at || new Date().toLocaleString(),
+              lastUpdated: vehicle.loctime || '',
               lastFuelFill: undefined // Will be populated below
             }));
 
@@ -517,69 +540,89 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('❌ Error fetching vehicle data for cost center:', error);
-      
-      // Set dummy fuel data when API fails
-      const dummyFuelData: FuelData[] = [
-        {
-          id: 'vehicle-1',
-          location: 'Johannesburg - SPUR THUVL',
-          fuelLevel: 78,
-          temperature: 24,
-          volume: 125.5,
-          remaining: '125.5L',
-          status: 'Active',
-          lastUpdated: new Date().toLocaleString()
-        },
-        {
-          id: 'vehicle-2',
-          location: 'Cape Town - KFC WEST',
-          fuelLevel: 65,
-          temperature: 22,
-          volume: 98.2,
-          remaining: '98.2L',
-          status: 'Active',
-          lastUpdated: new Date().toLocaleString()
-        },
-        {
-          id: 'vehicle-3',
-          location: 'Durban - MUSHROOM',
-          fuelLevel: 82,
-          temperature: 26,
-          volume: 145.8,
-          remaining: '145.8L',
-          status: 'Active',
-          lastUpdated: new Date().toLocaleString()
-        },
-        {
-          id: 'vehicle-4',
-          location: 'Pretoria - SPUR CENTRAL',
-          fuelLevel: 45,
-          temperature: 25,
-          volume: 67.3,
-          remaining: '67.3L',
-          status: 'Low Fuel',
-          lastUpdated: new Date().toLocaleString()
-        },
-        {
-          id: 'vehicle-5',
-          location: 'Port Elizabeth - KFC EAST',
-          fuelLevel: 91,
-          temperature: 23,
-          volume: 156.7,
-          remaining: '156.7L',
-          status: 'Active',
-          lastUpdated: new Date().toLocaleString()
-        }
-      ];
-      
-      setFuelData(dummyFuelData);
-      console.log('🔄 Using dummy fuel data due to API error');
+      setFuelData([]);
+    }
+  };
+
+  const loadDataForUserFast = async () => {
+    const loadKey = user ? `${user.id}:${isAdmin ? 'admin' : 'user'}:${userCostCode || ''}` : 'anonymous';
+
+    if (loadKeyRef.current === loadKey) {
+      return;
+    }
+
+    if (inFlightLoadRef.current) {
+      return inFlightLoadRef.current;
+    }
+
+    const loadPromise = (async () => {
+    try {
+      setLoading(true);
+
+      if (isAdmin) {
+        const [costCentersData, transformedData] = await Promise.all([
+          costCenterService.fetchAllCostCenters(),
+          fetchDashboardVehicles(),
+        ]);
+
+        setCostCenters(costCentersData);
+        setVehicles(transformedData);
+        setLastSseUpdate(new Date().toISOString());
+        return;
+      }
+
+      if (userCostCode) {
+        const [allCostCenters, transformedData] = await Promise.all([
+          costCenterService.fetchAllCostCenters(),
+          fetchDashboardVehicles(),
+        ]);
+
+        const scopedCostCenters = getScopedCostCenters(allCostCenters, userCostCode);
+        const scopedCodes = new Set(
+          scopedCostCenters.map((cc) => cc.costCode).filter((code): code is string => Boolean(code))
+        );
+        const defaultCostCode = scopedCodes.has(userCostCode)
+          ? userCostCode
+          : (scopedCostCenters[0]?.costCode || userCostCode);
+        const defaultCostCenter =
+          scopedCostCenters.find((cc) => cc.costCode === defaultCostCode) || scopedCostCenters[0];
+        const scopedVehicles = transformedData.filter((vehicle: any) => scopedCodes.has(vehicle.cost_code));
+
+        setCostCenters(scopedCostCenters);
+        setVehicles(scopedVehicles);
+        setSelectedRoute({
+          id: defaultCostCenter?.id || defaultCostCode,
+          route: defaultCostCenter?.name || user?.company || 'User Cost Center',
+          locationCode: defaultCostCode,
+          costCode: defaultCostCode
+        });
+        setLastSseUpdate(new Date().toISOString());
+        return;
+      }
+
+      setCostCenters([]);
+      setVehicles([]);
+      setFuelData([]);
+    } catch (error) {
+      console.error('Error loading data for user:', error);
+    } finally {
+      loadKeyRef.current = loadKey;
+      setLoading(false);
+    }
+    })();
+
+    inFlightLoadRef.current = loadPromise;
+
+    try {
+      await loadPromise;
+    } finally {
+      inFlightLoadRef.current = null;
     }
   };
 
   useEffect(() => {
     if (user !== null) { // Only load data when user is loaded (including null for unauthenticated)
-      loadDataForUser();
+      loadDataForUserFast();
     }
   }, [user, isAdmin, userCostCode]);
 
@@ -603,7 +646,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveTab: updateActiveTab,
         setSidebarCollapsed,
         updateFuelDataForCostCenter,
-        loadDataForUser,
+        loadDataForUser: loadDataForUserFast,
         clearAllData,
         loading,
         sseConnected,

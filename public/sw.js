@@ -1,4 +1,4 @@
-const CACHE_NAME = 'energyrite-v2';
+const CACHE_NAME = 'energyrite-v3';
 const STATIC_ASSETS = [
   '/',
   '/auth/login',
@@ -7,6 +7,22 @@ const STATIC_ASSETS = [
   '/icon-192.png',
   '/icon-512.png',
 ];
+
+function isAppShellAsset(url) {
+  return url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/');
+}
+
+function isCacheableStaticAsset(url) {
+  return (
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.webp') ||
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.css')
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -30,8 +46,17 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+
+  if (url.origin !== self.location.origin) return;
+
+  // Never cache Next.js bundles or API responses; stale cached app code causes old UI to linger.
+  if (isAppShellAsset(url)) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -47,6 +72,11 @@ self.addEventListener('fetch', (event) => {
           return caches.match('/auth/login');
         })
     );
+    return;
+  }
+
+  if (!isCacheableStaticAsset(url)) {
+    event.respondWith(fetch(request));
     return;
   }
 

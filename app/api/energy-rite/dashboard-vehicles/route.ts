@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
       fuel_probe_1_temperature: vehicle.fuel_probe_1_temperature,
       fuel_probe_1_level_percentage: vehicle.fuel_probe_1_level_percentage,
       volume: vehicle.fuel_probe_1_volume_in_tank || vehicle.volume,
-      loctime: vehicle.LocTime,
-      last_message_date: vehicle.LocTime || vehicle.last_message_date || new Date().toISOString(),
-      updated_at: vehicle.updated_at || new Date().toISOString(),
+      loctime: vehicle.LocTime || null,
+      last_message_date: vehicle.LocTime || null,
+      updated_at: vehicle.updated_at || null,
       color_codes: vehicle.color_codes || {},
       client_notes: vehicle.client_notes,
     })) : [];
